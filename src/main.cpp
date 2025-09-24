@@ -9,6 +9,15 @@
 #include <chrono>
 
 #include "Application.hpp"
+#include "Shaders.hpp"
+
+void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_Q)
+    {
+        glfwSetWindowShouldClose(window, true);
+    }
+}
 
 template<typename DrawCallback>
 void runEventLoop(Application &app, DrawCallback drawCallback)
@@ -17,6 +26,8 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
     auto lastFpsPrint = steady_clock::now();
     int framesSinceLastPrint = 0;
     std::string fpsString = "? fps";
+
+    glfwSetKeyCallback(app.window, onKeyEvent);
 
     while (!glfwWindowShouldClose(app.window)) {
         glfwPollEvents();
@@ -52,10 +63,11 @@ const char* vertexShaderSource = R"glsl(
 #version 330 core
 
 void main() {
-    const vec2 vertices[3] = vec2[3](
+    const vec2 vertices[4] = vec2[4](
         vec2(-1.0, -1.0),
         vec2(-1.0,  1.0),
-        vec2( 1.0, -1.0)
+        vec2( 1.0, -1.0),
+        vec2( 1.0,  1.0)
     );
     gl_Position = vec4(vertices[gl_VertexID], 0.0, 1.0);
 }
@@ -70,60 +82,6 @@ void main() {
     frag_color = vec4(0.0, 0.0, 1.0, 1.0);
 }
 )glsl";
-
-GLuint compileShader(const char *source, GLenum type)
-{
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    GLint success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        GLsizei infoLogLength = 0;
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLogLength);
-
-        std::vector<char> infoLogArr(infoLogLength);
-        glGetShaderInfoLog(shader, infoLogLength, nullptr, infoLogArr.data());
-        std::string infoLog = infoLogArr.data();
-        
-        std::cerr << "Failed to compile shader:\n" << infoLog << std::endl;
-
-        throw std::runtime_error("Failed to compile shader");
-    }
-
-    return shader;
-}
-
-GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource) {
-    GLuint vertexShader = compileShader(vertexSource, GL_VERTEX_SHADER);
-    GLuint fragmentShader = compileShader(fragmentSource, GL_FRAGMENT_SHADER);
-
-    GLuint program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
-
-    GLint success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        GLsizei infoLogLength = 0;
-        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
-
-        std::vector<char> infoLogArr(infoLogLength);
-        glGetProgramInfoLog(program, infoLogLength, nullptr, infoLogArr.data());
-        std::string infoLog = infoLogArr.data();
-        
-        std::cerr << "Failed to link shader:\n" << infoLog << std::endl;
-
-        throw std::runtime_error("Failed to link shader");
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    return program;
-}
 
 
 int main() {
@@ -145,7 +103,7 @@ int main() {
             
             glBindVertexArray(vao);
             glUseProgram(shader);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     
         });
     
