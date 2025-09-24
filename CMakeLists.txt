@@ -10,6 +10,7 @@ find_package(glew REQUIRED)
 
 add_executable(${PROJECT_NAME}
                src/main.cpp
+               src/Application.cpp
                imgui_backend/imgui_impl_glfw.cpp
                imgui_backend/imgui_impl_opengl3.cpp)
 
