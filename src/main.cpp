@@ -10,6 +10,7 @@
 
 #include "Application.hpp"
 #include "Shaders.hpp"
+#include <cmath>
 
 void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -83,6 +84,41 @@ void main() {
 }
 )glsl";
 
+GLuint createTexture()
+{
+    GLuint texture;
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+
+    glTextureStorage2D(texture, 1, GL_RGBA8, 800, 600);
+
+    return texture;
+}
+
+void setTextureData(GLuint texture)
+{
+    std::vector<uint32_t> pixels(800*600);
+
+    auto packPixel = [](float r, float g, float b, float a) -> uint32_t {
+        return (static_cast<uint32_t>(std::clamp(r, 0.0f, 1.0f) * 255)<<24) | 
+               (static_cast<uint32_t>(std::clamp(g, 0.0f, 1.0f) * 255)<<16) | 
+               (static_cast<uint32_t>(std::clamp(b, 0.0f, 1.0f) * 255)<< 8) | 
+               (static_cast<uint32_t>(std::clamp(a, 0.0f, 1.0f) * 255)<< 0);
+    };
+
+    auto setPixel = [&](int x, int y, float r, float g, float b, float a=1.0f) {
+        pixels[x + y * 600] = packPixel(r,g,b,a);
+    };
+
+    for (int y=0;y<600;++y)
+    for (int x=0;x<800;++x)
+    {
+        float intensityX = std::sin(x / 30.0f * 2 * std::numbers::pi_v<float>)/2 + 0.5;
+        
+        setPixel(x, y, intensityX, intensityX, intensityX);
+    }
+
+    glTextureSubImage2D(texture, 0, 0, 0, 800, 600, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+}
 
 int main() {
     auto app = initApplication();
@@ -95,6 +131,9 @@ int main() {
     
         GLuint vao;
         glGenVertexArrays(1, &vao);
+
+        const auto texture = createTexture();
+        setTextureData(texture);
         
         runEventLoop(app, [&]{
             
