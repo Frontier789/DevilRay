@@ -193,11 +193,16 @@ struct Camera
     }
 };
 
+struct Material
+{
+    Vec4 color;
+};
+
 struct Sphere
 {
     Vec3 center;
     float radius;
-    Vec4 color;
+    Material *mat;
 };
 
 
@@ -206,6 +211,7 @@ struct Intersection
     float t;
     Vec3 p;
     Vec2 uv;
+    Material *mat;
 };
 
 
@@ -247,10 +253,11 @@ std::optional<Intersection> intersect(const Ray &ray, const Sphere &sphere)
         .t = t,
         .p = p,
         .uv = uv,
+        .mat = sphere.mat,
     };
 }
 
-Vec4 sphere_color(const Sphere &sphere, const Intersection &intersection)
+Vec4 calculate_color(const Intersection &intersection)
 {
     const int checker_count = 10;
     const int check_x = int(intersection.uv.x * checker_count) % 2;
@@ -264,7 +271,7 @@ Vec4 sphere_color(const Sphere &sphere, const Intersection &intersection)
         .y = intensity,
         .z = intensity,
         .w = 0,
-    } * sphere.color;
+    } * intersection.mat->color;
 }
 
 
@@ -317,17 +324,27 @@ public:
         spheres = std::move(objs);
     }
 
+    std::optional<Intersection> trace(const Ray &ray)
+    {
+        std::optional<Intersection> best = std::nullopt;
+
+        for (const auto &s : spheres)
+        {
+            const auto intersection = intersect(ray, s);
+
+            if (!intersection.has_value()) continue;
+            
+            if (!best.has_value() || best->t > intersection->t)
+            {
+                best = intersection;
+            }
+        }
+
+        return best;
+    }
+
     void render()
     {
-        const auto sx = std::sin(timer.elapsed_seconds() / 2 * std::numbers::pi_v<float> * 2) * 0.03f;
-        const auto sy = std::cos(timer.elapsed_seconds() / 2 * std::numbers::pi_v<float> * 2) * 0.03f;
-
-        Sphere s{
-            .center = Vec3{sx, sy, 4},
-            .radius = 300e-3,
-            .color = Vec4{0.8,0.9,1.0,0.0},
-        };
-
         for (int y=0;y<resolution.height;++y)
         for (int x=0;x<resolution.width;++x)
         {
@@ -336,10 +353,10 @@ public:
             auto &pix = accumulator[x + y*resolution.width];
             pix.w += 1;
 
-            const auto intersection = intersect(ray, s);
+            const auto intersection = trace(ray);
             if (intersection.has_value())
             {
-                pix = pix + sphere_color(s, *intersection);
+                pix = pix + calculate_color(*intersection);
             }
         }
     }
@@ -393,6 +410,35 @@ Camera createCamera(Size2i resolution)
     return cam;
 }
 
+std::vector<Sphere> createSpheres()
+{
+    static Material blue{
+        .color = Vec4{0.8,0.9,1.0,0.0},
+    };
+
+    std::vector<Sphere> spheres;
+
+    spheres.emplace_back(Sphere{
+        .center = Vec3{0, 0, 4},
+        .radius = 300e-3,
+        .mat = &blue,
+    });
+
+    spheres.emplace_back(Sphere{
+        .center = Vec3{0.3, 0.2, 4},
+        .radius = 100e-3,
+        .mat = &blue,
+    });
+
+    spheres.emplace_back(Sphere{
+        .center = Vec3{-.3, .2, 4},
+        .radius = 100e-3,
+        .mat = &blue,
+    });
+
+    return spheres;
+}
+
 int main() {
     auto app = initApplication();
     
@@ -408,21 +454,12 @@ int main() {
         Renderer renderer(Size2i{800, 600});
 
         renderer.setCamera(createCamera(renderer.getResolution()));
+        renderer.setSpheres(createSpheres());
         renderer.render();
         renderer.upload();
-
-        int cntr = 0;
         
         runEventLoop(app, [&]{
-
-            renderer.render();
             
-            if (cntr % 3 == 0) {
-                renderer.upload();
-                renderer.clear();
-            }
-            ++cntr;
-
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             
