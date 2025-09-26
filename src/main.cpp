@@ -461,10 +461,9 @@ public:
     GLuint tex() const {return texture;}
 };
 
-Camera createCamera(Size2i resolution)
+Camera createCamera(Size2i resolution, const float focal_length)
 {
     const float physical_pixel_size = 3.72e-6 * 4;
-    const float focal_length = 50e-3 * 0.6;
     Camera cam{
         .intrinsics = Intrinsics{
             .focal_length_x = focal_length,
@@ -570,13 +569,22 @@ int main() {
         
         Renderer renderer(Size2i{800, 600});
 
-        renderer.setCamera(createCamera(renderer.getResolution()));
+        float focal_length_mm = 33;
+        bool need_render = true;
+
         renderer.setObjects(createObjects());
-        renderer.render();
-        renderer.upload();
         
         runEventLoop(app, [&]{
             
+            need_render = need_render || ImGui::SliderFloat("Focal length", &focal_length_mm, 15, 75, "%.0f mm");
+            if (need_render)
+            {
+                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
+                renderer.clear();
+                renderer.render();
+                renderer.upload();
+            }
+
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
             
