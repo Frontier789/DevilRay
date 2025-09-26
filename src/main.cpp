@@ -124,6 +124,19 @@ struct Vec3
     Vec3 operator-(const Vec3 &v) const {return Vec3{x-v.x, y-v.y, z-v.z};}
     Vec3 operator+(const Vec3 &v) const {return Vec3{x+v.x, y+v.y, z+v.z};}
     Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
+
+    Vec3 normalized() const {
+        const auto length = std::sqrt(x*x + y*y + z*z);
+        return Vec3{x/length, y/length, z/length};
+    }
+
+    Vec3 cross(const Vec3 &v) const {
+        return Vec3{
+            y * v.z - z * v.y,
+            z * v.x - x * v.z,
+            x * v.y - y * v.x,
+        };
+    }
 };
 
 struct Vec2
@@ -195,7 +208,18 @@ struct Camera
 
 struct Material
 {
-    Vec4 color;
+    Vec4 emission;
+    Vec4 diffuse_reflectance;
+    Vec4 debug_color;
+};
+
+struct Square
+{
+    Vec3 p;
+    Vec3 n;
+    Vec3 right;
+    float size;
+    Material *mat;
 };
 
 struct Sphere
@@ -205,15 +229,56 @@ struct Sphere
     Material *mat;
 };
 
+using Object = std::variant<Square, Sphere>;
 
 struct Intersection
 {
     float t;
     Vec3 p;
     Vec2 uv;
+    Vec3 n;
     Material *mat;
 };
 
+std::optional<Intersection> intersect(const Ray &ray, const Square &square)
+{
+    // <p + v*t - o, n> = 0
+    // <po, n> + <v,n>*t = 0
+
+    
+    const auto vn = dot(ray.v, square.n);
+    if (std::abs(vn) < 1e-9) return std::nullopt;
+    
+    const auto t = -dot(ray.p - square.p, square.n) / vn;
+    
+    // std::cout << ray.p.x << "," << ray.p.y << "," << ray.p.z << " -> "  << ray.v.x << "," << ray.v.y << "," << ray.v.z << " -> t=" << t << std::endl;
+    if (t < 0) return std::nullopt;
+    
+    const auto p = ray.p + ray.v * t;
+    const auto s = square.size / 2;
+
+    const auto dx = dot(square.right, p - square.p);
+    if (std::abs(dx) > s) return std::nullopt;
+    
+    const auto up = square.right.cross(square.n);
+    const auto dy = dot(up, p - square.p);
+    if (std::abs(dy) > s) return std::nullopt;
+
+    const auto uv = Vec2{
+        dx / s / 2 + 0.5f,
+        dy / s / 2 + 0.5f,
+    };
+
+    const auto n = vn < 0 ? square.n : square.n * -1;
+
+    return Intersection{
+        .t = t,
+        .p = p,
+        .uv = uv,
+        .n = n,
+        .mat = square.mat,
+    };
+}
 
 std::optional<Intersection> intersect(const Ray &ray, const Sphere &sphere)
 {
@@ -249,10 +314,14 @@ std::optional<Intersection> intersect(const Ray &ray, const Sphere &sphere)
         .y = std::acos(pl.y / sphere.radius) / std::numbers::pi_v<float>,
     };
 
+    auto n = (p - sphere.center).normalized();
+    if (tmin < 0) n = n * -1;
+
     return Intersection{
         .t = t,
         .p = p,
         .uv = uv,
+        .n = n,
         .mat = sphere.mat,
     };
 }
@@ -271,7 +340,7 @@ Vec4 calculate_color(const Intersection &intersection)
         .y = intensity,
         .z = intensity,
         .w = 0,
-    } * intersection.mat->color;
+    } * intersection.mat->debug_color;
 }
 
 
@@ -299,7 +368,7 @@ class Renderer
     GLuint texture;
 
     Camera camera;
-    std::vector<Sphere> spheres;
+    std::vector<Object> objects;
 
     Timer timer;
 public:
@@ -319,18 +388,18 @@ public:
         camera = std::move(cam);
     }
 
-    void setSpheres(std::vector<Sphere> objs)
+    void setObjects(std::vector<Object> objs)
     {
-        spheres = std::move(objs);
+        objects = std::move(objs);
     }
 
     std::optional<Intersection> trace(const Ray &ray)
     {
         std::optional<Intersection> best = std::nullopt;
 
-        for (const auto &s : spheres)
+        for (const auto &obj : objects)
         {
-            const auto intersection = intersect(ray, s);
+            const auto intersection = std::visit([&](auto&& concrete) {return intersect(ray, concrete);}, obj);
 
             if (!intersection.has_value()) continue;
             
@@ -395,7 +464,7 @@ public:
 Camera createCamera(Size2i resolution)
 {
     const float physical_pixel_size = 3.72e-6 * 4;
-    const float focal_length = 50e-3;
+    const float focal_length = 50e-3 * 0.6;
     Camera cam{
         .intrinsics = Intrinsics{
             .focal_length_x = focal_length,
@@ -410,33 +479,81 @@ Camera createCamera(Size2i resolution)
     return cam;
 }
 
-std::vector<Sphere> createSpheres()
+std::vector<Object> createObjects()
 {
     static Material blue{
-        .color = Vec4{0.8,0.9,1.0,0.0},
+        .emission = Vec4{1.0, 1.0, 1.0},
+        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
+        .debug_color = Vec4{0.7,0.8,1.0,0.0},
     };
 
-    std::vector<Sphere> spheres;
+    std::vector<Object> objects;
 
-    spheres.emplace_back(Sphere{
+    // Avoid GCC false positive warning
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wstringop-overflow"
+
+    objects.emplace_back(Sphere{
         .center = Vec3{0, 0, 4},
         .radius = 300e-3,
         .mat = &blue,
     });
 
-    spheres.emplace_back(Sphere{
+    objects.emplace_back(Sphere{
         .center = Vec3{0.3, 0.2, 4},
         .radius = 100e-3,
         .mat = &blue,
     });
 
-    spheres.emplace_back(Sphere{
+    objects.emplace_back(Sphere{
         .center = Vec3{-.3, .2, 4},
         .radius = 100e-3,
         .mat = &blue,
     });
 
-    return spheres;
+    objects.emplace_back(Square{
+        .p = Vec3{0,0,5},
+        .n = Vec3{0,0,-1},
+        .right = Vec3{1,0,0},
+        .size = 1,
+        .mat = &blue,
+    });
+
+    objects.emplace_back(Square{
+        .p = Vec3{0.5,0,4.5},
+        .n = Vec3{1,0,0},
+        .right = Vec3{0,1,0},
+        .size = 1,
+        .mat = &blue,
+    });
+
+    objects.emplace_back(Square{
+        .p = Vec3{-0.5,0,4.5},
+        .n = Vec3{1,0,0},
+        .right = Vec3{0,1,0},
+        .size = 1,
+        .mat = &blue,
+    });
+
+    objects.emplace_back(Square{
+        .p = Vec3{0,0.5,4.5},
+        .n = Vec3{0,1,0},
+        .right = Vec3{0,0,1},
+        .size = 1,
+        .mat = &blue,
+    });
+
+    objects.emplace_back(Square{
+        .p = Vec3{0,-0.5,4.5},
+        .n = Vec3{0,1,0},
+        .right = Vec3{0,0,1},
+        .size = 1,
+        .mat = &blue,
+    });
+    
+    #pragma GCC diagnostic pop
+
+    return objects;
 }
 
 int main() {
@@ -454,7 +571,7 @@ int main() {
         Renderer renderer(Size2i{800, 600});
 
         renderer.setCamera(createCamera(renderer.getResolution()));
-        renderer.setSpheres(createSpheres());
+        renderer.setObjects(createObjects());
         renderer.render();
         renderer.upload();
         
