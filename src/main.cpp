@@ -7,10 +7,13 @@
 
 #include <iostream>
 #include <chrono>
+#include <cmath>
+#include <random>
+#include <thread>
+#include <mutex>
 
 #include "Application.hpp"
 #include "Shaders.hpp"
-#include <cmath>
 
 void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -113,6 +116,7 @@ struct Vec4
     float w;
     Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
     Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
+    Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
 };
 
 struct Vec3
@@ -166,6 +170,40 @@ struct Ray
     Vec3 p;
     Vec3 v;
 };
+
+std::ostream &operator<<(std::ostream &os, const ColorRGBA8 &color) {
+    os << "(" << static_cast<int>(color.r) << ", " 
+       << static_cast<int>(color.g) << ", " 
+       << static_cast<int>(color.b) << ", " 
+       << static_cast<int>(color.a) << ")";
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Vec4 &vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ", " << vec.w << ")";
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Vec3 &vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Vec2 &vec) {
+    os << "(" << vec.x << ", " << vec.y << ")";
+    return os;
+}
+
+template<typename T>
+std::ostream &operator<<(std::ostream &os, const Size2<T> &size) {
+    os << "(" << size.width << ", " << size.height << ")";
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, const Ray &ray) {
+    os << "Ray(p=" << ray.p << ", v=" << ray.v << ")";
+    return os;
+}
 
 
 struct Intrinsics
@@ -240,19 +278,86 @@ struct Intersection
     Material *mat;
 };
 
-std::optional<Intersection> intersect(const Ray &ray, const Square &square)
+static int id_counter = 0;
+
+struct Random
+{
+    Random() : id{id_counter++}, generator(13), distribution_0_1(0, 1) {}
+
+    float rnd()
+    {
+        return distribution_0_1(generator);
+    }
+
+    Random(const Random &) = delete;
+    Random(Random &&) = default;
+	
+    int get_id() {return id;}
+private:
+    int id;
+    std::mt19937 generator;
+    std::uniform_real_distribution<float> distribution_0_1;
+};
+
+
+struct RandomPool
+{
+	Random borrowRandom();
+	void returnRandom(Random r);
+private:
+    std::vector<Random> m_randoms;
+	std::mutex m_mutex;
+};
+
+Random RandomPool::borrowRandom()
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+
+	if (m_randoms.empty()) m_randoms.push_back(Random{});
+	Random r = std::move(m_randoms.back());
+	m_randoms.pop_back();
+	
+	return r;
+}
+
+void RandomPool::returnRandom(Random r)
+{
+	std::lock_guard<std::mutex> guard(m_mutex);
+	
+	m_randoms.emplace_back(std::move(r));	
+}
+
+RandomPool randomPool;
+
+Vec3 uniformHemisphereSample(const Vec3 &normal, Random &r)
+{
+    const float theta0 = 2 * std::numbers::pi_v<float> * r.rnd();
+    const float theta1 = std::acos(1 - 2 * r.rnd());
+
+    const float x = std::sin(theta1) * std::sin(theta0);
+    const float y = std::sin(theta1) * std::cos(theta0);
+    const float z = std::cos(theta1);
+
+    const auto v = Vec3{x,y,z};
+
+    if (dot(v, normal) < 0) return v*-1;
+    
+    return v;
+}
+
+std::optional<Intersection> getIntersection(const Ray &ray, const Square &square)
 {
     // <p + v*t - o, n> = 0
     // <po, n> + <v,n>*t = 0
 
     
     const auto vn = dot(ray.v, square.n);
-    if (std::abs(vn) < 1e-9) return std::nullopt;
+    if (std::abs(vn) < std::numeric_limits<float>::epsilon()) return std::nullopt;
     
     const auto t = -dot(ray.p - square.p, square.n) / vn;
     
     // std::cout << ray.p.x << "," << ray.p.y << "," << ray.p.z << " -> "  << ray.v.x << "," << ray.v.y << "," << ray.v.z << " -> t=" << t << std::endl;
-    if (t < 0) return std::nullopt;
+    if (t < std::numeric_limits<float>::epsilon()) return std::nullopt;
     
     const auto p = ray.p + ray.v * t;
     const auto s = square.size / 2;
@@ -280,7 +385,7 @@ std::optional<Intersection> intersect(const Ray &ray, const Square &square)
     };
 }
 
-std::optional<Intersection> intersect(const Ray &ray, const Sphere &sphere)
+std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere)
 {
     // |p + v*t - o| = r
     // <po + v*t, po + v*t> = r^2
@@ -360,6 +465,30 @@ public:
 };
 
 
+template <typename F>
+void parallel_for(int range, const F &func) {
+    // auto num_threads = std::thread::hardware_concurrency();
+    auto num_threads = 20;
+    if (num_threads == 0) num_threads = 1;
+    
+    int chunk_size = (range + num_threads - 1) / num_threads;
+
+    std::vector<std::jthread> threads;
+
+    for (int t = 0; t < num_threads; ++t) {
+        int start = t * chunk_size;
+        int end = std::min(start + chunk_size, range);
+        
+        threads.emplace_back([start, end, &func]{
+            for (int i = start; i < end; ++i) {
+                func(i);
+            }
+        });
+    }
+}
+
+
+
 class Renderer
 {
     std::vector<Vec4> accumulator;
@@ -399,9 +528,12 @@ public:
 
         for (const auto &obj : objects)
         {
-            const auto intersection = std::visit([&](auto&& concrete) {return intersect(ray, concrete);}, obj);
+            const auto intersection = std::visit([&](auto&& concrete) {return getIntersection(ray, concrete);}, obj);
 
             if (!intersection.has_value()) continue;
+
+            // TRICK: avoid hitting the object the ray is leaving
+            if (intersection->t < 1e-5) continue;
             
             if (!best.has_value() || best->t > intersection->t)
             {
@@ -414,20 +546,70 @@ public:
 
     void render()
     {
-        for (int y=0;y<resolution.height;++y)
-        for (int x=0;x<resolution.width;++x)
-        {
-            const auto ray = camera.sampleRay(x, y);
+        Timer timer;
 
+        // for (int y=0;y<resolution.height;++y) {
+        parallel_for(resolution.height, [&](int y){
+        
+	Random random = randomPool.borrowRandom();
+	//std::cout << "Got random id " << random.get_id() << std::endl;
+
+	for (int x=0;x<resolution.width;++x) // for (int iterations=0;iterations<10;++iterations)
+        {
             auto &pix = accumulator[x + y*resolution.width];
             pix.w += 1;
+            
 
-            const auto intersection = trace(ray);
-            if (intersection.has_value())
+            auto ray = camera.sampleRay(x, y);
+            Vec4 total_transmission{1,1,1,0};
+            
+            for (int depth=0;depth<10;++depth)
             {
-                pix = pix + calculate_color(*intersection);
+                const auto intersection = trace(ray);
+                // if (x == resolution.width/3 && y == resolution.height/3) {
+                //     std::cout << "intersected with object at " << intersection->p << " t=" << intersection->t << std::endl;
+                // }
+                if (!intersection.has_value()) break;
+
+                // if (dot(intersection->n, ray.v) > 0) {
+                //     std::cout << "Hit something from the back?" << std::endl;
+                //     pix.x += 10000;
+                // }
+
+                if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
+                    std::cout << "Self intersection!" << std::endl;
+                    std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
+                    pix.x += 10000;
+                }
+
+                const auto &material = *intersection->mat;
+
+                pix = pix + material.emission * total_transmission;
+                
+                const auto new_v = uniformHemisphereSample(intersection->n, random);
+
+                const auto weakening_factor = dot(intersection->n, new_v);
+                total_transmission = total_transmission * weakening_factor * material.diffuse_reflectance;
+
+                ray = Ray{
+                    .p = intersection->p,
+                    .v = new_v
+                };
+
+                // if (x == resolution.width/3 && y == resolution.height/3) {
+                //     std::cout << "n=" << intersection->n << " -> new_ray=" << ray << std::endl;
+                // }
             }
+
+            // if (x == resolution.width/3 && y == resolution.height/3) {
+            //     std::cout << "Done tracing this pixel" << std::endl;
+            // }
         }
+	randomPool.returnRandom(std::move(random));
+	}
+        );
+
+        std::cout << "One render took " << timer.elapsed_seconds()*1000 << "ms" << std::endl;
     }
 
     void clear()
@@ -452,7 +634,10 @@ public:
         for (int x=0;x<resolution.width;++x)
         {
             const auto pix = accumulator[x + y*resolution.width];
-            setPixel(x, y, pix.x / pix.w, pix.y / pix.w, pix.z / pix.w);
+            if (pix.w == 0)
+                setPixel(x, y, 0,0,0);
+            else 
+                setPixel(x, y, pix.x / pix.w, pix.y / pix.w, pix.z / pix.w);
         }
         
         glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
@@ -480,9 +665,15 @@ Camera createCamera(Size2i resolution, const float focal_length)
 
 std::vector<Object> createObjects()
 {
-    static Material blue{
-        .emission = Vec4{1.0, 1.0, 1.0},
+    static Material light{
+        .emission = Vec4{3,3,3},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
+        .debug_color = Vec4{0.9,0.3,0.4,0.0},
+    };
+    
+    static Material blue{
+        .emission = Vec4{0, 0, 0},
+        .diffuse_reflectance = Vec4{0.9,0.9,1.0,0.0},
         .debug_color = Vec4{0.7,0.8,1.0,0.0},
     };
 
@@ -491,7 +682,7 @@ std::vector<Object> createObjects()
     // Avoid GCC false positive warning
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wstringop-overflow"
-
+/*
     objects.emplace_back(Sphere{
         .center = Vec3{0, 0, 4},
         .radius = 300e-3,
@@ -509,7 +700,7 @@ std::vector<Object> createObjects()
         .radius = 100e-3,
         .mat = &blue,
     });
-
+*/
     objects.emplace_back(Square{
         .p = Vec3{0,0,5},
         .n = Vec3{0,0,-1},
@@ -531,7 +722,7 @@ std::vector<Object> createObjects()
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
-        .mat = &blue,
+        .mat = &light,
     });
 
     objects.emplace_back(Square{
@@ -576,14 +767,20 @@ int main() {
         
         runEventLoop(app, [&]{
             
-            need_render = need_render || ImGui::SliderFloat("Focal length", &focal_length_mm, 15, 75, "%.0f mm");
+            if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.0f mm")) {
+                need_render = true;
+            }
+
             if (need_render)
             {
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
                 renderer.clear();
-                renderer.render();
-                renderer.upload();
+
+                need_render = false;
             }
+
+            renderer.render();
+            renderer.upload();
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
