@@ -658,8 +658,13 @@ Camera createCamera(Size2i resolution, const float focal_length)
 
 std::vector<Object> createObjects()
 {
-    static Material light{
+    static Material light3{
         .emission = Vec4{3,3,3},
+        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
+        .debug_color = Vec4{0.9,0.3,0.4,0.0},
+    };
+    static Material light_bright{
+        .emission = Vec4{100,100,100},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
     };
@@ -680,6 +685,12 @@ std::vector<Object> createObjects()
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.9,0.9,1.0,0.0},
         .debug_color = Vec4{0.7,0.8,1.0,0.0},
+    };
+    
+    static Material white{
+        .emission = Vec4{0, 0, 0},
+        .diffuse_reflectance = Vec4{1.0,0.97,0.92,0.0},
+        .debug_color = Vec4{0.9,0.9,0.9,0.0},
     };
 
     std::vector<Object> objects;
@@ -711,7 +722,7 @@ std::vector<Object> createObjects()
         .n = Vec3{0,0,-1},
         .right = Vec3{1,0,0},
         .size = 1,
-        .mat = &blue,
+        .mat = &white,
     });
 
     objects.emplace_back(Square{
@@ -735,7 +746,7 @@ std::vector<Object> createObjects()
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &red,
+        .mat = &white,
     });
 
     objects.emplace_back(Square{
@@ -743,7 +754,15 @@ std::vector<Object> createObjects()
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &light,
+        .mat = &white,
+    });
+
+    objects.emplace_back(Square{
+        .p = Vec3{0,0.499,4.5},
+        .n = Vec3{0,1,0},
+        .right = Vec3{0,0,1},
+        .size = 0.2,
+        .mat = &light_bright,
     });
     
     #pragma GCC diagnostic pop
