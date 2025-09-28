@@ -487,6 +487,20 @@ void parallel_for(int range, const F &func) {
 }
 
 
+Vec4 checkerPattern(
+    const Vec2 &uv, 
+    const int checker_count, 
+    const Vec4 dark=Vec4{0.5,0.5,0.5,0}, 
+    const Vec4 bright=Vec4{0.8,0.8,0.8,0}
+){
+    const auto checker_x = int(uv.x * checker_count) % 2;
+    const auto checker_y = int(uv.y * checker_count) % 2;
+
+    const float checker = checker_x ^ checker_y;
+
+    return bright * checker + dark * (1-checker);
+}
+
 
 class Renderer
 {
@@ -494,6 +508,7 @@ class Renderer
     std::vector<uint32_t> pixels;
     Size2i resolution;
     GLuint texture;
+    bool debug;
 
     Camera camera;
     std::vector<Object> objects;
@@ -510,6 +525,11 @@ public:
     }
 
     Size2i getResolution() const {return resolution;}
+
+    void setDebug(bool dbg)
+    {
+        debug = dbg;
+    }
 
     void setCamera(Camera cam)
     {
@@ -553,6 +573,8 @@ public:
         Random random = randomPool.borrowRandom();
         //std::cout << "Got random id " << random.get_id() << std::endl;
 
+        const int max_depth = debug ? 1 : 10;
+
         for (int x=0;x<resolution.width;++x) // for (int iterations=0;iterations<10;++iterations)
         {
             auto &pix = accumulator[x + y*resolution.width];
@@ -562,7 +584,7 @@ public:
             auto ray = camera.sampleRay(x, y);
             Vec4 total_transmission{1,1,1,0};
             
-            for (int depth=0;depth<10;++depth)
+            for (int depth=0;depth<max_depth;++depth)
             {
                 const auto intersection = trace(ray);
                 // if (x == resolution.width/3 && y == resolution.height/3) {
@@ -582,8 +604,15 @@ public:
                 // }
 
                 const auto &material = *intersection->mat;
-
-                pix = pix + material.emission * total_transmission;
+                
+                if (debug)
+                {
+                    pix = pix + material.debug_color * checkerPattern(intersection->uv, 8);
+                }
+                else
+                {
+                    pix = pix + material.emission * total_transmission;
+                }
                 
                 const auto new_v = uniformHemisphereSample(intersection->n, random);
 
@@ -785,22 +814,22 @@ int main() {
         Renderer renderer(Size2i{800, 600});
 
         float focal_length_mm = 33;
-        bool need_render = true;
+        bool debug = false;
 
         renderer.setObjects(createObjects());
+        renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
         
         runEventLoop(app, [&]{
             
             if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.0f mm")) {
-                need_render = true;
-            }
-
-            if (need_render)
-            {
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
                 renderer.clear();
+            }
 
-                need_render = false;
+            if (ImGui::Checkbox("Debug", &debug))
+            {
+                renderer.clear();
+                renderer.setDebug(debug);
             }
 
             renderer.render();
