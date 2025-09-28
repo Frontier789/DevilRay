@@ -467,8 +467,7 @@ public:
 
 template <typename F>
 void parallel_for(int range, const F &func) {
-    // auto num_threads = std::thread::hardware_concurrency();
-    auto num_threads = 20;
+    auto num_threads = std::thread::hardware_concurrency();
     if (num_threads == 0) num_threads = 1;
     
     int chunk_size = (range + num_threads - 1) / num_threads;
@@ -533,7 +532,7 @@ public:
             if (!intersection.has_value()) continue;
 
             // TRICK: avoid hitting the object the ray is leaving
-            if (intersection->t < 1e-5) continue;
+            // if (intersection->t < 1e-6) continue;
             
             if (!best.has_value() || best->t > intersection->t)
             {
@@ -551,10 +550,10 @@ public:
         // for (int y=0;y<resolution.height;++y) {
         parallel_for(resolution.height, [&](int y){
         
-	Random random = randomPool.borrowRandom();
-	//std::cout << "Got random id " << random.get_id() << std::endl;
+        Random random = randomPool.borrowRandom();
+        //std::cout << "Got random id " << random.get_id() << std::endl;
 
-	for (int x=0;x<resolution.width;++x) // for (int iterations=0;iterations<10;++iterations)
+        for (int x=0;x<resolution.width;++x) // for (int iterations=0;iterations<10;++iterations)
         {
             auto &pix = accumulator[x + y*resolution.width];
             pix.w += 1;
@@ -571,16 +570,16 @@ public:
                 // }
                 if (!intersection.has_value()) break;
 
-                // if (dot(intersection->n, ray.v) > 0) {
-                //     std::cout << "Hit something from the back?" << std::endl;
+                if (dot(intersection->n, ray.v) > 0) {
+                    // std::cout << "Hit something from the back?" << std::endl;
+                    pix.y += 10000;
+                }
+
+                // if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
+                //     std::cout << "Self intersection!" << std::endl;
+                //     std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
                 //     pix.x += 10000;
                 // }
-
-                if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-                    std::cout << "Self intersection!" << std::endl;
-                    std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
-                    pix.x += 10000;
-                }
 
                 const auto &material = *intersection->mat;
 
@@ -590,20 +589,14 @@ public:
 
                 const auto weakening_factor = dot(intersection->n, new_v);
                 total_transmission = total_transmission * weakening_factor * material.diffuse_reflectance;
-
+                
                 ray = Ray{
                     .p = intersection->p,
                     .v = new_v
                 };
 
-                // if (x == resolution.width/3 && y == resolution.height/3) {
-                //     std::cout << "n=" << intersection->n << " -> new_ray=" << ray << std::endl;
-                // }
+                ray.p = ray.p + intersection->n * 1e-4;
             }
-
-            // if (x == resolution.width/3 && y == resolution.height/3) {
-            //     std::cout << "Done tracing this pixel" << std::endl;
-            // }
         }
 	randomPool.returnRandom(std::move(random));
 	}
@@ -671,6 +664,18 @@ std::vector<Object> createObjects()
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
     };
     
+    static Material red{
+        .emission = Vec4{0, 0, 0},
+        .diffuse_reflectance = Vec4{1.0,0.8,0.8,0.0},
+        .debug_color = Vec4{1.0,0.8,0.7,0.0},
+    };
+    
+    static Material green{
+        .emission = Vec4{0, 0, 0},
+        .diffuse_reflectance = Vec4{0.8,1.0,0.8,0.0},
+        .debug_color = Vec4{0.7,1.0,0.8,0.0},
+    };
+    
     static Material blue{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.9,0.9,1.0,0.0},
@@ -714,7 +719,7 @@ std::vector<Object> createObjects()
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
-        .mat = &blue,
+        .mat = &red,
     });
 
     objects.emplace_back(Square{
@@ -722,7 +727,7 @@ std::vector<Object> createObjects()
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
-        .mat = &light,
+        .mat = &green,
     });
 
     objects.emplace_back(Square{
@@ -730,7 +735,7 @@ std::vector<Object> createObjects()
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &blue,
+        .mat = &red,
     });
 
     objects.emplace_back(Square{
@@ -738,7 +743,7 @@ std::vector<Object> createObjects()
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &blue,
+        .mat = &light,
     });
     
     #pragma GCC diagnostic pop
