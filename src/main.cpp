@@ -266,7 +266,7 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere
     };
 
     auto n = (p - sphere.center).normalized();
-    // if (c < -1e-4) n = n * -1;
+    if (c < -1e-8) n = n * -1;
 
     return Intersection{
         .t = t,
@@ -364,8 +364,10 @@ public:
                 // }
                 if (!intersection.has_value()) break;
 
-                if (dot(intersection->n, ray.v) > 0) {
+                if (dot(intersection->n, ray.v) > 1e-5) {
                     std::cout << "Hit something from the back?" << std::endl;
+                    std::cout << "\tDistance to ball: " << std::sqrt(dot(intersection->p - Vec3(0,0,4.5), intersection->p - Vec3(0,0,4.5))) << std::endl;
+                    std::cout << "\tDot is " << dot(intersection->n, ray.v) << std::endl;
                     std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
                     pix.y += 10000;
                 }
@@ -572,17 +574,17 @@ std::vector<Object> createObjects()
         .mat = &light_mid,
     });
 
-    // objects.emplace_back(Sphere{
-    //     .center = Vec3{0.3, -0.4, 4.5},
-    //     .radius = 100e-3,
-    //     .mat = &blue,
-    // });
+    objects.emplace_back(Sphere{
+        .center = Vec3{0.3, -0.4, 4.5},
+        .radius = 100e-3,
+        .mat = &blue,
+    });
 
-    // objects.emplace_back(Sphere{
-    //     .center = Vec3{-0.25, -0.3, 4.3},
-    //     .radius = 200e-3,
-    //     .mat = &red,
-    // });
+    objects.emplace_back(Sphere{
+        .center = Vec3{-0.25, -0.3, 4.3},
+        .radius = 200e-3,
+        .mat = &red,
+    });
     
     #pragma GCC diagnostic pop
 
