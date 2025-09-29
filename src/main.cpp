@@ -245,8 +245,10 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere
     if (D < 0) return std::nullopt;
 
     const auto d = std::sqrt(D);
-    const auto t1 = (-b - d) / (2*a);
-    const auto t2 = (-b + d) / (2*a);
+
+    const float q = -0.5f * ((b > 0) ? (b + d) : (b - d));
+    const float t1 = q / a;
+    const float t2 = c / q;
 
     const auto tmin = std::min(t1, t2);
     const auto tmax = std::max(t1, t2);
@@ -264,7 +266,7 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere
     };
 
     auto n = (p - sphere.center).normalized();
-    if (tmin < 0) n = n * -1;
+    // if (c < -1e-4) n = n * -1;
 
     return Intersection{
         .t = t,
@@ -326,9 +328,6 @@ public:
             const auto intersection = std::visit([&](auto&& concrete) {return getIntersection(ray, concrete);}, obj);
 
             if (!intersection.has_value()) continue;
-
-            // TRICK: avoid hitting the object the ray is leaving
-            // if (intersection->t < 1e-6) continue;
             
             if (!best.has_value() || best->t > intersection->t)
             {
@@ -341,7 +340,6 @@ public:
 
     void render()
     {
-        // for (int y=0;y<resolution.height;++y) {
         parallel_for(resolution.height, [&](int y){
         
         Random random = RandomPool::singleton().borrowRandom();
@@ -349,7 +347,7 @@ public:
 
         const int max_depth = debug ? 1 : 10;
 
-        for (int x=0;x<resolution.width;++x) // for (int iterations=0;iterations<10;++iterations)
+        for (int x=0;x<resolution.width;++x) for (int iterations=0;iterations<10;++iterations)
         {
             auto &pix = accumulator[x + y*resolution.width];
             pix.w += 1;
@@ -366,16 +364,19 @@ public:
                 // }
                 if (!intersection.has_value()) break;
 
-                // if (dot(intersection->n, ray.v) > 0) {
-                //     // std::cout << "Hit something from the back?" << std::endl;
-                //     pix.y += 10000;
-                // }
+                if (dot(intersection->n, ray.v) > 0) {
+                    std::cout << "Hit something from the back?" << std::endl;
+                    std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
+                    pix.y += 10000;
+                }
 
-                // if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-                //     // std::cout << "Self intersection!" << std::endl;
-                //     // std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
-                //     pix.x += 10000;
-                // }
+                if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
+                    ray.p = ray.p + intersection->n * 1e-6;
+                    continue;
+                    // std::cout << "Self intersection!" << std::endl;
+                    // std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
+                    // pix.x += 10000;
+                }
 
                 const auto &material = *intersection->mat;
                 
@@ -461,6 +462,11 @@ std::vector<Object> createObjects()
 {
     static Material light3{
         .emission = Vec4{3,3,3},
+        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
+        .debug_color = Vec4{0.9,0.3,0.4,0.0},
+    };
+    static Material light_mid{
+        .emission = Vec4{10,10,10},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
     };
@@ -562,21 +568,21 @@ std::vector<Object> createObjects()
         .p = Vec3{0,0.499,4.5},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
-        .size = 0.2,
-        .mat = &light_bright,
+        .size = 0.5,
+        .mat = &light_mid,
     });
 
-    objects.emplace_back(Sphere{
-        .center = Vec3{0.3, -0.4, 4.5},
-        .radius = 100e-3,
-        .mat = &blue,
-    });
+    // objects.emplace_back(Sphere{
+    //     .center = Vec3{0.3, -0.4, 4.5},
+    //     .radius = 100e-3,
+    //     .mat = &blue,
+    // });
 
-    objects.emplace_back(Sphere{
-        .center = Vec3{-0.25, -0.3, 4.3},
-        .radius = 200e-3,
-        .mat = &red,
-    });
+    // objects.emplace_back(Sphere{
+    //     .center = Vec3{-0.25, -0.3, 4.3},
+    //     .radius = 200e-3,
+    //     .mat = &red,
+    // });
     
     #pragma GCC diagnostic pop
 
@@ -595,10 +601,10 @@ int main() {
         GLuint vao;
         glGenVertexArrays(1, &vao);
         
-        Renderer renderer(Size2i{800, 600});
+        Renderer renderer(Size2i{200, 150});
 
-        float focal_length_mm = 33;
-        bool debug = true;
+        float focal_length_mm = 8;
+        bool debug = false;
 
         renderer.setObjects(createObjects());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
