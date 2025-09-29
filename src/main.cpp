@@ -16,6 +16,19 @@
 #include "Shaders.hpp"
 #include "Utils.hpp"
 
+/*
+    PLAN
+     - add cuda support
+        - also keep supporting cpu
+     - bidirectional path tracing
+        - need to be able to sample light sources
+     - importance sampling
+        - report and use pdf
+     - metropolis
+     - keep track of variance
+        - add option to show it
+*/
+
 void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
     if (key == GLFW_KEY_Q)
