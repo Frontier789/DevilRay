@@ -277,7 +277,10 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere
     };
 }
 
-
+struct RenderStats
+{
+    std::atomic<int64_t> total_casts;
+};
 
 
 class Renderer
@@ -287,6 +290,8 @@ class Renderer
     Size2i resolution;
     GLuint texture;
     bool debug;
+
+    RenderStats stats;
 
     Camera camera;
     std::vector<Object> objects;
@@ -298,9 +303,12 @@ public:
         : accumulator(resolution.width * resolution.height, Vec4{0,0,0,0})
         , pixels(resolution.width * resolution.height)
         , resolution(resolution)
+        , stats(RenderStats{0})
     {
         texture = createTexture(resolution);
     }
+
+    const RenderStats &getStats() const {return stats;}
 
     Size2i getResolution() const {return resolution;}
 
@@ -319,7 +327,7 @@ public:
         objects = std::move(objs);
     }
 
-    std::optional<Intersection> trace(const Ray &ray)
+    std::optional<Intersection> cast(const Ray &ray)
     {
         std::optional<Intersection> best = std::nullopt;
 
@@ -345,7 +353,9 @@ public:
         Random random = RandomPool::singleton().borrowRandom();
         //std::cout << "Got random id " << random.get_id() << std::endl;
 
-        const int max_depth = debug ? 1 : 10;
+        const int max_depth = debug ? 1 : 5;
+
+        int ray_casts = 0;
 
         for (int x=0;x<resolution.width;++x) for (int iterations=0;iterations<10;++iterations)
         {
@@ -358,7 +368,9 @@ public:
             
             for (int depth=0;depth<max_depth;++depth)
             {
-                const auto intersection = trace(ray);
+                const auto intersection = cast(ray);
+                ++ray_casts;
+
                 // if (x == resolution.width/3 && y == resolution.height/3) {
                 //     std::cout << "intersected with object at " << intersection->p << " t=" << intersection->t << std::endl;
                 // }
@@ -405,6 +417,7 @@ public:
             }
         }
 	    RandomPool::singleton().returnRandom(std::move(random));
+        stats.total_casts += ray_casts;
 
 	    });
     }
@@ -509,25 +522,25 @@ std::vector<Object> createObjects()
     #pragma GCC diagnostic ignored "-Wstringop-overflow"
 /*
     objects.emplace_back(Sphere{
-        .center = Vec3{0, 0, 4},
+        .center = Vec3{0, 0, 2},
         .radius = 300e-3,
         .mat = &blue,
     });
 
     objects.emplace_back(Sphere{
-        .center = Vec3{0.3, 0.2, 4},
+        .center = Vec3{0.3, 0.2, 2},
         .radius = 100e-3,
         .mat = &blue,
     });
 
     objects.emplace_back(Sphere{
-        .center = Vec3{-.3, .2, 4},
+        .center = Vec3{-.3, .2, 2},
         .radius = 100e-3,
         .mat = &blue,
     });
 */
     objects.emplace_back(Square{
-        .p = Vec3{0,0,5},
+        .p = Vec3{0,0,2.5},
         .n = Vec3{0,0,-1},
         .right = Vec3{1,0,0},
         .size = 1,
@@ -535,7 +548,7 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Square{
-        .p = Vec3{0.5,0,4.5},
+        .p = Vec3{0.5,0,2},
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
@@ -543,7 +556,7 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Square{
-        .p = Vec3{-0.5,0,4.5},
+        .p = Vec3{-0.5,0,2},
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
@@ -551,7 +564,7 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Square{
-        .p = Vec3{0,0.5,4.5},
+        .p = Vec3{0,0.5,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
@@ -559,7 +572,7 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Square{
-        .p = Vec3{0,-0.5,4.5},
+        .p = Vec3{0,-0.5,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
@@ -567,7 +580,7 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Square{
-        .p = Vec3{0,0.499,4.5},
+        .p = Vec3{0,0.499,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 0.5,
@@ -575,13 +588,13 @@ std::vector<Object> createObjects()
     });
 
     objects.emplace_back(Sphere{
-        .center = Vec3{0.3, -0.4, 4.5},
+        .center = Vec3{0.3, -0.4, 2},
         .radius = 100e-3,
         .mat = &blue,
     });
 
     objects.emplace_back(Sphere{
-        .center = Vec3{-0.25, -0.3, 4.3},
+        .center = Vec3{-0.25, -0.3, 1.8},
         .radius = 200e-3,
         .mat = &red,
     });
@@ -603,9 +616,9 @@ int main() {
         GLuint vao;
         glGenVertexArrays(1, &vao);
         
-        Renderer renderer(Size2i{200, 150});
+        Renderer renderer(Size2i{800, 600});
 
-        float focal_length_mm = 8;
+        float focal_length_mm = 12;
         bool debug = false;
 
         renderer.setObjects(createObjects());
@@ -614,7 +627,7 @@ int main() {
         
         runEventLoop(app, [&]{
             
-            if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.0f mm")) {
+            if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.1f mm")) {
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
                 renderer.clear();
             }
@@ -630,6 +643,7 @@ int main() {
             const auto elapsed_ms = t.elapsed_seconds() * 1000;
 
             ImGui::Text("Render pass: %.0fms", elapsed_ms);
+            ImGui::Text("Total ray casts: %ldM", renderer.getStats().total_casts.load() / 1000'000);
             renderer.upload();
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
