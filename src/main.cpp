@@ -616,7 +616,11 @@ std::vector<Object> createObjects()
     return objects;
 }
 
+void test_f();
+
 int main() {
+    test_f();
+
     const auto resolution = Resolutions::vga();
     const auto render_scale = 1;
 

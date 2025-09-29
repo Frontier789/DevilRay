@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.23)
-project(devil_ray)
+cmake_minimum_required(VERSION 3.25.2)
+project(devil_ray LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_STANDARD 20)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
@@ -13,8 +15,11 @@ add_executable(${PROJECT_NAME}
                src/Application.cpp
                src/Shaders.cpp
                src/Utils.cpp
+               src/cuda/test.cu
                imgui_backend/imgui_impl_glfw.cpp
                imgui_backend/imgui_impl_opengl3.cpp)
+
+set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES 89)
 
 target_link_libraries(${PROJECT_NAME}
     glfw
