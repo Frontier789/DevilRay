@@ -135,10 +135,19 @@ struct Size2
 {
     T width;
     T height;
+
+    Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
 };
 
 using Size2i = Size2<int>;
 using Size2f = Size2<float>;
+
+namespace Resolutions
+{
+    inline Size2i vga() {return Size2i{640, 480};}
+    inline Size2i hd() {return Size2i{1280, 720};}
+    inline Size2i fhd() {return Size2i{1920, 1280};}
+}
 
 struct Ray
 {

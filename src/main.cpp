@@ -381,7 +381,7 @@ public:
                     std::cout << "\tDistance to ball: " << std::sqrt(dot(intersection->p - Vec3(0,0,4.5), intersection->p - Vec3(0,0,4.5))) << std::endl;
                     std::cout << "\tDot is " << dot(intersection->n, ray.v) << std::endl;
                     std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
-                    pix.y += 10000;
+                    // pix.y += 10000;
                 }
 
                 if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
@@ -456,9 +456,8 @@ public:
     GLuint tex() const {return texture;}
 };
 
-Camera createCamera(Size2i resolution, const float focal_length)
+Camera createCamera(Size2i resolution, const float focal_length, const float physical_pixel_size)
 {
-    const float physical_pixel_size = 3.72e-6 * 4;
     Camera cam{
         .intrinsics = Intrinsics{
             .focal_length_x = focal_length,
@@ -605,7 +604,10 @@ std::vector<Object> createObjects()
 }
 
 int main() {
-    auto app = initApplication();
+    const auto resolution = Resolutions::vga();
+    const auto render_scale = 1;
+
+    auto app = initApplication(resolution);
     
     try
     {
@@ -616,19 +618,19 @@ int main() {
         GLuint vao;
         glGenVertexArrays(1, &vao);
         
-        Renderer renderer(Size2i{800, 600});
+        Renderer renderer(resolution / render_scale);
 
-        float focal_length_mm = 12;
+        float focal_length_mm = 10.6f;
         bool debug = false;
 
         renderer.setObjects(createObjects());
-        renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
+        renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
         
         runEventLoop(app, [&]{
             
             if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.1f mm")) {
-                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
+                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
                 renderer.clear();
             }
 

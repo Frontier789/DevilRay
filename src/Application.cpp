@@ -9,6 +9,7 @@
 #include <chrono>
 
 #include "Application.hpp"
+#include "Utils.hpp"
 
 void glfwErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;
@@ -77,12 +78,12 @@ void initIMGUI(GLFWwindow *window)
     ImGui_ImplOpenGL3_Init("#version 330");
 }
 
-Application initApplication()
+Application initApplication(Size2i resolution)
 {
     initGLFW();
     setGLVersion();
 
-    GLFWwindow *window = glfwCreateWindow(800, 600, "DevilRay", nullptr, nullptr);
+    GLFWwindow *window = glfwCreateWindow(resolution.width, resolution.height, "DevilRay", nullptr, nullptr);
     if (!window) {
         std::cerr << "Failed to create GLFW window!" << std::endl;
         glfwTerminate();
