@@ -508,7 +508,7 @@ class Renderer
     std::vector<uint32_t> pixels;
     Size2i resolution;
     GLuint texture;
-    bool debug;
+    bool debug{true};
 
     Camera camera;
     std::vector<Object> objects;
@@ -565,8 +565,6 @@ public:
 
     void render()
     {
-        Timer timer;
-
         // for (int y=0;y<resolution.height;++y) {
         parallel_for(resolution.height, [&](int y){
         
@@ -592,14 +590,14 @@ public:
                 // }
                 if (!intersection.has_value()) break;
 
-                if (dot(intersection->n, ray.v) > 0) {
-                    // std::cout << "Hit something from the back?" << std::endl;
-                    pix.y += 10000;
-                }
+                // if (dot(intersection->n, ray.v) > 0) {
+                //     // std::cout << "Hit something from the back?" << std::endl;
+                //     pix.y += 10000;
+                // }
 
                 // if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-                //     std::cout << "Self intersection!" << std::endl;
-                //     std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
+                //     // std::cout << "Self intersection!" << std::endl;
+                //     // std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
                 //     pix.x += 10000;
                 // }
 
@@ -630,8 +628,6 @@ public:
 	randomPool.returnRandom(std::move(random));
 	}
         );
-
-        std::cout << "One render took " << timer.elapsed_seconds()*1000 << "ms" << std::endl;
     }
 
     void clear()
@@ -793,6 +789,18 @@ std::vector<Object> createObjects()
         .size = 0.2,
         .mat = &light_bright,
     });
+
+    objects.emplace_back(Sphere{
+        .center = Vec3{0.3, -0.4, 4.5},
+        .radius = 100e-3,
+        .mat = &blue,
+    });
+
+    objects.emplace_back(Sphere{
+        .center = Vec3{-0.25, -0.3, 4.3},
+        .radius = 200e-3,
+        .mat = &red,
+    });
     
     #pragma GCC diagnostic pop
 
@@ -814,7 +822,7 @@ int main() {
         Renderer renderer(Size2i{800, 600});
 
         float focal_length_mm = 33;
-        bool debug = false;
+        bool debug = true;
 
         renderer.setObjects(createObjects());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000));
@@ -831,8 +839,12 @@ int main() {
                 renderer.clear();
                 renderer.setDebug(debug);
             }
-
+            
+            Timer t;
             renderer.render();
+            const auto elapsed_ms = t.elapsed_seconds() * 1000;
+
+            ImGui::Text("Render pass: %.0fms", elapsed_ms);
             renderer.upload();
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
