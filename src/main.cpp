@@ -14,7 +14,9 @@
 
 #include "Application.hpp"
 #include "Shaders.hpp"
+#include "Image.hpp"
 #include "Utils.hpp"
+#include <filesystem>
 
 /*
     PLAN
@@ -90,7 +92,7 @@ void main() {
         vec2( 1.0,  1.0)
     );
 
-    tex_coord = vertices[gl_VertexID]/2.0 + 0.5;
+    tex_coord = vertices[gl_VertexID]*vec2(1,-1)/2.0 + 0.5;
     
     gl_Position = vec4(vertices[gl_VertexID], 0.0, 1.0);
 }
@@ -125,10 +127,8 @@ GLuint createTexture(Size2i resolution)
 
 struct Intrinsics
 {
-    float focal_length_x;
-    float focal_length_y;
-    float center_x;
-    float center_y;
+    float focal_length;
+    Vec2 center;
 };
 
 
@@ -137,18 +137,20 @@ struct Camera
     Intrinsics intrinsics;
     Size2i resolution;
     Size2f physical_pixel_size;
-
-    inline Ray sampleRay(float u, float v)
-    {
-        const float x = (u * physical_pixel_size.width - intrinsics.center_x) / intrinsics.focal_length_x;
-        const float y = (v * physical_pixel_size.height - intrinsics.center_y) / intrinsics.focal_length_y;
-
-        return Ray{
-            .p = Vec3{0,0,0},
-            .v = Vec3{x, y, 1}
-        };
-    }
 };
+
+inline Ray cameraRay(const Camera &cam, Vec2 pixelCoord)
+{
+    const auto pixelCenter = pixelCoord + Vec2{0.5, 0.5};
+    const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
+
+    const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
+    
+    return Ray{
+        .p = Vec3{0,0,0},
+        .v = Vec3{dir.x, dir.y, 1}
+    };
+}
 
 struct Material
 {
@@ -376,7 +378,7 @@ public:
             pix.w += 1;
             
 
-            auto ray = camera.sampleRay(x, y);
+            auto ray = cameraRay(camera, Vec2{static_cast<float>(x), static_cast<float>(y)});
             Vec4 total_transmission{1,1,1,0};
             
             for (int depth=0;depth<max_depth;++depth)
@@ -440,7 +442,7 @@ public:
         std::fill_n(accumulator.begin(), accumulator.size(), Vec4{0,0,0,0});
     }
 
-    void upload()
+    void createPixels()
     {
         auto packPixel = [](float r, float g, float b, float a) -> uint32_t {
             return (static_cast<uint32_t>(std::clamp(r, 0.0f, 1.0f) * 255)<< 0) | 
@@ -450,7 +452,8 @@ public:
         };
 
         auto setPixel = [&](int x, int y, float r, float g, float b, float a=1.0f) {
-            pixels[x + y*resolution.width] = packPixel(r,g,b,a);
+            const auto flipped_y = resolution.height - y - 1;
+            pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
         };
 
         for (int y=0;y<resolution.height;++y)
@@ -462,6 +465,18 @@ public:
             else 
                 setPixel(x, y, pix.x / pix.w, pix.y / pix.w, pix.z / pix.w);
         }
+    }
+
+    void saveImage(const std::string &fileName)
+    {
+        createPixels();
+
+        savePNG(fileName, pixels, resolution);
+    }
+
+    void upload()
+    {
+        createPixels();
         
         glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     }
@@ -473,10 +488,11 @@ Camera createCamera(Size2i resolution, const float focal_length, const float phy
 {
     Camera cam{
         .intrinsics = Intrinsics{
-            .focal_length_x = focal_length,
-            .focal_length_y = focal_length,
-            .center_x = resolution.width/2.f * physical_pixel_size,
-            .center_y = resolution.height/2.f * physical_pixel_size,
+            .focal_length = focal_length,
+            .center = Vec2{
+                        resolution.width/2.f * physical_pixel_size,
+                        resolution.height/2.f * physical_pixel_size,
+            }
         },
         .resolution = resolution,
         .physical_pixel_size = Size2f{physical_pixel_size, physical_pixel_size},
@@ -621,7 +637,7 @@ void test_f();
 int main() {
     test_f();
 
-    const auto resolution = Resolutions::vga();
+    const auto resolution = Size2i{640, 640};
     const auto render_scale = 1;
 
     auto app = initApplication(resolution);
@@ -637,7 +653,7 @@ int main() {
         
         Renderer renderer(resolution / render_scale);
 
-        float focal_length_mm = 10.6f;
+        float focal_length_mm = 14.2f;
         bool debug = false;
 
         renderer.setObjects(createObjects());
@@ -664,6 +680,21 @@ int main() {
             ImGui::Text("Render pass: %.0fms", elapsed_ms);
             ImGui::Text("Total ray casts: %ldM", renderer.getStats().total_casts.load() / 1000'000);
             renderer.upload();
+
+            if (ImGui::Button("Capture snapshot"))
+            {
+                const auto imageFolder = std::filesystem::path{"captures"};
+                (void)std::filesystem::create_directory(imageFolder);
+
+                std::time_t time = std::time({});
+                char timeString[100];
+                std::strftime(timeString, 100, "%Y_%m_%d_%H_%M.png", std::gmtime(&time));
+                std::string timePng = timeString;
+
+                std::cout << "Saving to " << imageFolder / timePng << std::endl;
+
+                renderer.saveImage(imageFolder / timePng);
+            }
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);

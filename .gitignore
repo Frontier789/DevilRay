@@ -7,3 +7,6 @@ CMakeUserPresets.json
 
 # Runtime artifacts
 imgui.ini
+
+# Captures from the renderer
+captures

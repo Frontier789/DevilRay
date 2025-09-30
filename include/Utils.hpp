@@ -118,17 +118,6 @@ struct Vec3
     }
 };
 
-struct Vec2
-{
-    float x;
-    float y;
-};
-
-inline float dot(const Vec3 &a, const Vec3 &b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
 
 template<typename T>
 struct Size2
@@ -141,6 +130,23 @@ struct Size2
 
 using Size2i = Size2<int>;
 using Size2f = Size2<float>;
+
+
+struct Vec2
+{
+    float x;
+    float y;
+    
+    Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
+    Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
+    Vec2 operator*(const Size2f &s) const {return Vec2{x*s.width, y*s.height};}
+    Vec2 operator/(const float &f) const {return Vec2{x/f, y/f};}
+};
+
+inline float dot(const Vec3 &a, const Vec3 &b)
+{
+    return a.x * b.x + a.y * b.y + a.z * b.z;
+}
 
 namespace Resolutions
 {
