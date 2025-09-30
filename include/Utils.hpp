@@ -5,6 +5,11 @@
 #include <mutex>
 #include <thread>
 
+#ifndef __CUDACC__
+    #define __global__
+    #define __device__
+    #define __host__
+#endif
 
 class Timer
 {
@@ -89,9 +94,9 @@ struct Vec4
     float y;
     float z;
     float w;
-    Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
-    Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
-    Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
+    constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
+    constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
+    constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
 };
 
 struct Vec3
@@ -100,16 +105,16 @@ struct Vec3
     float y;
     float z;
 
-    Vec3 operator-(const Vec3 &v) const {return Vec3{x-v.x, y-v.y, z-v.z};}
-    Vec3 operator+(const Vec3 &v) const {return Vec3{x+v.x, y+v.y, z+v.z};}
-    Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
+    constexpr Vec3 operator-(const Vec3 &v) const {return Vec3{x-v.x, y-v.y, z-v.z};}
+    constexpr Vec3 operator+(const Vec3 &v) const {return Vec3{x+v.x, y+v.y, z+v.z};}
+    constexpr Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
 
-    Vec3 normalized() const {
+    constexpr Vec3 normalized() const {
         const auto length = std::sqrt(x*x + y*y + z*z);
         return Vec3{x/length, y/length, z/length};
     }
 
-    Vec3 cross(const Vec3 &v) const {
+    constexpr Vec3 cross(const Vec3 &v) const {
         return Vec3{
             y * v.z - z * v.y,
             z * v.x - x * v.z,
@@ -125,23 +130,33 @@ struct Size2
     T width;
     T height;
 
-    Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
+    constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
 };
 
 using Size2i = Size2<int>;
 using Size2f = Size2<float>;
 
-
+template<typename T>
 struct Vec2
 {
-    float x;
-    float y;
+    T x;
+    T y;
     
-    Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
-    Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
-    Vec2 operator*(const Size2f &s) const {return Vec2{x*s.width, y*s.height};}
-    Vec2 operator/(const float &f) const {return Vec2{x/f, y/f};}
+    constexpr Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
+    constexpr Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
+    constexpr Vec2 operator*(const Size2<T> &s) const {return Vec2{x*s.width, y*s.height};}
+    constexpr Vec2 operator*(const T &f) const {return Vec2{x*f, y*f};}
+    constexpr Vec2 operator/(const T &f) const {return Vec2{x/f, y/f};}
+
+    template<typename U>
+    constexpr operator Vec2<U>() const
+    {
+        return Vec2<U>(static_cast<U>(x), static_cast<U>(y));
+    }
 };
+
+using Vec2i = Vec2<int>;
+using Vec2f = Vec2<float>;
 
 inline float dot(const Vec3 &a, const Vec3 &b)
 {
@@ -164,7 +179,6 @@ struct Ray
 std::ostream &operator<<(std::ostream &os, const ColorRGBA8 &color);
 std::ostream &operator<<(std::ostream &os, const Vec4 &vec);
 std::ostream &operator<<(std::ostream &os, const Vec3 &vec);
-std::ostream &operator<<(std::ostream &os, const Vec2 &vec);
 std::ostream &operator<<(std::ostream &os, const Ray &ray);
 
 template<typename T>
@@ -173,16 +187,22 @@ std::ostream &operator<<(std::ostream &os, const Size2<T> &size) {
     return os;
 }
 
+template<typename T>
+std::ostream &operator<<(std::ostream &os, const Vec2<T> &vec) {
+    os << "(" << vec.x << ", " << vec.y << ")";
+    return os;
+}
+
 
 Vec4 checkerPattern(
-    const Vec2 &uv, 
+    const Vec2f &uv, 
     const int checker_count, 
     const Vec4 dark, 
     const Vec4 bright
 );
 
 inline Vec4 checkerPattern(
-    const Vec2 &uv, 
+    const Vec2f &uv, 
     const int checker_count
 )
 {

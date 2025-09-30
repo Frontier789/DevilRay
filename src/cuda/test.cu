@@ -1,11 +1,14 @@
 #include <vector>
 #include <iostream>
 
-__global__ void f(float *a, int N) {
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+#include "tracing/Camera.hpp"
 
-    if (i < N) {
-        a[i] = i*i + 42;
+__global__ void f(Camera *camera, Vec3 *pts, int N) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (i < N && j < N) {
+        pts[i*N + j] = cameraRay(*camera, Vec2{i, j}).v;
     }
 }
 
@@ -34,23 +37,36 @@ void test_f()
 {
     printCudaDeviceInfo();
     
-    const int N = 100;
+    const int N = 128;
     
-    float *gpu_data;
+    Vec3 *gpu_data;
 
-    cudaMalloc(&gpu_data, sizeof(float) * N);
+    cudaMalloc(&gpu_data, sizeof(*gpu_data) * N * N);
 
-    dim3 threadsPerBlock(16);
-    dim3 numBlocks((N + threadsPerBlock.x) / threadsPerBlock.x);
-    f<<<numBlocks, threadsPerBlock>>>(gpu_data, N);
+    Camera camera{
+        .intrinsics = Intrinsics{
+            .focal_length = 8e-3,
+            .center = Vec2f{N, N} / 2 * 6e-3f,
+        },
+        .resolution = Size2i{N, N},
+        .physical_pixel_size = Size2f{6e-3, 6e-3},
+    };
 
-    std::vector<float> cpu_data(N);
+    Camera *cudaCamera;
+    cudaMalloc(&cudaCamera, sizeof(Camera));
+    cudaMemcpy(cudaCamera, &camera, sizeof(Camera), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(cpu_data.data(), gpu_data, sizeof(float) * N, cudaMemcpyDeviceToHost);
+    dim3 threadsPerBlock(16, 16);
+    dim3 numBlocks((N + threadsPerBlock.x) / threadsPerBlock.x, (N + threadsPerBlock.y) / threadsPerBlock.y);
+    f<<<numBlocks, threadsPerBlock>>>(cudaCamera, gpu_data, N);
 
-    for (float f : cpu_data)
-    {
-        std::cout << f << " ";
-    }
-    std::cout << std::endl;
+    std::vector<Vec3> cpu_data(N*N);
+
+    cudaMemcpy(cpu_data.data(), gpu_data, sizeof(cpu_data[0])*N*N, cudaMemcpyDeviceToHost);
+
+    std::cout << "[0]: " << cpu_data[0] << std::endl;
+    std::cout << "[1]: " << cpu_data[1] << std::endl;
+    std::cout << "[N-1]: " << cpu_data[N-1] << std::endl;
+    std::cout << "[10*N]: " << cpu_data[10*N] << std::endl;
+    std::cout << "[N*N-1]: " << cpu_data[N*N-1] << std::endl;
 }

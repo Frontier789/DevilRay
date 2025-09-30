@@ -11,7 +11,7 @@ float Timer::elapsed_seconds() const
 }
 
 Vec4 checkerPattern(
-    const Vec2 &uv, 
+    const Vec2f &uv, 
     const int checker_count, 
     const Vec4 dark, 
     const Vec4 bright
@@ -68,11 +68,6 @@ std::ostream &operator<<(std::ostream &os, const Vec4 &vec) {
 
 std::ostream &operator<<(std::ostream &os, const Vec3 &vec) {
     os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
-    return os;
-}
-
-std::ostream &operator<<(std::ostream &os, const Vec2 &vec) {
-    os << "(" << vec.x << ", " << vec.y << ")";
     return os;
 }
 
