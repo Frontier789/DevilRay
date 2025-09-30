@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
+# Allow constexpr calls in CUDA code
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
+
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
 find_package(glew REQUIRED)
@@ -17,11 +20,11 @@ add_executable(${PROJECT_NAME}
                src/Shaders.cpp
                src/Utils.cpp
                src/Image.cpp
-               src/cuda/test.cu
+               src/implementation.cu
                imgui_backend/imgui_impl_glfw.cpp
                imgui_backend/imgui_impl_opengl3.cpp)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES native)
+set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES 89)
 
 target_link_libraries(${PROJECT_NAME}
     glfw

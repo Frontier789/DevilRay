@@ -5,6 +5,7 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <filesystem>
 #include <iostream>
 #include <chrono>
 #include <cmath>
@@ -16,7 +17,10 @@
 #include "Shaders.hpp"
 #include "Image.hpp"
 #include "Utils.hpp"
-#include <filesystem>
+#include "tracing/Material.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/Objects.hpp"
+#include "tracing/Intersection.hpp"
 
 /*
     PLAN
@@ -123,69 +127,6 @@ GLuint createTexture(Size2i resolution)
 
     return texture;
 }
-
-
-struct Intrinsics
-{
-    float focal_length;
-    Vec2 center;
-};
-
-
-struct Camera
-{
-    Intrinsics intrinsics;
-    Size2i resolution;
-    Size2f physical_pixel_size;
-};
-
-inline Ray cameraRay(const Camera &cam, Vec2 pixelCoord)
-{
-    const auto pixelCenter = pixelCoord + Vec2{0.5, 0.5};
-    const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
-
-    const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
-
-    return Ray{
-        .p = Vec3{0,0,0},
-        .v = Vec3{dir.x, dir.y, 1}
-    };
-}
-
-struct Material
-{
-    Vec4 emission;
-    Vec4 diffuse_reflectance;
-    Vec4 debug_color;
-};
-
-struct Square
-{
-    Vec3 p;
-    Vec3 n;
-    Vec3 right;
-    float size;
-    Material *mat;
-};
-
-struct Sphere
-{
-    Vec3 center;
-    float radius;
-    Material *mat;
-};
-
-using Object = std::variant<Square, Sphere>;
-
-struct Intersection
-{
-    float t;
-    Vec3 p;
-    Vec2 uv;
-    Vec3 n;
-    Material *mat;
-};
-
 
 
 Vec3 uniformHemisphereSample(const Vec3 &normal, Random &r)

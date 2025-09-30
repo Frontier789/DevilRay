@@ -65,6 +65,21 @@
         "deque": "cpp",
         "__split_buffer": "cpp",
         "list": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "codecvt": "cpp",
+        "map": "cpp",
+        "set": "cpp",
+        "unordered_map": "cpp",
+        "expected": "cpp",
+        "numeric": "cpp",
+        "iomanip": "cpp",
+        "semaphore": "cpp",
+        "shared_mutex": "cpp",
+        "sstream": "cpp",
+        "stop_token": "cpp",
+        "cfenv": "cpp",
+        "cinttypes": "cpp",
+        "__nullptr": "cpp",
+        "__config": "cpp"
     }
 }
