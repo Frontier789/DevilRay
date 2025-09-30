@@ -93,7 +93,7 @@ void main() {
     );
 
     tex_coord = vertices[gl_VertexID]*vec2(1,-1)/2.0 + 0.5;
-    
+
     gl_Position = vec4(vertices[gl_VertexID], 0.0, 1.0);
 }
 )glsl";
@@ -145,7 +145,7 @@ inline Ray cameraRay(const Camera &cam, Vec2 pixelCoord)
     const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
 
     const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
-    
+
     return Ray{
         .p = Vec3{0,0,0},
         .v = Vec3{dir.x, dir.y, 1}
@@ -200,7 +200,7 @@ Vec3 uniformHemisphereSample(const Vec3 &normal, Random &r)
     const auto v = Vec3{x,y,z};
 
     if (dot(v, normal) < 0) return v*-1;
-    
+
     return v;
 }
 
@@ -209,21 +209,21 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Square &square
     // <p + v*t - o, n> = 0
     // <po, n> + <v,n>*t = 0
 
-    
+
     const auto vn = dot(ray.v, square.n);
     if (std::abs(vn) < std::numeric_limits<float>::epsilon()) return std::nullopt;
-    
+
     const auto t = -dot(ray.p - square.p, square.n) / vn;
-    
+
     // std::cout << ray.p.x << "," << ray.p.y << "," << ray.p.z << " -> "  << ray.v.x << "," << ray.v.y << "," << ray.v.z << " -> t=" << t << std::endl;
     if (t < std::numeric_limits<float>::epsilon()) return std::nullopt;
-    
+
     const auto p = ray.p + ray.v * t;
     const auto s = square.size / 2;
 
     const auto dx = dot(square.right, p - square.p);
     if (std::abs(dx) > s) return std::nullopt;
-    
+
     const auto up = square.right.cross(square.n);
     const auto dy = dot(up, p - square.p);
     if (std::abs(dy) > s) return std::nullopt;
@@ -269,7 +269,7 @@ std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere
     const auto tmax = std::max(t1, t2);
 
     if (tmax < 0) return std::nullopt;
-    
+
     const auto t = tmin < 0 ? tmax : tmin;
     const auto p = ray.p + ray.v * t;
 
@@ -314,7 +314,7 @@ class Renderer
     Timer timer;
 public:
 
-    Renderer(Size2i resolution) 
+    Renderer(Size2i resolution)
         : accumulator(resolution.width * resolution.height, Vec4{0,0,0,0})
         , pixels(resolution.width * resolution.height)
         , resolution(resolution)
@@ -351,7 +351,7 @@ public:
             const auto intersection = std::visit([&](auto&& o) {return getIntersection(ray, o);}, obj);
 
             if (!intersection.has_value()) continue;
-            
+
             if (!best.has_value() || best->t > intersection->t)
             {
                 best = intersection;
@@ -364,7 +364,7 @@ public:
     void render()
     {
         parallel_for(resolution.height, [&](int y){
-        
+
         Random random = RandomPool::singleton().borrowRandom();
         //std::cout << "Got random id " << random.get_id() << std::endl;
 
@@ -376,11 +376,11 @@ public:
         {
             auto &pix = accumulator[x + y*resolution.width];
             pix.w += 1;
-            
+
 
             auto ray = cameraRay(camera, Vec2{static_cast<float>(x), static_cast<float>(y)});
             Vec4 total_transmission{1,1,1,0};
-            
+
             for (int depth=0;depth<max_depth;++depth)
             {
                 const auto intersection = cast(ray);
@@ -408,7 +408,7 @@ public:
                 }
 
                 const auto &material = *intersection->mat;
-                
+
                 if (debug)
                 {
                     pix = pix + material.debug_color * checkerPattern(intersection->uv, 8);
@@ -417,12 +417,12 @@ public:
                 {
                     pix = pix + material.emission * total_transmission;
                 }
-                
+
                 const auto new_v = uniformHemisphereSample(intersection->n, random);
 
                 const auto weakening_factor = dot(intersection->n, new_v);
                 total_transmission = total_transmission * weakening_factor * material.diffuse_reflectance;
-                
+
                 ray = Ray{
                     .p = intersection->p,
                     .v = new_v
@@ -444,10 +444,17 @@ public:
 
     void createPixels()
     {
-        auto packPixel = [](float r, float g, float b, float a) -> uint32_t {
-            return (static_cast<uint32_t>(std::clamp(r, 0.0f, 1.0f) * 255)<< 0) | 
-                (static_cast<uint32_t>(std::clamp(g, 0.0f, 1.0f) * 255)<< 8) | 
-                (static_cast<uint32_t>(std::clamp(b, 0.0f, 1.0f) * 255)<<16) | 
+        auto toSRGB = [](float linear) -> float
+        {
+            const float r = std::clamp(linear, 0.f, 1.f);
+            if (r < 0.0031308) return r * 12.92;
+            return std::pow(r, 1/2.4f)*1.055 - 0.055f;
+        };
+
+        auto packPixel = [&](float r, float g, float b, float a) -> uint32_t {
+            return (static_cast<uint32_t>(toSRGB(r) * 255)<< 0) |
+                (static_cast<uint32_t>(toSRGB(g) * 255)<< 8) |
+                (static_cast<uint32_t>(toSRGB(b) * 255)<<16) |
                 (static_cast<uint32_t>(std::clamp(a, 0.0f, 1.0f) * 255)<<24);
         };
 
@@ -462,7 +469,7 @@ public:
             const auto pix = accumulator[x + y*resolution.width];
             if (pix.w == 0)
                 setPixel(x, y, 0,0,0);
-            else 
+            else
                 setPixel(x, y, pix.x / pix.w, pix.y / pix.w, pix.z / pix.w);
         }
     }
@@ -477,7 +484,7 @@ public:
     void upload()
     {
         createPixels();
-        
+
         glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     }
 
@@ -518,25 +525,25 @@ std::vector<Object> createObjects()
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
     };
-    
+
     static Material red{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{1.0,0.8,0.8,0.0},
         .debug_color = Vec4{1.0,0.8,0.7,0.0},
     };
-    
+
     static Material green{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.8,1.0,0.8,0.0},
         .debug_color = Vec4{0.7,1.0,0.8,0.0},
     };
-    
+
     static Material blue{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.9,0.9,1.0,0.0},
         .debug_color = Vec4{0.7,0.8,1.0,0.0},
     };
-    
+
     static Material white{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{1.0,0.97,0.92,0.0},
@@ -626,7 +633,7 @@ std::vector<Object> createObjects()
         .radius = 200e-3,
         .mat = &red,
     });
-    
+
     #pragma GCC diagnostic pop
 
     return objects;
@@ -641,16 +648,16 @@ int main() {
     const auto render_scale = 1;
 
     auto app = initApplication(resolution);
-    
+
     try
     {
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-    
+
         const auto shader = createShaderProgram(vertexShaderSource, fragmentShaderSource);
-    
+
         GLuint vao;
         glGenVertexArrays(1, &vao);
-        
+
         Renderer renderer(resolution / render_scale);
 
         float focal_length_mm = 14.2f;
@@ -659,9 +666,9 @@ int main() {
         renderer.setObjects(createObjects());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
-        
+
         runEventLoop(app, [&]{
-            
+
             if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.1f mm")) {
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
                 renderer.clear();
@@ -672,13 +679,13 @@ int main() {
                 renderer.clear();
                 renderer.setDebug(debug);
             }
-            
+
             Timer t;
             renderer.render();
             const auto elapsed_ms = t.elapsed_seconds() * 1000;
 
             ImGui::Text("Render pass: %.0fms", elapsed_ms);
-            ImGui::Text("Total ray casts: %ldM", renderer.getStats().total_casts.load() / 1000'000);
+            ImGui::Text("Rays per pixel: %.0f", renderer.getStats().total_casts.load()*1.f / resolution.width / resolution.height);
             renderer.upload();
 
             if (ImGui::Button("Capture snapshot"))
@@ -698,24 +705,24 @@ int main() {
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
-            
+
             glBindVertexArray(vao);
             glUseProgram(shader);
-            
+
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, renderer.tex());
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    
+
         });
-    
+
         glDeleteProgram(shader);
     }
     catch (std::exception &e)
     {
         std::cout << "Got exception, closing window: " << e.what() << std::endl;
         closeApplication(app);
-        
+
         std::throw_with_nested(e);
     }
 }
