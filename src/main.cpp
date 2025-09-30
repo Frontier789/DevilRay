@@ -348,7 +348,7 @@ public:
 
         for (const auto &obj : objects)
         {
-            const auto intersection = std::visit([&](auto&& concrete) {return getIntersection(ray, concrete);}, obj);
+            const auto intersection = std::visit([&](auto&& o) {return getIntersection(ray, o);}, obj);
 
             if (!intersection.has_value()) continue;
             
