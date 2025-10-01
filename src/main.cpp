@@ -528,26 +528,26 @@ std::vector<Object> createObjects()
 
     static Material red{
         .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{1.0,0.8,0.8,0.0},
-        .debug_color = Vec4{1.0,0.8,0.7,0.0},
+        .diffuse_reflectance = Vec4{0.9, 0.3, 0.3, 0.0},
+        .debug_color = Vec4{0.8, 0.2, 0.2, 0.0},
     };
 
     static Material green{
         .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.8,1.0,0.8,0.0},
-        .debug_color = Vec4{0.7,1.0,0.8,0.0},
+        .diffuse_reflectance = Vec4{0.3, 0.9, 0.3, 0.0},
+        .debug_color = Vec4{0.2, 0.8, 0.2, 0.0},
     };
 
     static Material blue{
         .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.9,0.9,1.0,0.0},
-        .debug_color = Vec4{0.7,0.8,1.0,0.0},
+        .diffuse_reflectance = Vec4{0.3, 0.3, 0.9, 0.0},
+        .debug_color = Vec4{0.2, 0.2, 0.8, 0.0},
     };
 
     static Material white{
         .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{1.0,0.97,0.92,0.0},
-        .debug_color = Vec4{0.9,0.9,0.9,0.0},
+        .diffuse_reflectance = Vec4{0.9, 0.9, 0.9, 0.0},
+        .debug_color = Vec4{0.7, 0.7, 0.7, 0.0},
     };
 
     std::vector<Object> objects;
