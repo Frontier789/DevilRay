@@ -27,6 +27,7 @@ class MyCudaGuiProjectConan(ConanFile):
         deps.generate()
 
         tc = CMakeToolchain(self)
+        tc.generator = "Ninja"
         tc.variables["CMAKE_EXPORT_COMPILE_COMMANDS"] = "ON"
         tc.generate()
 
