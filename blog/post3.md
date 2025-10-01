@@ -42,6 +42,15 @@ objects.emplace_back(Sphere{
 });
 ```
 
+Finally the intersection class needs to store the material as well. This is populated when the ray hits an object.
+```C++
+struct Intersection
+{
+    ...
+    Material *mat;
+};
+```
+
 With these changes I get a nice colored room:
 ![](images/checker_colored.png)
 
