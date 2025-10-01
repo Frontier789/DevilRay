@@ -2,8 +2,31 @@
 #include <iostream>
 
 #include "tracing/Camera.hpp"
+#include "tracing/Objects.hpp"
+#include "tracing/SampleScene.hpp"
 
-HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
+#include "IntersectionTests.hpp"
+
+std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects)
+{
+    std::optional<Intersection> best = std::nullopt;
+
+    for (const auto &obj : objects)
+    {
+        const auto intersection = testIntersection(ray, obj);
+
+        if (!intersection.has_value()) continue;
+
+        if (!best.has_value() || best->t > intersection->t)
+        {
+            best = intersection;
+        }
+    }
+
+    return best;
+}
+
+Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
 {
     const auto pixelCenter = pixelCoord + Vec2f{0.5, 0.5};
     const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
@@ -14,6 +37,11 @@ HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
         .p = Vec3{0,0,0},
         .v = Vec3{dir.x, dir.y, 1},
     };
+}
+
+std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
+{
+    return std::visit([&](auto&& o) {return getIntersection(ray, o);}, object);
 }
 
 __global__ void f(Camera *camera, Vec3 *pts, int N) {

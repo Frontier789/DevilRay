@@ -21,6 +21,7 @@
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/Intersection.hpp"
+#include "tracing/SampleScene.hpp"
 
 /*
     PLAN
@@ -128,111 +129,6 @@ GLuint createTexture(Size2i resolution)
     return texture;
 }
 
-
-Vec3 uniformHemisphereSample(const Vec3 &normal, Random &r)
-{
-    const float theta0 = 2 * std::numbers::pi_v<float> * r.rnd();
-    const float theta1 = std::acos(1 - 2 * r.rnd());
-
-    const float x = std::sin(theta1) * std::sin(theta0);
-    const float y = std::sin(theta1) * std::cos(theta0);
-    const float z = std::cos(theta1);
-
-    const auto v = Vec3{x,y,z};
-
-    if (dot(v, normal) < 0) return v*-1;
-
-    return v;
-}
-
-std::optional<Intersection> getIntersection(const Ray &ray, const Square &square)
-{
-    // <p + v*t - o, n> = 0
-    // <po, n> + <v,n>*t = 0
-
-
-    const auto vn = dot(ray.v, square.n);
-    if (std::abs(vn) < std::numeric_limits<float>::epsilon()) return std::nullopt;
-
-    const auto t = -dot(ray.p - square.p, square.n) / vn;
-
-    // std::cout << ray.p.x << "," << ray.p.y << "," << ray.p.z << " -> "  << ray.v.x << "," << ray.v.y << "," << ray.v.z << " -> t=" << t << std::endl;
-    if (t < std::numeric_limits<float>::epsilon()) return std::nullopt;
-
-    const auto p = ray.p + ray.v * t;
-    const auto s = square.size / 2;
-
-    const auto dx = dot(square.right, p - square.p);
-    if (std::abs(dx) > s) return std::nullopt;
-
-    const auto up = square.right.cross(square.n);
-    const auto dy = dot(up, p - square.p);
-    if (std::abs(dy) > s) return std::nullopt;
-
-    const auto uv = Vec2{
-        dx / s / 2 + 0.5f,
-        dy / s / 2 + 0.5f,
-    };
-
-    const auto n = vn < 0 ? square.n : square.n * -1;
-
-    return Intersection{
-        .t = t,
-        .p = p,
-        .uv = uv,
-        .n = n,
-        .mat = square.mat,
-    };
-}
-
-std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sphere)
-{
-    // |p + v*t - o| = r
-    // <po + v*t, po + v*t> = r^2
-    // |po|^2 + 2<po, v> * t + |v|^2 * t^2 = r^2
-
-    const auto o = ray.p - sphere.center;
-
-    const auto a = dot(ray.v, ray.v);
-    const auto b = 2*dot(o, ray.v);
-    const auto c = dot(o,o) - sphere.radius * sphere.radius;
-
-    const auto D = b*b - 4*a*c;
-    if (D < 0) return std::nullopt;
-
-    const auto d = std::sqrt(D);
-
-    const float q = -0.5f * ((b > 0) ? (b + d) : (b - d));
-    const float t1 = q / a;
-    const float t2 = c / q;
-
-    const auto tmin = std::min(t1, t2);
-    const auto tmax = std::max(t1, t2);
-
-    if (tmax < 0) return std::nullopt;
-
-    const auto t = tmin < 0 ? tmax : tmin;
-    const auto p = ray.p + ray.v * t;
-
-    const auto pl = p - sphere.center;
-
-    const auto uv = Vec2{
-        .x = std::atan2(pl.z, pl.x) / std::numbers::pi_v<float> / 2 + 0.5f,
-        .y = std::acos(pl.y / sphere.radius) / std::numbers::pi_v<float>,
-    };
-
-    auto n = (p - sphere.center).normalized();
-    if (c < -1e-8) n = n * -1;
-
-    return Intersection{
-        .t = t,
-        .p = p,
-        .uv = uv,
-        .n = n,
-        .mat = sphere.mat,
-    };
-}
-
 struct RenderStats
 {
     std::atomic<int64_t> total_casts;
@@ -283,25 +179,6 @@ public:
         objects = std::move(objs);
     }
 
-    std::optional<Intersection> cast(const Ray &ray)
-    {
-        std::optional<Intersection> best = std::nullopt;
-
-        for (const auto &obj : objects)
-        {
-            const auto intersection = std::visit([&](auto&& o) {return getIntersection(ray, o);}, obj);
-
-            if (!intersection.has_value()) continue;
-
-            if (!best.has_value() || best->t > intersection->t)
-            {
-                best = intersection;
-            }
-        }
-
-        return best;
-    }
-
     void render()
     {
         parallel_for(resolution.height, [&](int y){
@@ -319,58 +196,11 @@ public:
             pix.w += 1;
 
 
-            auto ray = cameraRay(camera, Vec2{static_cast<float>(x), static_cast<float>(y)});
-            Vec4 total_transmission{1,1,1,0};
+            const auto ray = cameraRay(camera, Vec2{static_cast<float>(x), static_cast<float>(y)});
+            const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, random);
 
-            for (int depth=0;depth<max_depth;++depth)
-            {
-                const auto intersection = cast(ray);
-                ++ray_casts;
-
-                // if (x == resolution.width/3 && y == resolution.height/3) {
-                //     std::cout << "intersected with object at " << intersection->p << " t=" << intersection->t << std::endl;
-                // }
-                if (!intersection.has_value()) break;
-
-                if (dot(intersection->n, ray.v) > 1e-5) {
-                    std::cout << "Hit something from the back?" << std::endl;
-                    std::cout << "\tDistance to ball: " << std::sqrt(dot(intersection->p - Vec3(0,0,4.5), intersection->p - Vec3(0,0,4.5))) << std::endl;
-                    std::cout << "\tDot is " << dot(intersection->n, ray.v) << std::endl;
-                    std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
-                    // pix.y += 10000;
-                }
-
-                if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-                    ray.p = ray.p + intersection->n * 1e-6;
-                    continue;
-                    // std::cout << "Self intersection!" << std::endl;
-                    // std::cout << "\tpos=" << intersection->p << " t=" << intersection->t << std::endl;
-                    // pix.x += 10000;
-                }
-
-                const auto &material = *intersection->mat;
-
-                if (debug)
-                {
-                    pix = pix + material.debug_color * checkerPattern(intersection->uv, 8);
-                }
-                else
-                {
-                    pix = pix + material.emission * total_transmission;
-                }
-
-                const auto new_v = uniformHemisphereSample(intersection->n, random);
-
-                const auto weakening_factor = dot(intersection->n, new_v);
-                total_transmission = total_transmission * weakening_factor * material.diffuse_reflectance;
-
-                ray = Ray{
-                    .p = intersection->p,
-                    .v = new_v
-                };
-
-                ray.p = ray.p + intersection->n * 1e-5;
-            }
+            pix = pix + sample.color;
+            ray_casts += sample.casts;
         }
 	    RandomPool::singleton().returnRandom(std::move(random));
         stats.total_casts += ray_casts;
