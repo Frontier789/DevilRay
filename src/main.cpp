@@ -428,7 +428,7 @@ public:
                     .v = new_v
                 };
 
-                ray.p = ray.p + intersection->n * 1e-4;
+                ray.p = ray.p + intersection->n * 1e-5;
             }
         }
 	    RandomPool::singleton().returnRandom(std::move(random));
