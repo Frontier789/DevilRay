@@ -26,6 +26,8 @@ class Renderer
     std::vector<Object> objects;
 
     Timer timer;
+
+    CudaRandomStates cuda_randoms;
 public:
 
     Renderer(Size2i resolution);

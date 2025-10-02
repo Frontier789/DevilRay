@@ -1,44 +1,149 @@
 #include "Image.hpp"
 #include "Renderer.hpp"
 
+#include <curand.h>
+#include <curand_kernel.h>
+
 #include <algorithm>
+#include <set>
+#include <map>
 
 Renderer::Renderer(Size2i resolution)
     : accumulator(resolution.width * resolution.height, Vec4{0,0,0,0})
     , pixels(resolution.width * resolution.height)
     , resolution(resolution)
+    , cuda_randoms(resolution)
 {
     
 }
 
+
+struct CudaRandom
+{
+    curandState *state;
+
+    __device__ float rnd()
+    {
+        return curand_uniform(state);
+    }
+};
+
+__global__ void cuda_render(Size2i size, Vec4 *pixels, Camera camera, Object *objects, size_t object_count, bool debug, curandState *randStates)
+{
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= size.width || y >= size.height) return;
+
+    int idx = y * size.width + x;
+
+
+    const int max_depth = debug ? 1 : 5;
+    const auto iterations = debug ? 1 : 100;
+    
+    auto &pix = pixels[idx];
+    pix.w += iterations;
+
+    auto random = CudaRandom{randStates + idx};
+    const auto ray = cameraRay(camera, Vec2{x, y});
+    const auto sample = sampleColor(ray, max_depth, std::span{objects, object_count}, debug, iterations, random);
+
+    pix = pix + sample.color;
+}
+
+const Material *getMaterial(const Object &obj)
+{
+    return std::visit([&](auto&& o) {return o.mat;}, obj);
+}
+
+void setMaterial(Object &obj, Material *material)
+{
+    std::visit([&](auto&& o) {o.mat = material;}, obj);
+}
+
+struct GpuData
+{
+    Object *objects;
+    Material *materials;
+};
+
+GpuData copyToGpu(const std::vector<Object> &objects)
+{
+    std::vector<Material> materials;
+
+    std::map<const Material*, int> mats;
+    for (const auto &o : objects) {
+        const auto m = getMaterial(o);
+        mats[m] = 0;
+    }
+
+    for (auto &it : mats)
+    {
+        it.second = materials.size();
+        materials.push_back(*it.first);
+    }
+
+    Material *materials_gpu;
+    cudaMalloc(&materials_gpu, sizeof(*materials_gpu) * materials.size());
+    cudaMemcpy(materials_gpu, materials.data(), sizeof(*materials_gpu) * materials.size(), cudaMemcpyHostToDevice);
+
+    std::vector<Object> objects_relinked = objects;
+    for (auto &o : objects_relinked) {
+        setMaterial(o, materials_gpu + mats[getMaterial(o)]);
+    }
+
+    Object *objects_gpu;
+    cudaMalloc(&objects_gpu, sizeof(*objects_gpu) * objects_relinked.size());
+    cudaMemcpy(objects_gpu, objects_relinked.data(), sizeof(*objects_gpu) * objects_relinked.size(), cudaMemcpyHostToDevice);
+
+
+    return GpuData{
+        .objects = objects_gpu,
+        .materials = materials_gpu,
+    };
+}
+
 void Renderer::render()
 {
-    parallel_for(resolution.height, [&](int y){
+    // parallel_for(resolution.height, [&](int y){
 
-        Random random = RandomPool::singleton().borrowRandom();
-        //std::cout << "Got random id " << random.get_id() << std::endl;
+    //     Random random = RandomPool::singleton().borrowRandom();
+    //     //std::cout << "Got random id " << random.get_id() << std::endl;
 
-        const int max_depth = debug ? 1 : 5;
+    //     const int max_depth = debug ? 1 : 5;
 
-        int ray_casts = 0;
+    //     int ray_casts = 0;
 
-        for (int x=0;x<resolution.width;++x)
-        {
-            const auto iterations = 10;
+    //     for (int x=0;x<resolution.width;++x)
+    //     {
+    //         const auto iterations = 10;
             
-            auto &pix = accumulator.hostPtr()[x + y*resolution.width];
-            pix.w += iterations;
+    //         auto &pix = accumulator.hostPtr()[x + y*resolution.width];
+    //         pix.w += iterations;
 
-            const auto ray = cameraRay(camera, Vec2{x, y});
-            const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, iterations, random);
+    //         const auto ray = cameraRay(camera, Vec2{x, y});
+    //         const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, iterations, random);
 
-            pix = pix + sample.color;
-            ray_casts += sample.casts;
-        }
-        RandomPool::singleton().returnRandom(std::move(random));
-        stats.total_casts += ray_casts;
+    //         pix = pix + sample.color;
+    //         ray_casts += sample.casts;
+    //     }
+    //     RandomPool::singleton().returnRandom(std::move(random));
+    //     stats.total_casts += ray_casts;
 
-    });
+    // });
+
+    accumulator.ensureDeviceAllocation();
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid;
+    dimGrid.x = (resolution.width + dimBlock.x - 1) / dimBlock.x;
+    dimGrid.y = (resolution.height + dimBlock.y - 1) / dimBlock.y;
+
+    auto data = copyToGpu(objects);
+
+    cuda_render<<<dimBlock, dimGrid>>>(resolution, accumulator.devicePtr(), camera, data.objects, objects.size(), debug, cuda_randoms.ptr());
+
+    cudaFree(data.materials);
+    cudaFree(data.objects);
 }
 
 void Renderer::createPixels()
