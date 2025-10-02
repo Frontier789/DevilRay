@@ -33,51 +33,56 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 }
 
 template<typename Rng>
-HD ColorSample sampleColor(Ray ray, const int max_depth, const std::span<const Object> objects, const bool debug, Rng &rng)
+HD ColorSample sampleColor(const Ray &cameraRay, const int max_depth, const std::span<const Object> objects, const bool debug, const int iterations, Rng &rng)
 {
-    Vec4 transmission{1,1,1,0};
     Vec4 color{0,0,0,0};
     int ray_casts = 0;
 
-    for (int depth=0;depth<max_depth;++depth)
+    for (int iter=0;iter<iterations;++iter)
     {
-        const auto intersection = cast(ray, objects);
-        ++ray_casts;
-
-        if (!intersection.has_value()) break;
-
-        if (dot(intersection->n, ray.v) > 1e-5) {
-            color.y += 10000;
-        }
-
-        if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-            ray.p = ray.p + intersection->n * 1e-6;
-            continue;
-            // color.x += 10000;
-        }
-
-        const auto &material = *intersection->mat;
-
-        if (debug)
+        Ray ray = cameraRay;
+        Vec4 transmission{1,1,1,0};
+    
+        for (int depth=0;depth<max_depth;++depth)
         {
-            color = color + material.debug_color * checkerPattern(intersection->uv, 8);
+            const auto intersection = cast(ray, objects);
+            ++ray_casts;
+    
+            if (!intersection.has_value()) break;
+    
+            if (dot(intersection->n, ray.v) > 1e-5) {
+                color.y += 10000;
+            }
+    
+            if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
+                ray.p = ray.p + intersection->n * 1e-6;
+                continue;
+                // color.x += 10000;
+            }
+    
+            const auto &material = *intersection->mat;
+    
+            if (debug)
+            {
+                color = color + material.debug_color * checkerPattern(intersection->uv, 8);
+            }
+            else
+            {
+                color = color + material.emission * transmission;
+            }
+    
+            const auto new_v = uniformHemisphereSample(intersection->n, rng);
+    
+            const auto weakening_factor = dot(intersection->n, new_v);
+            transmission = transmission * weakening_factor * material.diffuse_reflectance;
+    
+            ray = Ray{
+                .p = intersection->p,
+                .v = new_v
+            };
+    
+            ray.p = ray.p + intersection->n * 1e-5;
         }
-        else
-        {
-            color = color + material.emission * transmission;
-        }
-
-        const auto new_v = uniformHemisphereSample(intersection->n, rng);
-
-        const auto weakening_factor = dot(intersection->n, new_v);
-        transmission = transmission * weakening_factor * material.diffuse_reflectance;
-
-        ray = Ray{
-            .p = intersection->p,
-            .v = new_v
-        };
-
-        ray.p = ray.p + intersection->n * 1e-5;
     }
 
     return ColorSample{

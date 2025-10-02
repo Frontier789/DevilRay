@@ -17,6 +17,7 @@
 #include "Shaders.hpp"
 #include "Image.hpp"
 #include "Utils.hpp"
+#include "DeviceUtils.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
@@ -134,10 +135,9 @@ struct RenderStats
     std::atomic<int64_t> total_casts;
 };
 
-
 class Renderer
 {
-    std::vector<Vec4> accumulator;
+    DeviceVector<Vec4> accumulator;
     std::vector<uint32_t> pixels;
     Size2i resolution;
     GLuint texture;
@@ -183,34 +183,35 @@ public:
     {
         parallel_for(resolution.height, [&](int y){
 
-        Random random = RandomPool::singleton().borrowRandom();
-        //std::cout << "Got random id " << random.get_id() << std::endl;
+            Random random = RandomPool::singleton().borrowRandom();
+            //std::cout << "Got random id " << random.get_id() << std::endl;
 
-        const int max_depth = debug ? 1 : 5;
+            const int max_depth = debug ? 1 : 5;
 
-        int ray_casts = 0;
+            int ray_casts = 0;
 
-        for (int x=0;x<resolution.width;++x) for (int iterations=0;iterations<10;++iterations)
-        {
-            auto &pix = accumulator[x + y*resolution.width];
-            pix.w += 1;
+            for (int x=0;x<resolution.width;++x)
+            {
+                const auto iterations = 10;
+                
+                auto &pix = accumulator.hostPtr()[x + y*resolution.width];
+                pix.w += iterations;
 
+                const auto ray = cameraRay(camera, Vec2{x, y});
+                const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, iterations, random);
 
-            const auto ray = cameraRay(camera, Vec2{static_cast<float>(x), static_cast<float>(y)});
-            const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, random);
-
-            pix = pix + sample.color;
-            ray_casts += sample.casts;
-        }
-	    RandomPool::singleton().returnRandom(std::move(random));
-        stats.total_casts += ray_casts;
+                pix = pix + sample.color;
+                ray_casts += sample.casts;
+            }
+            RandomPool::singleton().returnRandom(std::move(random));
+            stats.total_casts += ray_casts;
 
 	    });
     }
 
     void clear()
     {
-        std::fill_n(accumulator.begin(), accumulator.size(), Vec4{0,0,0,0});
+        std::fill_n(accumulator.hostPtr(), accumulator.size(), Vec4{0,0,0,0});
     }
 
     void createPixels()
@@ -234,10 +235,12 @@ public:
             pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
         };
 
+        accumulator.updateHostData();
+
         for (int y=0;y<resolution.height;++y)
         for (int x=0;x<resolution.width;++x)
         {
-            const auto pix = accumulator[x + y*resolution.width];
+            const auto pix = accumulator.hostPtr()[x + y*resolution.width];
             if (pix.w == 0)
                 setPixel(x, y, 0,0,0);
             else
