@@ -26,3 +26,5 @@ private:
 };
 
 extern template struct DeviceVector<Vec4>;
+
+void printCudaDeviceInfo();

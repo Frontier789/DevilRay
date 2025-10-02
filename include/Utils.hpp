@@ -196,21 +196,3 @@ std::ostream &operator<<(std::ostream &os, const Vec2<T> &vec) {
     return os;
 }
 
-
-Vec4 checkerPattern(
-    const Vec2f &uv, 
-    const int checker_count, 
-    const Vec4 dark, 
-    const Vec4 bright
-);
-
-inline Vec4 checkerPattern(
-    const Vec2f &uv, 
-    const int checker_count
-)
-{
-    return checkerPattern(uv, checker_count, 
-        Vec4{0.5,0.5,0.5,0}, 
-        Vec4{0.8,0.8,0.8,0}
-    );
-}

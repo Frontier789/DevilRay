@@ -18,6 +18,7 @@
 #include "Image.hpp"
 #include "Utils.hpp"
 #include "DeviceUtils.hpp"
+#include "Renderer.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
@@ -129,141 +130,6 @@ GLuint createTexture(Size2i resolution)
 
     return texture;
 }
-
-struct RenderStats
-{
-    std::atomic<int64_t> total_casts;
-};
-
-class Renderer
-{
-    DeviceVector<Vec4> accumulator;
-    std::vector<uint32_t> pixels;
-    Size2i resolution;
-    GLuint texture;
-    bool debug;
-
-    RenderStats stats;
-
-    Camera camera;
-    std::vector<Object> objects;
-
-    Timer timer;
-public:
-
-    Renderer(Size2i resolution)
-        : accumulator(resolution.width * resolution.height, Vec4{0,0,0,0})
-        , pixels(resolution.width * resolution.height)
-        , resolution(resolution)
-        , stats(RenderStats{0})
-    {
-        texture = createTexture(resolution);
-    }
-
-    const RenderStats &getStats() const {return stats;}
-
-    Size2i getResolution() const {return resolution;}
-
-    void setDebug(bool dbg)
-    {
-        debug = dbg;
-    }
-
-    void setCamera(Camera cam)
-    {
-        camera = std::move(cam);
-    }
-
-    void setObjects(std::vector<Object> objs)
-    {
-        objects = std::move(objs);
-    }
-
-    void render()
-    {
-        parallel_for(resolution.height, [&](int y){
-
-            Random random = RandomPool::singleton().borrowRandom();
-            //std::cout << "Got random id " << random.get_id() << std::endl;
-
-            const int max_depth = debug ? 1 : 5;
-
-            int ray_casts = 0;
-
-            for (int x=0;x<resolution.width;++x)
-            {
-                const auto iterations = 10;
-                
-                auto &pix = accumulator.hostPtr()[x + y*resolution.width];
-                pix.w += iterations;
-
-                const auto ray = cameraRay(camera, Vec2{x, y});
-                const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, iterations, random);
-
-                pix = pix + sample.color;
-                ray_casts += sample.casts;
-            }
-            RandomPool::singleton().returnRandom(std::move(random));
-            stats.total_casts += ray_casts;
-
-	    });
-    }
-
-    void clear()
-    {
-        std::fill_n(accumulator.hostPtr(), accumulator.size(), Vec4{0,0,0,0});
-    }
-
-    void createPixels()
-    {
-        auto toSRGB = [](float linear) -> float
-        {
-            const float r = std::clamp(linear, 0.f, 1.f);
-            if (r < 0.0031308) return r * 12.92;
-            return std::pow(r, 1/2.4f)*1.055 - 0.055f;
-        };
-
-        auto packPixel = [&](float r, float g, float b, float a) -> uint32_t {
-            return (static_cast<uint32_t>(toSRGB(r) * 255)<< 0) |
-                (static_cast<uint32_t>(toSRGB(g) * 255)<< 8) |
-                (static_cast<uint32_t>(toSRGB(b) * 255)<<16) |
-                (static_cast<uint32_t>(std::clamp(a, 0.0f, 1.0f) * 255)<<24);
-        };
-
-        auto setPixel = [&](int x, int y, float r, float g, float b, float a=1.0f) {
-            const auto flipped_y = resolution.height - y - 1;
-            pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
-        };
-
-        accumulator.updateHostData();
-
-        for (int y=0;y<resolution.height;++y)
-        for (int x=0;x<resolution.width;++x)
-        {
-            const auto pix = accumulator.hostPtr()[x + y*resolution.width];
-            if (pix.w == 0)
-                setPixel(x, y, 0,0,0);
-            else
-                setPixel(x, y, pix.x / pix.w, pix.y / pix.w, pix.z / pix.w);
-        }
-    }
-
-    void saveImage(const std::string &fileName)
-    {
-        createPixels();
-
-        savePNG(fileName, pixels, resolution);
-    }
-
-    void upload()
-    {
-        createPixels();
-
-        glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
-    }
-
-    GLuint tex() const {return texture;}
-};
 
 Camera createCamera(Size2i resolution, const float focal_length, const float physical_pixel_size)
 {
@@ -413,10 +279,8 @@ std::vector<Object> createObjects()
     return objects;
 }
 
-void test_f();
-
 int main() {
-    test_f();
+    printCudaDeviceInfo();
 
     const auto resolution = Size2i{640, 640};
     const auto render_scale = 1;
@@ -428,6 +292,7 @@ int main() {
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
         const auto shader = createShaderProgram(vertexShaderSource, fragmentShaderSource);
+        const auto texture = createTexture(resolution);
 
         GLuint vao;
         glGenVertexArrays(1, &vao);
@@ -460,7 +325,8 @@ int main() {
 
             ImGui::Text("Render pass: %.0fms", elapsed_ms);
             ImGui::Text("Rays per pixel: %.0f", renderer.getStats().total_casts.load()*1.f / resolution.width / resolution.height);
-            renderer.upload();
+            
+            glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
 
             if (ImGui::Button("Capture snapshot"))
             {
@@ -484,7 +350,7 @@ int main() {
             glUseProgram(shader);
 
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, renderer.tex());
+            glBindTexture(GL_TEXTURE_2D, texture);
 
             glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 

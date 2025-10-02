@@ -15,6 +15,25 @@ struct ColorSample
 
 HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects);
 
+HD Vec4 checkerPattern(
+    const Vec2f &uv, 
+    const int checker_count, 
+    const Vec4 dark, 
+    const Vec4 bright
+);
+
+inline HD Vec4 checkerPattern(
+    const Vec2f &uv, 
+    const int checker_count
+)
+{
+    return checkerPattern(uv, checker_count, 
+        Vec4{0.5,0.5,0.5,0}, 
+        Vec4{0.8,0.8,0.8,0}
+    );
+}
+
+#pragma nv_exec_check_disable
 template<typename Rng>
 HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 {
