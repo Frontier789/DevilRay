@@ -43,6 +43,11 @@ Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
     };
 }
 
+std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
+{
+    return std::visit([&](auto&& o) {return getIntersection(ray, o);}, object);
+}
+
 Vec4 checkerPattern(
     const Vec2f &uv, 
     const int checker_count, 
@@ -57,34 +62,6 @@ Vec4 checkerPattern(
     return bright * checker + dark * (1-checker);
 }
 
-void printCudaDeviceInfo() {
-    int deviceCount = 0;
-    cudaGetDeviceCount(&deviceCount);
-
-    if (deviceCount == 0) {
-        std::cout << "No CUDA devices found." << std::endl;
-        return;
-    }
-
-    int device;
-    cudaGetDevice(&device);
-
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, device);
-
-    std::cout << "CUDA Device Info:" << std::endl;
-    std::cout << "Name: " << deviceProp.name << std::endl;
-    std::cout << "Multiprocessors: " << deviceProp.multiProcessorCount << std::endl;
-    std::cout << "Compute Capability: " << deviceProp.major << "." << deviceProp.minor << std::endl;
-}
-
-std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
-{
-    return std::visit([&](auto&& o) {return getIntersection(ray, o);}, object);
-}
-
-template struct DeviceVector<Vec4>;
-
 
 __global__ void initRand(curandState *randStates, int width, int height, unsigned long seed) {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
@@ -95,23 +72,15 @@ __global__ void initRand(curandState *randStates, int width, int height, unsigne
     curand_init(seed, idx, 0, &randStates[idx]);
 }
 
-
-CudaRandomStates::CudaRandomStates(Size2i resolution)
-    : size(resolution)
-    , rand_states(nullptr)
+void CudaRandomStates::init()
 {
-    cudaMalloc(&rand_states, resolution.width * resolution.height * sizeof(*rand_states));
-
     dim3 dimBlock(32, 32);
     dim3 dimGrid;
     dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
     dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
 
     initRand<<<dimBlock, dimGrid>>>(rand_states, size.width, size.height, 42);
+    CUDA_ERROR_CHECK();
 }
 
-CudaRandomStates::~CudaRandomStates()
-{
-    cudaFree(rand_states);
-    rand_states = nullptr;
-}
+template struct DeviceVector<Vec4>;

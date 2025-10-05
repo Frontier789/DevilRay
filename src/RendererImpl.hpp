@@ -17,7 +17,6 @@ Renderer::Renderer(Size2i resolution)
     
 }
 
-
 struct CudaRandom
 {
     curandState *state;
@@ -130,20 +129,32 @@ void Renderer::render()
     //     stats.total_casts += ray_casts;
 
     // });
-
+    
     accumulator.ensureDeviceAllocation();
+    CUDA_ERROR_CHECK();
 
     dim3 dimBlock(32, 32);
     dim3 dimGrid;
     dimGrid.x = (resolution.width + dimBlock.x - 1) / dimBlock.x;
     dimGrid.y = (resolution.height + dimBlock.y - 1) / dimBlock.y;
 
+    static bool printed = false;
+    if (!printed) {
+        std::cout << "Running grid size " << dimGrid.x << "x" << dimGrid.y << std::endl;
+        printed = true;
+
+        int minGridSize;
+        int blockSize;
+        cudaOccupancyMaxPotentialBlockSize(&minGridSize, &blockSize, cuda_render);
+        std::cout << "suggested minGridSize = " << minGridSize << std::endl;
+        std::cout << "suggested blockSize = " << blockSize << std::endl;
+    }
+
     auto data = copyToGpu(objects);
 
     cuda_render<<<dimBlock, dimGrid>>>(resolution, accumulator.devicePtr(), camera, data.objects, objects.size(), debug, cuda_randoms.ptr());
 
-    cudaFree(data.materials);
-    cudaFree(data.objects);
+    CUDA_ERROR_CHECK();
 }
 
 void Renderer::createPixels()

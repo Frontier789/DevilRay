@@ -42,4 +42,9 @@ struct CudaRandomStates
 private:
     Size2i size;
     curandState *rand_states;
+
+    void init();
 };
+
+#define CUDA_ERROR_CHECK() { cudaCheckLAstError(__FILE__, __LINE__); }
+void cudaCheckLAstError(const char *file, int line, bool abort=true);

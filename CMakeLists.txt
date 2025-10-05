@@ -21,6 +21,7 @@ add_executable(${PROJECT_NAME}
                src/Utils.cpp
                src/Image.cpp
                src/implementation.cu
+               src/DeviceUtils.cu
                imgui_backend/imgui_impl_glfw.cpp
                imgui_backend/imgui_impl_opengl3.cpp)
 
