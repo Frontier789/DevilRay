@@ -69,6 +69,9 @@ void Renderer::clear()
 
 void Renderer::schedule_cpu_render()
 {
+    const auto objects = std::span{scene.objects.hostPtr(), scene.objects.size()};
+    const auto materials = std::span{scene.materials.hostPtr(), scene.materials.size()};
+
     parallel_for(resolution.height, [&](int y){
 
         Random random = RandomPool::singleton().borrowRandom();
@@ -86,7 +89,7 @@ void Renderer::schedule_cpu_render()
             pix.w += iterations;
 
             const auto ray = cameraRay(camera, Vec2{x, y});
-            const auto sample = sampleColor(ray, max_depth, std::span{objects}, debug, iterations, random);
+            const auto sample = sampleColor(ray, max_depth, objects, materials, debug, iterations, random);
 
             pix = pix + sample.color;
             ray_casts += sample.casts;
@@ -100,6 +103,9 @@ void Renderer::schedule_cpu_render()
 void Renderer::render()
 {
     accumulator.ensureDeviceAllocation();
+    CUDA_ERROR_CHECK();
+    
+    scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     schedule_device_render();   

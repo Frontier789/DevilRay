@@ -1,5 +1,7 @@
+#include "device/Array.hpp"
+
 template<typename T>
-DeviceVector<T>::DeviceVector(int N, const T &initValue)
+DeviceArray<T>::DeviceArray(int N, const T &initValue)
     : m_size(N)
     , m_initialValue(initValue)
     , m_host(new T[N])
@@ -9,14 +11,14 @@ DeviceVector<T>::DeviceVector(int N, const T &initValue)
 }
 
 template<typename T>
-DeviceVector<T>::~DeviceVector()
+DeviceArray<T>::~DeviceArray()
 {
     delete[] m_host;
     deleteDeviceMemory();
 }
 
 template<typename T>
-void DeviceVector<T>::reset()
+void DeviceArray<T>::reset()
 {
     std::fill_n(m_host, m_size, m_initialValue);
 
@@ -27,7 +29,7 @@ void DeviceVector<T>::reset()
 }
 
 template<typename T>
-void DeviceVector<T>::ensureDeviceAllocation()
+void DeviceArray<T>::ensureDeviceAllocation()
 {
     if (!m_device) {
         cudaMalloc(&m_device, sizeof(T)*m_size);
@@ -36,7 +38,7 @@ void DeviceVector<T>::ensureDeviceAllocation()
 }
 
 template<typename T>
-void DeviceVector<T>::updateHostData()
+void DeviceArray<T>::updateHostData()
 {
     if (!m_device) return;
 
@@ -44,10 +46,10 @@ void DeviceVector<T>::updateHostData()
 }
 
 template<typename T>
-void DeviceVector<T>::deleteDeviceMemory()
+void DeviceArray<T>::deleteDeviceMemory()
 {
     cudaFree(m_device);
     m_device = nullptr;
 }
 
-template struct DeviceVector<Vec4>;
+template struct DeviceArray<Vec4>;

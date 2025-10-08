@@ -12,14 +12,14 @@ struct Square
     Vec3 n;
     Vec3 right;
     float size;
-    Material *mat;
+    int mat;
 };
 
 struct Sphere
 {
     Vec3 center;
     float radius;
-    Material *mat;
+    int mat;
 };
 
 using Object = std::variant<Square, Sphere>;

@@ -17,8 +17,8 @@
 #include "Shaders.hpp"
 #include "Image.hpp"
 #include "Utils.hpp"
-#include "DeviceUtils.hpp"
 #include "Renderer.hpp"
+#include "device/DevUtils.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
@@ -148,135 +148,148 @@ Camera createCamera(Size2i resolution, const float focal_length, const float phy
     return cam;
 }
 
-std::vector<Object> createObjects()
+Scene createScene()
 {
-    static Material light3{
+    Scene scene;
+
+    const int  light3 = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{3,3,3},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    };
-    static Material light_mid{
+    });
+
+    const int  light_mid = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{10,10,10},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    };
-    static Material light_bright{
+    });
+
+    const int  light_bright = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{100,100,100},
         .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
         .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    };
+    });
 
-    static Material red{
+
+    const int  red = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.9, 0.3, 0.3, 0.0},
         .debug_color = Vec4{0.8, 0.2, 0.2, 0.0},
-    };
+    });
 
-    static Material green{
+
+    const int  green = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.3, 0.9, 0.3, 0.0},
         .debug_color = Vec4{0.2, 0.8, 0.2, 0.0},
-    };
+    });
 
-    static Material blue{
+
+    const int  blue = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.3, 0.3, 0.9, 0.0},
         .debug_color = Vec4{0.2, 0.2, 0.8, 0.0},
-    };
+    });
 
-    static Material white{
+
+    const int  white = scene.materials.size();
+    scene.materials.push_back(Material{
         .emission = Vec4{0, 0, 0},
         .diffuse_reflectance = Vec4{0.9, 0.9, 0.9, 0.0},
         .debug_color = Vec4{0.7, 0.7, 0.7, 0.0},
-    };
-
-    std::vector<Object> objects;
+    });
 
     // Avoid GCC false positive warning
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wstringop-overflow"
 /*
-    objects.emplace_back(Sphere{
+    scene.objects.push_back(Sphere{
         .center = Vec3{0, 0, 2},
         .radius = 300e-3,
-        .mat = &blue,
+        .mat = blue,
     });
 
-    objects.emplace_back(Sphere{
+    scene.objects.push_back(Sphere{
         .center = Vec3{0.3, 0.2, 2},
         .radius = 100e-3,
-        .mat = &blue,
+        .mat = blue,
     });
 
-    objects.emplace_back(Sphere{
+    scene.objects.push_back(Sphere{
         .center = Vec3{-.3, .2, 2},
         .radius = 100e-3,
-        .mat = &blue,
+        .mat = blue,
     });
 */
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{0,0,2.5},
         .n = Vec3{0,0,-1},
         .right = Vec3{1,0,0},
         .size = 1,
-        .mat = &white,
+        .mat = white,
     });
 
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{0.5,0,2},
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
-        .mat = &red,
+        .mat = red,
     });
 
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{-0.5,0,2},
         .n = Vec3{1,0,0},
         .right = Vec3{0,1,0},
         .size = 1,
-        .mat = &green,
+        .mat = green,
     });
 
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{0,0.5,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &white,
+        .mat = white,
     });
 
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{0,-0.5,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 1,
-        .mat = &white,
+        .mat = white,
     });
 
-    objects.emplace_back(Square{
+    scene.objects.push_back(Square{
         .p = Vec3{0,0.499,2},
         .n = Vec3{0,1,0},
         .right = Vec3{0,0,1},
         .size = 0.5,
-        .mat = &light_mid,
+        .mat = light_mid,
     });
 
-    objects.emplace_back(Sphere{
+    scene.objects.push_back(Sphere{
         .center = Vec3{0.3, -0.4, 2},
         .radius = 100e-3,
-        .mat = &blue,
+        .mat = blue,
     });
 
-    objects.emplace_back(Sphere{
+    scene.objects.push_back(Sphere{
         .center = Vec3{-0.25, -0.3, 1.8},
         .radius = 200e-3,
-        .mat = &red,
+        .mat = red,
     });
 
     #pragma GCC diagnostic pop
 
-    return objects;
+    return scene;
 }
 
 int main() {
@@ -302,7 +315,7 @@ int main() {
         float focal_length_mm = 14.2f;
         bool debug = false;
 
-        renderer.setObjects(createObjects());
+        renderer.setScene(createScene());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
 

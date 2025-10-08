@@ -9,5 +9,5 @@ struct Intersection
     Vec3 p;
     Vec2f uv;
     Vec3 n;
-    Material *mat;
+    int mat;
 };

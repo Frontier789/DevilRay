@@ -4,7 +4,7 @@
 #include <iostream>
 #include <optional>
 
-#include "DeviceUtils.hpp"
+#include "device/DevUtils.hpp"
 
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
@@ -79,6 +79,3 @@ void CudaRandomStates::init()
     initRand<<<dimGrid, dimBlock>>>(rand_states, size.width, size.height, 42);
     CUDA_ERROR_CHECK();
 }
-
-
-#include "DeviceVectorImpl.hpp"

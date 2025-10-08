@@ -10,7 +10,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 
 # Print compilation notes about kernels
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
 
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
@@ -24,8 +24,11 @@ add_executable(${PROJECT_NAME}
                src/Utils.cpp
                src/Image.cpp
                src/Renderer.cpp
-               src/implementation.cu
-               src/DeviceUtils.cu
+               src/Scene.cpp
+               src/device/implementation.cu
+               src/device/DevUtils.cu
+               src/device/Array.cu
+               src/device/Vector.cu
                imgui_backend/imgui_impl_glfw.cpp
                imgui_backend/imgui_impl_opengl3.cpp)
 

@@ -52,8 +52,15 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 }
 
 template<typename Rng>
-HD ColorSample sampleColor(const Ray &cameraRay, const int max_depth, const std::span<const Object> objects, const bool debug, const int iterations, Rng &rng)
-{
+HD ColorSample sampleColor(
+    const Ray &cameraRay,
+    const int max_depth,
+    const std::span<const Object> objects,
+    const std::span<const Material> materials,
+    const bool debug,
+    const int iterations,
+    Rng &rng
+){
     Vec4 color{0,0,0,0};
     int ray_casts = 0;
 
@@ -79,7 +86,7 @@ HD ColorSample sampleColor(const Ray &cameraRay, const int max_depth, const std:
                 // color.x += 10000;
             }
     
-            const auto &material = *intersection->mat;
+            const auto &material = materials[intersection->mat];
     
             if (debug)
             {

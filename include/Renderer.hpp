@@ -1,9 +1,10 @@
 #pragma once
 
-#include "DeviceUtils.hpp"
+#include "device/DevUtils.hpp"
 
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
+#include "tracing/Scene.hpp"
 
 #include <atomic>
 #include <vector>
@@ -15,20 +16,21 @@ struct RenderStats
 
 class Renderer
 {
-    DeviceVector<Vec4> accumulator;
+    DeviceArray<Vec4> accumulator;
     std::vector<uint32_t> pixels;
     Size2i resolution;
     bool debug;
 
     RenderStats stats;
-
     Camera camera;
-    std::vector<Object> objects;
+
+    Scene scene;
 
     Timer timer;
 
     CudaRandomStates cuda_randoms;
 public:
+
 
     Renderer(Size2i resolution);
 
@@ -37,7 +39,7 @@ public:
     void setDebug(bool dbg) { debug = dbg; }
 
     void setCamera(Camera cam) { camera = std::move(cam); }
-    void setObjects(std::vector<Object> objs) { objects = std::move(objs); }
+    void setScene(Scene scn) { scene = std::move(scn); }
 
     void render();
     void clear();

@@ -1,7 +1,7 @@
 #include <vector>
 #include <iostream>
 
-#include "DeviceUtils.hpp"
+#include "device/DevUtils.hpp"
 
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
