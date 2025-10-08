@@ -79,7 +79,7 @@ void CudaRandomStates::init()
     dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
     dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
 
-    initRand<<<dimBlock, dimGrid>>>(rand_states, size.width, size.height, 42);
+    initRand<<<dimGrid, dimBlock>>>(rand_states, size.width, size.height, 42);
     CUDA_ERROR_CHECK();
 }
 

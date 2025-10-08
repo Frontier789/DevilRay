@@ -133,7 +133,7 @@ void Renderer::render()
     accumulator.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
-    dim3 dimBlock(32, 32);
+    dim3 dimBlock(29, 29);
     dim3 dimGrid;
     dimGrid.x = (resolution.width + dimBlock.x - 1) / dimBlock.x;
     dimGrid.y = (resolution.height + dimBlock.y - 1) / dimBlock.y;
@@ -152,7 +152,7 @@ void Renderer::render()
 
     auto data = copyToGpu(objects);
 
-    cuda_render<<<dimBlock, dimGrid>>>(resolution, accumulator.devicePtr(), camera, data.objects, objects.size(), debug, cuda_randoms.ptr());
+    cuda_render<<<dimGrid, dimBlock>>>(resolution, accumulator.devicePtr(), camera, data.objects, objects.size(), debug, cuda_randoms.ptr());
 
     CUDA_ERROR_CHECK();
 }
