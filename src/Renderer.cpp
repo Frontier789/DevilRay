@@ -33,7 +33,9 @@ void Renderer::createPixels()
         pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
     };
 
-    accumulator.updateHostData();
+    if (useCuda) {
+        accumulator.updateHostData();
+    }
 
     const auto data = accumulator.hostPtr();
 
@@ -65,6 +67,7 @@ const uint32_t *Renderer::getPixels()
 void Renderer::clear()
 {
     accumulator.reset();
+    stats.reset();
 }
 
 void Renderer::schedule_cpu_render()
@@ -102,11 +105,21 @@ void Renderer::schedule_cpu_render()
 
 void Renderer::render()
 {
+    if (!useCuda) {
+        schedule_cpu_render();
+        return;
+    }
+
     accumulator.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
-    
+
     scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     schedule_device_render();   
+}
+
+void RenderStats::reset()
+{
+    total_casts = 0;
 }

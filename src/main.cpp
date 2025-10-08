@@ -314,10 +314,12 @@ int main() {
 
         float focal_length_mm = 14.2f;
         bool debug = false;
+        bool useCuda = true;
 
         renderer.setScene(createScene());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
+        renderer.useCudaDevice(useCuda);
 
         runEventLoop(app, [&]{
 
@@ -330,6 +332,13 @@ int main() {
             {
                 renderer.clear();
                 renderer.setDebug(debug);
+            }
+
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Use CUDA", &useCuda))
+            {
+                renderer.clear();
+                renderer.useCudaDevice(useCuda);
             }
 
             Timer t;

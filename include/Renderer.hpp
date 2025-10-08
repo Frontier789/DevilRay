@@ -12,6 +12,8 @@
 struct RenderStats
 {
     std::atomic<int64_t> total_casts;
+
+    void reset();
 };
 
 class Renderer
@@ -20,6 +22,7 @@ class Renderer
     std::vector<uint32_t> pixels;
     Size2i resolution;
     bool debug;
+    bool useCuda;
 
     RenderStats stats;
     Camera camera;
@@ -29,14 +32,14 @@ class Renderer
     Timer timer;
 
     CudaRandomStates cuda_randoms;
+
 public:
-
-
     Renderer(Size2i resolution);
 
     const RenderStats &getStats() const {return stats;}
     Size2i getResolution() const {return resolution;}
     void setDebug(bool dbg) { debug = dbg; }
+    void useCudaDevice(bool use) { useCuda = use; }
 
     void setCamera(Camera cam) { camera = std::move(cam); }
     void setScene(Scene scn) { scene = std::move(scn); }
