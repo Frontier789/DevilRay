@@ -49,3 +49,5 @@ void DeviceVector<T>::deleteDeviceMemory()
     cudaFree(m_device);
     m_device = nullptr;
 }
+
+template struct DeviceVector<Vec4>;

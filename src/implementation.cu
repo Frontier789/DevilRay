@@ -8,10 +8,9 @@
 #include "tracing/SampleScene.hpp"
 
 #include "IntersectionTestsImpl.hpp"
-#include "DeviceVectorImpl.hpp"
 #include "RendererImpl.hpp"
 
-std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects)
+HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects)
 {
     std::optional<Intersection> best = std::nullopt;
 
@@ -30,7 +29,7 @@ std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> o
     return best;
 }
 
-Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
+HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
 {
     const auto pixelCenter = pixelCoord + Vec2f{0.5, 0.5};
     const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
@@ -43,12 +42,12 @@ Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
     };
 }
 
-std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
+HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
 {
     return std::visit([&](auto&& o) {return getIntersection(ray, o);}, object);
 }
 
-Vec4 checkerPattern(
+HD Vec4 checkerPattern(
     const Vec2f &uv, 
     const int checker_count, 
     const Vec4 dark, 
@@ -62,25 +61,3 @@ Vec4 checkerPattern(
     return bright * checker + dark * (1-checker);
 }
 
-
-__global__ void initRand(curandState *randStates, int width, int height, unsigned long seed) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    if (x >= width || y >= height) return;
-
-    int idx = y * width + x;
-    curand_init(seed, idx, 0, &randStates[idx]);
-}
-
-void CudaRandomStates::init()
-{
-    dim3 dimBlock(32, 32);
-    dim3 dimGrid;
-    dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
-    dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
-
-    initRand<<<dimGrid, dimBlock>>>(rand_states, size.width, size.height, 42);
-    CUDA_ERROR_CHECK();
-}
-
-template struct DeviceVector<Vec4>;

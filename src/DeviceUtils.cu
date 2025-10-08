@@ -59,3 +59,26 @@ void printCudaDeviceInfo() {
     std::cout << "Multiprocessors: " << deviceProp.multiProcessorCount << std::endl;
     std::cout << "Compute Capability: " << deviceProp.major << "." << deviceProp.minor << std::endl;
 }
+
+__global__ void initRand(curandState *randStates, int width, int height, unsigned long seed) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x >= width || y >= height) return;
+
+    int idx = y * width + x;
+    curand_init(seed, idx, 0, &randStates[idx]);
+}
+
+void CudaRandomStates::init()
+{
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid;
+    dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
+    dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
+
+    initRand<<<dimGrid, dimBlock>>>(rand_states, size.width, size.height, 42);
+    CUDA_ERROR_CHECK();
+}
+
+
+#include "DeviceVectorImpl.hpp"

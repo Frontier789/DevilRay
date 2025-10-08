@@ -46,4 +46,8 @@ public:
     void saveImage(const std::string &fileName);
 
     const uint32_t *getPixels();
+
+private:
+    void schedule_cpu_render();
+    void schedule_device_render();
 };

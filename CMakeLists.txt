@@ -9,6 +9,9 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 # Allow constexpr calls in CUDA code
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 
+# Print compilation notes about kernels
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
+
 find_package(glfw3 REQUIRED)
 find_package(imgui REQUIRED)
 find_package(glew REQUIRED)
@@ -20,6 +23,7 @@ add_executable(${PROJECT_NAME}
                src/Shaders.cpp
                src/Utils.cpp
                src/Image.cpp
+               src/Renderer.cpp
                src/implementation.cu
                src/DeviceUtils.cu
                imgui_backend/imgui_impl_glfw.cpp
