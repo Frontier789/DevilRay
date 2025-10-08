@@ -292,6 +292,19 @@ Scene createScene()
     return scene;
 }
 
+std::string counterToString(uint64_t cntr)
+{
+    const auto original = cntr;
+
+    for (const auto ending : {"", "K", "M", "G", "T"}) {
+        if (cntr < 1000) return std::to_string(cntr) + ending;
+
+        cntr /= 1000;
+    }
+
+    return std::to_string(cntr);
+}
+
 int main() {
     printCudaDeviceInfo();
 
@@ -346,7 +359,12 @@ int main() {
             const auto elapsed_ms = t.elapsed_seconds() * 1000;
 
             ImGui::Text("Render pass: %.0fms", elapsed_ms);
-            ImGui::Text("Rays per pixel: %.0f", renderer.getStats().total_casts.load()*1.f / resolution.width / resolution.height);
+
+            auto &outputs = renderer.getOutputs();
+            if (useCuda) {
+                outputs.casts.updateHostData();
+            }
+            ImGui::Text("Rays per pixel: %s", counterToString(outputs.totalCasts() / resolution.width / resolution.height).c_str());
             
             glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
 

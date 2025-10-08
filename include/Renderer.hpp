@@ -9,26 +9,29 @@
 #include <atomic>
 #include <vector>
 
-struct RenderStats
+struct Outputs
 {
-    std::atomic<int64_t> total_casts;
-
+    Outputs(Size2i resolution);
+    
     void reset();
+
+    uint64_t totalCasts() const;
+    
+    DeviceArray<Vec4> color;
+    mutable DeviceArray<uint32_t> casts;
 };
 
 class Renderer
 {
-    DeviceArray<Vec4> accumulator;
+    Outputs outputs;
+
     std::vector<uint32_t> pixels;
     Size2i resolution;
     bool debug;
     bool useCuda;
 
-    RenderStats stats;
     Camera camera;
-
     Scene scene;
-
     Timer timer;
 
     CudaRandomStates cuda_randoms;
@@ -36,7 +39,7 @@ class Renderer
 public:
     Renderer(Size2i resolution);
 
-    const RenderStats &getStats() const {return stats;}
+    const Outputs &getOutputs() const {return outputs;}
     Size2i getResolution() const {return resolution;}
     void setDebug(bool dbg) { debug = dbg; }
     void useCudaDevice(bool use) { useCuda = use; }

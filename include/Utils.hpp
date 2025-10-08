@@ -134,6 +134,8 @@ struct Size2
     T height;
 
     constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
+
+    T area() const {return width * height;}
 };
 
 using Size2i = Size2<int>;

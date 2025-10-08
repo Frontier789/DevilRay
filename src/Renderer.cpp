@@ -3,9 +3,31 @@
 
 #include "tracing/SampleScene.hpp"
 
+
+Outputs::Outputs(Size2i resolution)
+    : color(resolution.area(), Vec4{0,0,0,0})
+    , casts(resolution.area(), 0)
+{
+
+}
+
+void Outputs::reset()
+{
+    color.reset();
+    casts.reset();
+}
+
+uint64_t Outputs::totalCasts() const
+{
+    const auto ptr = casts.hostPtr();
+    const auto total = std::accumulate(ptr, ptr + casts.size(), uint64_t{0});
+
+    return total;
+}
+
 Renderer::Renderer(Size2i resolution)
-    : accumulator(resolution.width * resolution.height, Vec4{0,0,0,0})
-    , pixels(resolution.width * resolution.height)
+    : outputs(resolution)
+    , pixels(resolution.area())
     , resolution(resolution)
     , cuda_randoms(resolution)
 {
@@ -34,10 +56,10 @@ void Renderer::createPixels()
     };
 
     if (useCuda) {
-        accumulator.updateHostData();
+        outputs.color.updateHostData();
     }
 
-    const auto data = accumulator.hostPtr();
+    const auto data = outputs.color.hostPtr();
 
     for (int y=0;y<resolution.height;++y)
     for (int x=0;x<resolution.width;++x)
@@ -66,8 +88,7 @@ const uint32_t *Renderer::getPixels()
 
 void Renderer::clear()
 {
-    accumulator.reset();
-    stats.reset();
+    outputs.reset();
 }
 
 void Renderer::schedule_cpu_render()
@@ -82,23 +103,21 @@ void Renderer::schedule_cpu_render()
 
         const int max_depth = debug ? 1 : 5;
 
-        int ray_casts = 0;
-
         for (int x=0;x<resolution.width;++x)
         {
-            const auto iterations = 10;
+            const auto iterations = debug ? 1 : 10;
             
-            auto &pix = accumulator.hostPtr()[x + y*resolution.width];
+            const auto idx = x + y*resolution.width;
+            auto &pix = outputs.color.hostPtr()[idx];
             pix.w += iterations;
 
             const auto ray = cameraRay(camera, Vec2{x, y});
             const auto sample = sampleColor(ray, max_depth, objects, materials, debug, iterations, random);
 
             pix = pix + sample.color;
-            ray_casts += sample.casts;
+            outputs.casts.hostPtr()[idx] += sample.casts;
         }
         RandomPool::singleton().returnRandom(std::move(random));
-        stats.total_casts += ray_casts;
 
     });
 }
@@ -110,16 +129,12 @@ void Renderer::render()
         return;
     }
 
-    accumulator.ensureDeviceAllocation();
+    outputs.color.ensureDeviceAllocation();
+    outputs.casts.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     schedule_device_render();   
-}
-
-void RenderStats::reset()
-{
-    total_casts = 0;
 }

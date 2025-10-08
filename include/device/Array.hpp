@@ -16,6 +16,7 @@ struct DeviceArray
     
     T *devicePtr() { return m_device; }
     T *hostPtr() { return m_host; }
+    const T *hostPtr() const { return m_host; }
     int size() const { return m_size; }
 
 private:

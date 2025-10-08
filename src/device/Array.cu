@@ -53,3 +53,4 @@ void DeviceArray<T>::deleteDeviceMemory()
 }
 
 template struct DeviceArray<Vec4>;
+template struct DeviceArray<uint32_t>;
