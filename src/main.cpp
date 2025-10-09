@@ -12,6 +12,7 @@
 #include <random>
 #include <thread>
 #include <mutex>
+#include <deque>
 
 #include "Application.hpp"
 #include "Shaders.hpp"
@@ -305,6 +306,30 @@ std::string counterToString(uint64_t cntr)
     return std::to_string(cntr);
 }
 
+struct RunningAverage
+{
+    RunningAverage(int sampleCount) : m_sampleCount(sampleCount) {}
+
+    void add(double value) {
+        m_samples.push_back(value);
+        if (m_samples.size() > m_sampleCount) {
+            m_samples.pop_front();
+        }
+    }
+
+    double mean() const {
+        if (m_samples.empty()) return 0;
+
+        return std::accumulate(m_samples.begin(), m_samples.end(), 0.0) / m_samples.size();
+    }
+
+    void reset() {m_samples.clear();}
+
+private:
+    std::deque<double> m_samples;
+    int m_sampleCount;
+};
+
 int main() {
     printCudaDeviceInfo();
 
@@ -325,6 +350,8 @@ int main() {
 
         Renderer renderer(resolution / render_scale);
 
+        RunningAverage renderTimes(20);
+
         float focal_length_mm = 14.2f;
         bool debug = false;
         bool useCuda = true;
@@ -337,12 +364,14 @@ int main() {
         runEventLoop(app, [&]{
 
             if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.1f mm")) {
-                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
+                renderTimes.reset();
                 renderer.clear();
+                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
             }
 
             if (ImGui::Checkbox("Debug", &debug))
             {
+                renderTimes.reset();
                 renderer.clear();
                 renderer.setDebug(debug);
             }
@@ -350,6 +379,7 @@ int main() {
             ImGui::SameLine();
             if (ImGui::Checkbox("Use CUDA", &useCuda))
             {
+                renderTimes.reset();
                 renderer.clear();
                 renderer.useCudaDevice(useCuda);
             }
@@ -357,8 +387,9 @@ int main() {
             Timer t;
             renderer.render();
             const auto elapsed_ms = t.elapsed_seconds() * 1000;
+            renderTimes.add(elapsed_ms);
 
-            ImGui::Text("Render pass: %.0fms", elapsed_ms);
+            ImGui::Text("Render pass: %.1fms", renderTimes.mean());
 
             auto &outputs = renderer.getOutputs();
             if (useCuda) {
