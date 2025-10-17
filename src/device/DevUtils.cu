@@ -8,7 +8,6 @@
 
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
-#include "tracing/SampleScene.hpp"
 
 void cudaCheckLAstError(const char *file, int line, bool abort)
 {

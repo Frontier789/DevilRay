@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tracing/Material.hpp"
 #include "tracing/Objects.hpp"
 #include "device/Vector.hpp"
 

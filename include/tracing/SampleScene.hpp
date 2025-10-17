@@ -51,6 +51,47 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
     return v;
 }
 
+template<typename T, int N>
+struct Stack {
+    T arr[N];
+    int size;
+
+    inline constexpr Stack() : size(0) {}
+
+    inline constexpr bool empty() const {return size == 0;}
+    inline constexpr bool isTop(T value) const {
+        if (empty()) return false;
+        return arr[size-1] == value;
+    }
+
+    inline constexpr void push(T value) {
+        arr[size] = value;
+        ++size;
+    }
+
+    inline constexpr void pop() {
+        --size;
+    }
+};
+
+inline HD Vec3 reflect(const Vec3 &i, const Vec3 &n, const float dotp)
+{
+    return i - n * 2*dotp;
+}
+
+inline HD float schlick(const float dotp, const float n1, const float n2)
+{
+    const float r = (n1 - n2) / (n1 + n2);
+    const float R0 = r*r;
+
+    const float cosT1 = 1 - dotp;
+    const float cosT1_2 = cosT1*cosT1;
+    const float cosT1_4 = cosT1_2*cosT1_2;
+    const float cosT1_5 = cosT1_4*cosT1;
+
+    return R0 + (1.0 - R0) * cosT1_5;
+}
+
 template<typename Rng>
 HD ColorSample sampleColor(
     const Ray &cameraRay,
@@ -68,20 +109,24 @@ HD ColorSample sampleColor(
     {
         Ray ray = cameraRay;
         Vec4 transmission{1,1,1,0};
-    
+
+        Stack<const Object *, 10> obj_stack;
+
         for (int depth=0;depth<max_depth;++depth)
         {
             const auto intersection = cast(ray, objects);
             ++ray_casts;
     
             if (!intersection.has_value()) break;
-    
-            if (dot(intersection->n, ray.v) > 1e-5) {
+
+            auto normal = intersection->n;
+
+            if (dot(normal, ray.v) > 1e-5) {
                 color.y += 10000;
             }
     
             if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-                ray.p = ray.p + intersection->n * 1e-6;
+                ray.p = ray.p + normal * 1e-6;
                 continue;
                 // color.x += 10000;
             }
@@ -90,24 +135,85 @@ HD ColorSample sampleColor(
     
             if (debug)
             {
-                color = color + material.debug_color * checkerPattern(intersection->uv, 8);
+                color = color + getDebugColor(material) * checkerPattern(intersection->uv, 8);
+                continue;
             }
-            else
-            {
-                color = color + material.emission * transmission;
+            
+            if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+                color = color + diffuse_material->emission * transmission;
+                
+                const auto new_v = uniformHemisphereSample(normal, rng);
+
+                const auto weakening_factor = dot(normal, new_v);
+                transmission = transmission * weakening_factor * diffuse_material->diffuse_reflectance;
+
+                if (transmission.max() < 0.001) break;
+
+                ray = Ray{
+                    .p = intersection->p,
+                    .v = new_v,
+                };
+            }
+
+            if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
+
+                // Find iors
+                float n1;
+                float n2;
+
+                // leaving last object
+                if (obj_stack.isTop(intersection->object)) {
+                    n1 = transparent_material->inside_medium.ior;
+                    
+                    // TODO: fetch outside ior
+                    n2 = 1;
+                } else {
+                    n2 = transparent_material->inside_medium.ior;
+
+                    // TODO: fetch current ior
+                    n1 = 1;
+                }
+
+                // Reflect or refract
+                const auto eta = n1/n2;
+                const auto d = dot(ray.v, normal);
+                const auto k = 1 - eta*eta * (1 - d*d);
+
+                Vec3 v;
+
+                // Total internal reflection
+                if (n1 > n2 && k < 0)
+                {
+                    v = reflect(ray.v, normal, d);
+                }
+                else
+                {
+                    const auto F = schlick(-d, n1, n2);
+                    
+                    // Fresnel reflection
+                    if (rng.rnd() < F)
+                    {
+                        v = reflect(ray.v, normal, d);
+                    }
+                    else
+                    {
+                        obj_stack.push(intersection->object);
+                        normal = normal * -1;
+                        
+                        const float dotp = -d;
+                        v = normal * std::sqrt(k) + (ray.v - normal*dotp) * eta;
+                        
+                        transmission = transmission * (eta*eta);
+                    }
+                }
+
+                ray = Ray{
+                    .p = intersection->p,
+                    .v = v,
+                };
             }
     
-            const auto new_v = uniformHemisphereSample(intersection->n, rng);
-    
-            const auto weakening_factor = dot(intersection->n, new_v);
-            transmission = transmission * weakening_factor * material.diffuse_reflectance;
-    
-            ray = Ray{
-                .p = intersection->p,
-                .v = new_v
-            };
-    
-            ray.p = ray.p + intersection->n * 1e-5;
+            ray.p = ray.p + normal * 1e-5;
         }
     }
 

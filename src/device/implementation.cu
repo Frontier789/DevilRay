@@ -44,7 +44,13 @@ HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
 
 HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
 {
-    return std::visit([&](auto&& o) {return getIntersection(ray, o);}, object);
+    return std::visit([&](auto&& o) {
+        auto i = getIntersection(ray, o);
+        if (i.has_value()) {
+            i->object = &object;
+        }
+        return i;
+    }, object);
 }
 
 HD Vec4 checkerPattern(

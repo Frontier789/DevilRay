@@ -19,17 +19,12 @@
 #include "Image.hpp"
 #include "Utils.hpp"
 #include "Renderer.hpp"
-#include "device/DevUtils.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
-#include "tracing/Intersection.hpp"
-#include "tracing/SampleScene.hpp"
 
 /*
     PLAN
-     - add cuda support
-        - also keep supporting cpu
      - bidirectional path tracing
         - need to be able to sample light sources
      - importance sampling
@@ -37,6 +32,7 @@
      - metropolis
      - keep track of variance
         - add option to show it
+     - stratify sample pixels
 */
 
 void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -154,57 +150,83 @@ Scene createScene()
     Scene scene;
 
     const int  light3 = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{3,3,3},
-        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
-        .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    });
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{3,3,3},
+            .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
+        };
+        material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0};
+        scene.materials.push_back(material);
+    }
 
     const int  light_mid = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{10,10,10},
-        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
-        .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    });
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{10,10,10},
+            .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
+        };
+        material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
+        scene.materials.push_back(material);
+    }
 
     const int  light_bright = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{100,100,100},
-        .diffuse_reflectance = Vec4{1.0,1.0,1.0,0.0},
-        .debug_color = Vec4{0.9,0.3,0.4,0.0},
-    });
-
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{100,100,100},
+            .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
+        };
+        material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
+        scene.materials.push_back(material);
+    }
 
     const int  red = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.9, 0.3, 0.3, 0.0},
-        .debug_color = Vec4{0.8, 0.2, 0.2, 0.0},
-    });
-
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{0, 0, 0},
+            .diffuse_reflectance = Vec4{0.9, 0.3, 0.3, 0.0},
+        };
+        material.debug_color = Vec4{0.8, 0.2, 0.2, 0.0},
+        scene.materials.push_back(material);
+    }
 
     const int  green = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.3, 0.9, 0.3, 0.0},
-        .debug_color = Vec4{0.2, 0.8, 0.2, 0.0},
-    });
-
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{0, 0, 0},
+            .diffuse_reflectance = Vec4{0.3, 0.9, 0.3, 0.0},
+        };
+        material.debug_color = Vec4{0.2, 0.8, 0.2, 0.0},
+        scene.materials.push_back(material);
+    }
 
     const int  blue = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.3, 0.3, 0.9, 0.0},
-        .debug_color = Vec4{0.2, 0.2, 0.8, 0.0},
-    });
-
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{0, 0, 0},
+            .diffuse_reflectance = Vec4{0.3, 0.3, 0.9, 0.0},
+        };
+        material.debug_color = Vec4{0.2, 0.2, 0.8, 0.0},
+        scene.materials.push_back(material);
+    }
 
     const int  white = scene.materials.size();
-    scene.materials.push_back(Material{
-        .emission = Vec4{0, 0, 0},
-        .diffuse_reflectance = Vec4{0.9, 0.9, 0.9, 0.0},
-        .debug_color = Vec4{0.7, 0.7, 0.7, 0.0},
-    });
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{0, 0, 0},
+            .diffuse_reflectance = Vec4{0.9, 0.9, 0.9, 0.0},
+        };
+        material.debug_color = Vec4{0.7, 0.7, 0.7, 0.0},
+        scene.materials.push_back(material);
+    }
+
+    const int  glass = scene.materials.size();
+    {
+        auto material = TransparentMaterial{
+            .inside_medium = Medium{.ior = 1.5195f},
+        };
+        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+        scene.materials.push_back(material);
+    }
 
     // Avoid GCC false positive warning
     #pragma GCC diagnostic push
@@ -285,7 +307,7 @@ Scene createScene()
     scene.objects.push_back(Sphere{
         .center = Vec3{-0.25, -0.3, 1.8},
         .radius = 200e-3,
-        .mat = red,
+        .mat = glass,
     });
 
     #pragma GCC diagnostic pop

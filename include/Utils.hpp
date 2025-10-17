@@ -100,6 +100,7 @@ struct Vec4
     constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
     constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
     constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
+    constexpr float max() const {return std::max(std::max(x,y),z);}
 };
 
 struct Vec3

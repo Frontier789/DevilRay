@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Utils.hpp"
-#include "Intersection.hpp"
 
 #include <optional>
 #include <variant>
@@ -23,5 +22,3 @@ struct Sphere
 };
 
 using Object = std::variant<Square, Sphere>;
-
-HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object);
