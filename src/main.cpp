@@ -222,7 +222,16 @@ Scene createScene()
     const int  glass = scene.materials.size();
     {
         auto material = TransparentMaterial{
-            .inside_medium = Medium{.ior = 1.5195f},
+            .inside_medium = Medium{.ior = 1.5595f},
+        };
+        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+        scene.materials.push_back(material);
+    }
+
+    const int  air = scene.materials.size();
+    {
+        auto material = TransparentMaterial{
+            .inside_medium = Medium{.ior = 1.0f},
         };
         material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
         scene.materials.push_back(material);
@@ -250,65 +259,90 @@ Scene createScene()
         .mat = blue,
     });
 */
-    scene.objects.push_back(Square{
-        .p = Vec3{0,0,2.5},
-        .n = Vec3{0,0,-1},
-        .right = Vec3{1,0,0},
-        .size = 1,
-        .mat = white,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{0,0,2.5},
+            .n = Vec3{0,0,-1},
+            .right = Vec3{1,0,0},
+            .size = 10,
+        };
+        obj.mat = white;
+        scene.objects.push_back(std::move(obj));    
+    }
 
-    scene.objects.push_back(Square{
-        .p = Vec3{0.5,0,2},
-        .n = Vec3{1,0,0},
-        .right = Vec3{0,1,0},
-        .size = 1,
-        .mat = red,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{0.5,0,2},
+            .n = Vec3{1,0,0},
+            .right = Vec3{0,1,0},
+            .size = 10,
+        };
+        obj.mat = red;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Square{
-        .p = Vec3{-0.5,0,2},
-        .n = Vec3{1,0,0},
-        .right = Vec3{0,1,0},
-        .size = 1,
-        .mat = green,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{-0.5,0,2},
+            .n = Vec3{1,0,0},
+            .right = Vec3{0,1,0},
+            .size = 10,
+        };
+        obj.mat = green;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Square{
-        .p = Vec3{0,0.5,2},
-        .n = Vec3{0,1,0},
-        .right = Vec3{0,0,1},
-        .size = 1,
-        .mat = white,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{0,0.5,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 10,
+        };
+        obj.mat = white;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Square{
-        .p = Vec3{0,-0.5,2},
-        .n = Vec3{0,1,0},
-        .right = Vec3{0,0,1},
-        .size = 1,
-        .mat = white,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{0,-0.5,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 10,
+        };
+        obj.mat = white;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Square{
-        .p = Vec3{0,0.499,2},
-        .n = Vec3{0,1,0},
-        .right = Vec3{0,0,1},
-        .size = 0.5,
-        .mat = light_mid,
-    });
+    {
+        auto obj = Square{
+            .p = Vec3{0,0.499,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 0.5,
+        };
+        obj.mat = light_mid;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Sphere{
-        .center = Vec3{0.3, -0.4, 2},
-        .radius = 100e-3,
-        .mat = blue,
-    });
+    {
+        auto obj = Sphere{
+            .center = Vec3{0.3, -0.4, 2},
+            .radius = 100e-3,
+        };
+        obj.mat = blue;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    scene.objects.push_back(Sphere{
-        .center = Vec3{-0.25, -0.3, 1.8},
-        .radius = 200e-3,
-        .mat = glass,
-    });
+    {
+        auto obj = Sphere{
+            .center = Vec3{-0.25, -0.3, 1.8},
+            .radius = 200e-3,
+        };
+        obj.mat = glass;
+        scene.objects.push_back(std::move(obj));
+    }
+
 
     #pragma GCC diagnostic pop
 

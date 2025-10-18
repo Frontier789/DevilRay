@@ -72,6 +72,11 @@ struct Stack {
     inline constexpr void pop() {
         --size;
     }
+
+    inline constexpr T top() {
+        --size;
+        return arr[size];
+    }
 };
 
 inline HD Vec3 reflect(const Vec3 &i, const Vec3 &n, const float dotp)
@@ -92,6 +97,11 @@ inline HD float schlick(const float dotp, const float n1, const float n2)
     return R0 + (1.0 - R0) * cosT1_5;
 }
 
+HD inline int getMaterial(const Object &object)
+{
+    return std::visit([](const auto &o){return o.mat;}, object);
+}
+
 template<typename Rng>
 HD ColorSample sampleColor(
     const Ray &cameraRay,
@@ -110,7 +120,7 @@ HD ColorSample sampleColor(
         Ray ray = cameraRay;
         Vec4 transmission{1,1,1,0};
 
-        Stack<const Object *, 10> obj_stack;
+        Stack<const Object *, 3> obj_stack;
 
         for (int depth=0;depth<max_depth;++depth)
         {
@@ -121,9 +131,9 @@ HD ColorSample sampleColor(
 
             auto normal = intersection->n;
 
-            if (dot(normal, ray.v) > 1e-5) {
-                color.y += 10000;
-            }
+            // if (dot(normal, ray.v) > 1e-5) {
+            //     color.y += 10000;
+            // }
     
             if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
                 ray.p = ray.p + normal * 1e-6;
@@ -165,13 +175,25 @@ HD ColorSample sampleColor(
                 if (obj_stack.isTop(intersection->object)) {
                     n1 = transparent_material->inside_medium.ior;
                     
-                    // TODO: fetch outside ior
-                    n2 = 1;
+                    obj_stack.pop();
+
+                    if (obj_stack.empty()) {
+                        n2 = 1;
+                    } else {
+                        const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                        n2 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
+                    }
+
+                    obj_stack.push(intersection->object);
                 } else {
                     n2 = transparent_material->inside_medium.ior;
 
-                    // TODO: fetch current ior
-                    n1 = 1;
+                    if (obj_stack.empty()) {
+                        n1 = 1;
+                    } else {
+                        const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                        n1 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
+                    }
                 }
 
                 // Reflect or refract
@@ -197,13 +219,16 @@ HD ColorSample sampleColor(
                     }
                     else
                     {
-                        obj_stack.push(intersection->object);
+                        if (obj_stack.isTop(intersection->object)) {
+                            obj_stack.pop();
+                        } else {
+                            obj_stack.push(intersection->object);
+                        }
+
                         normal = normal * -1;
                         
                         const float dotp = -d;
-                        v = normal * std::sqrt(k) + (ray.v - normal*dotp) * eta;
-                        
-                        transmission = transmission * (eta*eta);
+                        v = normal * (std::sqrt(k) - dotp * eta) + ray.v * eta;
                     }
                 }
 

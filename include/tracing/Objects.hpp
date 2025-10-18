@@ -5,20 +5,23 @@
 #include <optional>
 #include <variant>
 
-struct Square
+struct ObjectBase
+{
+    int mat;
+};
+
+struct Square : ObjectBase
 {
     Vec3 p;
     Vec3 n;
     Vec3 right;
     float size;
-    int mat;
 };
 
-struct Sphere
+struct Sphere : ObjectBase
 {
     Vec3 center;
     float radius;
-    int mat;
 };
 
 using Object = std::variant<Square, Sphere>;

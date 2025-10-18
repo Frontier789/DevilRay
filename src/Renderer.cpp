@@ -101,7 +101,7 @@ void Renderer::schedule_cpu_render()
         Random random = RandomPool::singleton().borrowRandom();
         //std::cout << "Got random id " << random.get_id() << std::endl;
 
-        const int max_depth = debug ? 1 : 5;
+        const int max_depth = debug ? 1 : 10;
 
         for (int x=0;x<resolution.width;++x)
         {
