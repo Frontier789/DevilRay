@@ -27,6 +27,7 @@ uint64_t Outputs::totalCasts() const
 
 Renderer::Renderer(Size2i resolution)
     : outputs(resolution)
+    , pixel_sampling(PixelSampling::UniformRandom)
     , pixels(resolution.area())
     , resolution(resolution)
     , cuda_randoms(resolution)
@@ -109,13 +110,15 @@ void Renderer::schedule_cpu_render()
             
             const auto idx = x + y*resolution.width;
             auto &pix = outputs.color.hostPtr()[idx];
-            pix.w += iterations;
 
-            const auto ray = cameraRay(camera, Vec2{x, y});
-            const auto sample = sampleColor(ray, max_depth, objects, materials, debug, iterations, random);
+            for (int i=0;i<iterations;++i) {
+                const auto ray = cameraRay(camera, Vec2{x, y}, pixel_sampling, pix.w, random);
+                const auto sample = sampleColor(ray, max_depth, objects, materials, debug, random);
 
-            pix = pix + sample.color;
-            outputs.casts.hostPtr()[idx] += sample.casts;
+                pix.w++;
+                pix = pix + sample.color;
+                outputs.casts.hostPtr()[idx] += sample.casts;
+            }
         }
         RandomPool::singleton().returnRandom(std::move(random));
 

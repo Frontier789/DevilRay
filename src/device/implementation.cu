@@ -29,19 +29,6 @@ HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Object
     return best;
 }
 
-HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord)
-{
-    const auto pixelCenter = pixelCoord + Vec2f{0.5, 0.5};
-    const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
-
-    const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
-    
-    return Ray{
-        .p = Vec3{0,0,0},
-        .v = Vec3{dir.x, dir.y, 1},
-    };
-}
-
 HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
 {
     return std::visit([&](auto&& o) {

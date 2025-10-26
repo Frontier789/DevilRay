@@ -1,3 +1,5 @@
 conan==2.20.1
 cmake==4.1.0
 ninja==1.13.0
+numpy==2.3.4
+matplotlib==3.10.7

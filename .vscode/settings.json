@@ -82,6 +82,9 @@
         "__nullptr": "cpp",
         "__config": "cpp",
         "__hash_table": "cpp",
-        "__tree": "cpp"
+        "__tree": "cpp",
+        "complex": "cpp",
+        "unordered_set": "cpp",
+        "fstream": "cpp"
     }
 }

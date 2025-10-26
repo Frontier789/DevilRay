@@ -19,7 +19,7 @@ struct CudaRandom
     }
 };
 
-__global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera camera, std::span<Object> objects, std::span<Material> materials, bool debug, curandState *randStates)
+__global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera camera, PixelSampling pixel_sampling, std::span<Object> objects, std::span<Material> materials, bool debug, curandState *randStates)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -28,18 +28,21 @@ __global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera c
     int idx = y * size.width + x;
 
 
-    const int max_depth = debug ? 1 : 10;
-    const auto iterations = debug ? 1 : 100;
+    const int max_depth = debug ? 1 : 100;
+    const auto iterations = debug ? 1 : 5;
     
     auto &pix = pixels[idx];
-    pix.w += iterations;
 
-    auto random = CudaRandom{randStates + idx};
-    const auto ray = cameraRay(camera, Vec2{x, y});
-    const auto sample = sampleColor(ray, max_depth, objects, materials, debug, iterations, random);
 
-    pix = pix + sample.color;
-    casts[idx] += sample.casts;
+    for (int i=0;i<iterations;++i) {
+        auto random = CudaRandom{randStates + idx};
+        const auto ray = cameraRay(camera, Vec2{x, y}, pixel_sampling, pix.w, random);
+        const auto sample = sampleColor(ray, max_depth, objects, materials, debug, random);
+        
+        pix.w++;
+        pix = pix + sample.color;
+        casts[idx] += sample.casts;
+    }
 }
 
 void Renderer::schedule_device_render()
@@ -64,7 +67,7 @@ void Renderer::schedule_device_render()
     const auto objects = std::span{scene.objects.devicePtr(), scene.objects.size()};
     const auto materials = std::span{scene.materials.devicePtr(), scene.materials.size()};
 
-    cuda_render<<<dimGrid, dimBlock>>>(resolution, outputs.color.devicePtr(), outputs.casts.devicePtr(), camera, objects, materials, debug, cuda_randoms.ptr());
+    cuda_render<<<dimGrid, dimBlock>>>(resolution, outputs.color.devicePtr(), outputs.casts.devicePtr(), camera, pixel_sampling, objects, materials, debug, cuda_randoms.ptr());
     CUDA_ERROR_CHECK();
 
     cudaDeviceSynchronize();

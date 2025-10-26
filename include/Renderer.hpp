@@ -2,6 +2,7 @@
 
 #include "device/DevUtils.hpp"
 
+#include "tracing/PixelSampling.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/Scene.hpp"
@@ -24,6 +25,7 @@ struct Outputs
 class Renderer
 {
     Outputs outputs;
+    PixelSampling pixel_sampling;
 
     std::vector<uint32_t> pixels;
     Size2i resolution;
@@ -46,6 +48,7 @@ public:
 
     void setCamera(Camera cam) { camera = std::move(cam); }
     void setScene(Scene scn) { scene = std::move(scn); }
+    void setPixelSampling(PixelSampling sampling) { pixel_sampling = sampling; }
 
     void render();
     void clear();

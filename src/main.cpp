@@ -264,7 +264,7 @@ Scene createScene()
             .p = Vec3{0,0,2.5},
             .n = Vec3{0,0,-1},
             .right = Vec3{1,0,0},
-            .size = 10,
+            .size = 1,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));    
@@ -275,7 +275,7 @@ Scene createScene()
             .p = Vec3{0.5,0,2},
             .n = Vec3{1,0,0},
             .right = Vec3{0,1,0},
-            .size = 10,
+            .size = 1,
         };
         obj.mat = red;
         scene.objects.push_back(std::move(obj));
@@ -286,7 +286,7 @@ Scene createScene()
             .p = Vec3{-0.5,0,2},
             .n = Vec3{1,0,0},
             .right = Vec3{0,1,0},
-            .size = 10,
+            .size = 1,
         };
         obj.mat = green;
         scene.objects.push_back(std::move(obj));
@@ -297,7 +297,7 @@ Scene createScene()
             .p = Vec3{0,0.5,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 10,
+            .size = 1,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));
@@ -308,7 +308,7 @@ Scene createScene()
             .p = Vec3{0,-0.5,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 10,
+            .size = 1,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));
@@ -332,6 +332,20 @@ Scene createScene()
         };
         obj.mat = blue;
         scene.objects.push_back(std::move(obj));
+    }
+
+    for (int x=0;x<10;++x) {
+        for (int y=0;y<10;++y) {
+            {
+                float h = std::sin(x*152.48548 + y*1867.8613385 + 5168.4185674);
+                auto obj = Sphere{
+                    .center = Vec3{(x - 9/2.f) / 10.0f *0.8f, 0.1f + h*0.1f, 1.6f + y / 10.0f *0.8f},
+                    .radius = 40e-3,
+                };
+                obj.mat = glass;
+                scene.objects.push_back(std::move(obj));
+            }
+        }
     }
 
     {
@@ -405,12 +419,14 @@ int main() {
         glGenVertexArrays(1, &vao);
 
         Renderer renderer(resolution / render_scale);
+        renderer.setPixelSampling(PixelSampling::UniformRandom);
 
         RunningAverage renderTimes(20);
 
         float focal_length_mm = 14.2f;
         bool debug = false;
         bool useCuda = true;
+        int pixel_sampling = static_cast<int>(PixelSampling::UniformRandom);
 
         renderer.setScene(createScene());
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
@@ -438,6 +454,14 @@ int main() {
                 renderTimes.reset();
                 renderer.clear();
                 renderer.useCudaDevice(useCuda);
+            }
+
+            constexpr const char* pixel_sampling_names[] = {"Center", "UniformRandom"};
+            if (ImGui::Combo("Pixel Sampling", &pixel_sampling, pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
+            {
+                renderTimes.reset();
+                renderer.clear();
+                renderer.setPixelSampling(static_cast<PixelSampling>(pixel_sampling));
             }
 
             Timer t;
