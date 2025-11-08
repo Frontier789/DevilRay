@@ -124,6 +124,7 @@ GLuint createTexture(Size2i resolution)
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
 
     glTextureStorage2D(texture, 1, GL_RGBA8, resolution.width, resolution.height);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     return texture;
 }
@@ -334,19 +335,19 @@ Scene createScene()
         scene.objects.push_back(std::move(obj));
     }
 
-    for (int x=0;x<10;++x) {
-        for (int y=0;y<10;++y) {
-            {
-                float h = std::sin(x*152.48548 + y*1867.8613385 + 5168.4185674);
-                auto obj = Sphere{
-                    .center = Vec3{(x - 9/2.f) / 10.0f *0.8f, 0.1f + h*0.1f, 1.6f + y / 10.0f *0.8f},
-                    .radius = 40e-3,
-                };
-                obj.mat = glass;
-                scene.objects.push_back(std::move(obj));
-            }
-        }
-    }
+    // for (int x=0;x<10;++x) {
+    //     for (int y=0;y<10;++y) {
+    //         {
+    //             float h = std::sin(x*152.48548 + y*1867.8613385 + 5168.4185674);
+    //             auto obj = Sphere{
+    //                 .center = Vec3{(x - 9/2.f) / 10.0f *0.8f, 0.1f + h*0.1f, 1.6f + y / 10.0f *0.8f},
+    //                 .radius = 40e-3,
+    //             };
+    //             obj.mat = glass;
+    //             scene.objects.push_back(std::move(obj));
+    //         }
+    //     }
+    // }
 
     {
         auto obj = Sphere{
@@ -413,7 +414,7 @@ int main() {
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
         const auto shader = createShaderProgram(vertexShaderSource, fragmentShaderSource);
-        const auto texture = createTexture(resolution);
+        const auto texture = createTexture(resolution / render_scale);
 
         GLuint vao;
         glGenVertexArrays(1, &vao);
@@ -435,7 +436,7 @@ int main() {
 
         runEventLoop(app, [&]{
 
-            if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 75, "%.1f mm")) {
+            if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 150, "%.1f mm")) {
                 renderTimes.reset();
                 renderer.clear();
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
@@ -477,7 +478,7 @@ int main() {
             }
             ImGui::Text("Rays per pixel: %s", counterToString(outputs.totalCasts() / resolution.width / resolution.height).c_str());
             
-            glTextureSubImage2D(texture, 0, 0, 0, resolution.width, resolution.height, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
+            glTextureSubImage2D(texture, 0, 0, 0, resolution.width / render_scale, resolution.height / render_scale, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
 
             if (ImGui::Button("Capture snapshot"))
             {

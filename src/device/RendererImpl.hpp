@@ -28,8 +28,8 @@ __global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera c
     int idx = y * size.width + x;
 
 
-    const int max_depth = debug ? 1 : 100;
-    const auto iterations = debug ? 1 : 5;
+    const int max_depth = debug ? 1 : 10;
+    const auto iterations = debug ? 1 : 100;
     
     auto &pix = pixels[idx];
 
