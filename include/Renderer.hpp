@@ -3,24 +3,15 @@
 #include "device/DevUtils.hpp"
 
 #include "tracing/PixelSampling.hpp"
+#include "tracing/Intersection.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/Scene.hpp"
 
+#include "Buffers.hpp"
+
 #include <atomic>
 #include <vector>
-
-struct Outputs
-{
-    Outputs(Size2i resolution);
-    
-    void reset();
-
-    uint64_t totalCasts() const;
-    
-    DeviceArray<Vec4> color;
-    mutable DeviceArray<uint32_t> casts;
-};
 
 class Renderer
 {

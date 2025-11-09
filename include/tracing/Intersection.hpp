@@ -14,4 +14,13 @@ struct Intersection
     const Object *object;
 };
 
+struct PathEntry
+{
+    Vec3 p;
+    Vec2f uv;
+    Vec3 n;
+    int mat;
+    Vec4 total_transmission;
+};
+
 HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object);

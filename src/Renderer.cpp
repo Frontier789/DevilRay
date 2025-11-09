@@ -5,7 +5,8 @@
 
 
 Outputs::Outputs(Size2i resolution)
-    : color(resolution.area(), Vec4{0,0,0,0})
+    : cameraPaths(resolution.area(), {})
+    , color(resolution.area(), Vec4{0,0,0,0})
     , casts(resolution.area(), 0)
 {
 
@@ -102,23 +103,18 @@ void Renderer::schedule_cpu_render()
         Random random = RandomPool::singleton().borrowRandom();
         //std::cout << "Got random id " << random.get_id() << std::endl;
 
-        const int max_depth = debug ? 1 : 10;
-
         for (int x=0;x<resolution.width;++x)
         {
             const auto iterations = debug ? 1 : 10;
             
             const auto idx = x + y*resolution.width;
             auto &pix = outputs.color.hostPtr()[idx];
+            auto *path = outputs.cameraPaths.hostPtr()[idx].data();
 
-            for (int i=0;i<iterations;++i) {
-                const auto ray = cameraRay(camera, Vec2{x, y}, pixel_sampling, pix.w, random);
-                const auto sample = sampleColor(ray, max_depth, objects, materials, debug, random);
+            SampleStats stats{.ray_casts = 0};
+            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, path, debug, random);
 
-                pix.w++;
-                pix = pix + sample.color;
-                outputs.casts.hostPtr()[idx] += sample.casts;
-            }
+            outputs.casts.hostPtr()[idx] += stats.ray_casts;
         }
         RandomPool::singleton().returnRandom(std::move(random));
 
@@ -132,6 +128,7 @@ void Renderer::render()
         return;
     }
 
+    outputs.cameraPaths.ensureDeviceAllocation();
     outputs.color.ensureDeviceAllocation();
     outputs.casts.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();

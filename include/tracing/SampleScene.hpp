@@ -4,6 +4,7 @@
 #include "tracing/Objects.hpp"
 #include "tracing/Intersection.hpp"
 #include "tracing/PixelSampling.hpp"
+#include "Buffers.hpp"
 
 #include <optional>
 #include <span>
@@ -126,53 +127,53 @@ HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord, PixelSampling sampling, in
     };
 }
 
+struct SampleStats
+{
+    int ray_casts;
+};
+
 template<typename Rng>
-HD ColorSample sampleColor(
-    const Ray &cameraRay,
+HD void samplePath(
+    const Ray &initialRay,
     const int max_depth,
     const std::span<const Object> objects,
     const std::span<const Material> materials,
-    const bool debug,
-    Rng &rng
+    PathEntry *&path,
+    Rng &rng,
+    SampleStats &stats
 ){
-    Vec4 color{0,0,0,0};
-    int ray_casts = 0;
-
-    Ray ray = cameraRay;
     Vec4 transmission{1,1,1,0};
+
+    Ray ray = initialRay;
 
     Stack<const Object *, 3> obj_stack;
 
     for (int depth=0;depth<max_depth;++depth)
     {
         const auto intersection = cast(ray, objects);
-        ++ray_casts;
+        ++stats.ray_casts;
 
         if (!intersection.has_value()) break;
 
-        auto normal = intersection->n;
+        *path = PathEntry {
+            .p = intersection->p,
+            .uv = intersection->uv,
+            .n = intersection->n,
+            .mat = intersection->mat,
+            .total_transmission = transmission,
+        };
+        ++path;
 
-        // if (dot(normal, ray.v) > 1e-5) {
-        //     color.y += 10000;
-        // }
+        auto normal = intersection->n;
 
         if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
             ray.p = ray.p + normal * 1e-6;
             continue;
-            color.x += 10000;
         }
 
         const auto &material = materials[intersection->mat];
 
-        if (debug)
-        {
-            color = color + getDebugColor(material) * checkerPattern(intersection->uv, 8);
-            continue;
-        }
-        
         if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-            color = color + diffuse_material->emission * transmission;
-            
             const auto new_v = uniformHemisphereSample(normal, rng);
 
             const auto weakening_factor = dot(normal, new_v);
@@ -261,9 +262,43 @@ HD ColorSample sampleColor(
 
         ray.p = ray.p + normal * 1e-5;
     }
+}
 
-    return ColorSample{
-        .color = color,
-        .casts = ray_casts,
-    };
+template<typename Rng>
+HD void sampleColor(
+    Vec2f sensorPos,
+    Vec4 &pixel,
+    SampleStats &stats,
+    Camera camera,
+    PixelSampling pixel_sampling,
+    std::span<const Object> objects,
+    std::span<const Material> materials,
+    PathEntry *path,
+    bool debug,
+    Rng &rng)
+{
+    const int max_depth = debug ? 1 : Outputs::maxPathLength;
+    const auto iterations = debug ? 1 : 10;
+    
+    for (int i=0;i<iterations;++i) {
+        const auto ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
+
+        auto pathEnd = path;
+
+        samplePath(ray, max_depth, objects, materials, pathEnd, rng, stats);
+
+        Vec4 color{0,0,0,0};
+
+        for (PathEntry *pit = path; pit!=pathEnd; ++pit)
+        {
+            const auto &material = materials[pit->mat];
+
+            if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+                color = color + diffuse_material->emission * pit->total_transmission;
+            }
+        }
+
+        pixel.w++;
+        pixel = pixel + color;
+    }
 }

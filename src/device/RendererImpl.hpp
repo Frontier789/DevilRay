@@ -19,7 +19,17 @@ struct CudaRandom
     }
 };
 
-__global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera camera, PixelSampling pixel_sampling, std::span<Object> objects, std::span<Material> materials, bool debug, curandState *randStates)
+__global__ void cuda_render(
+    Size2i size,
+    Vec4 *pixels,
+    uint32_t *casts,
+    Camera camera,
+    PixelSampling pixel_sampling,
+    std::span<const Object> objects,
+    std::span<const Material> materials,
+    std::array<PathEntry, 10> *paths,
+    bool debug,
+    curandState *randStates)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;
     int y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -27,22 +37,13 @@ __global__ void cuda_render(Size2i size, Vec4 *pixels, uint32_t *casts, Camera c
 
     int idx = y * size.width + x;
 
+    auto random = CudaRandom{randStates + idx};
+    PathEntry *path = paths[idx].data();
 
-    const int max_depth = debug ? 1 : 10;
-    const auto iterations = debug ? 1 : 100;
-    
-    auto &pix = pixels[idx];
+    SampleStats stats{.ray_casts = 0};
+    sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, materials, path, debug, random);
 
-
-    for (int i=0;i<iterations;++i) {
-        auto random = CudaRandom{randStates + idx};
-        const auto ray = cameraRay(camera, Vec2{x, y}, pixel_sampling, pix.w, random);
-        const auto sample = sampleColor(ray, max_depth, objects, materials, debug, random);
-        
-        pix.w++;
-        pix = pix + sample.color;
-        casts[idx] += sample.casts;
-    }
+    casts[idx] += stats.ray_casts; 
 }
 
 void Renderer::schedule_device_render()
@@ -66,8 +67,20 @@ void Renderer::schedule_device_render()
 
     const auto objects = std::span{scene.objects.devicePtr(), scene.objects.size()};
     const auto materials = std::span{scene.materials.devicePtr(), scene.materials.size()};
+    auto paths = outputs.cameraPaths.devicePtr();
 
-    cuda_render<<<dimGrid, dimBlock>>>(resolution, outputs.color.devicePtr(), outputs.casts.devicePtr(), camera, pixel_sampling, objects, materials, debug, cuda_randoms.ptr());
+    cuda_render<<<dimGrid, dimBlock>>>(
+        resolution,
+        outputs.color.devicePtr(),
+        outputs.casts.devicePtr(),
+        camera,
+        pixel_sampling,
+        objects,
+        materials,
+        paths,
+        debug,
+        cuda_randoms.ptr()
+    );
     CUDA_ERROR_CHECK();
 
     cudaDeviceSynchronize();

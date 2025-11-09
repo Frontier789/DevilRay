@@ -85,6 +85,9 @@
         "__tree": "cpp",
         "complex": "cpp",
         "unordered_set": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "__debug": "cpp",
+        "__tuple": "cpp",
+        "target": "cpp"
     }
 }
