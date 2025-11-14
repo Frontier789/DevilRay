@@ -163,7 +163,7 @@ Scene createScene()
     const int  light_mid = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{10,10,10},
+            .emission = Vec4{4,4,4},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},

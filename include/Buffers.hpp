@@ -16,7 +16,6 @@ struct Outputs
     
     static constexpr int maxPathLength = 10;
 
-    DeviceArray<std::array<PathEntry, maxPathLength>> cameraPaths;
     DeviceArray<Vec4> color;
     mutable DeviceArray<uint32_t> casts;
 };

@@ -35,11 +35,13 @@ inline HD Vec4 checkerPattern(
     );
 }
 
+constexpr float pi = std::numbers::pi_v<float>;
+
 #pragma nv_exec_check_disable
 template<typename Rng>
 HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 {
-    const float theta0 = 2 * std::numbers::pi_v<float> * r.rnd();
+    const float theta0 = 2 * pi * r.rnd();
     const float theta1 = std::acos(1 - 2 * r.rnd());
 
     const float x = std::sin(theta1) * std::sin(theta0);
@@ -177,7 +179,10 @@ HD void samplePath(
             const auto new_v = uniformHemisphereSample(normal, rng);
 
             const auto weakening_factor = dot(normal, new_v);
-            transmission = transmission * weakening_factor * diffuse_material->diffuse_reflectance;
+            const auto path_sampling_probability = 1 / (2*pi);
+            const auto new_v_radiance = 1 / pi;
+            const auto beta = weakening_factor * new_v_radiance / path_sampling_probability;
+            transmission = transmission * beta * diffuse_material->diffuse_reflectance;
 
             if (transmission.max() < 0.001) break;
 
@@ -273,12 +278,14 @@ HD void sampleColor(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
-    PathEntry *path,
     bool debug,
     Rng &rng)
 {
     const int max_depth = debug ? 1 : Outputs::maxPathLength;
     const auto iterations = debug ? 1 : 10;
+
+    std::array<PathEntry, Outputs::maxPathLength> entries;
+    PathEntry *path = entries.data();
     
     for (int i=0;i<iterations;++i) {
         const auto ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);

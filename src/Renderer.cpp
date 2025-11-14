@@ -5,8 +5,7 @@
 
 
 Outputs::Outputs(Size2i resolution)
-    : cameraPaths(resolution.area(), {})
-    , color(resolution.area(), Vec4{0,0,0,0})
+    : color(resolution.area(), Vec4{0,0,0,0})
     , casts(resolution.area(), 0)
 {
 
@@ -109,10 +108,9 @@ void Renderer::schedule_cpu_render()
             
             const auto idx = x + y*resolution.width;
             auto &pix = outputs.color.hostPtr()[idx];
-            auto *path = outputs.cameraPaths.hostPtr()[idx].data();
 
             SampleStats stats{.ray_casts = 0};
-            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, path, debug, random);
+            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, debug, random);
 
             outputs.casts.hostPtr()[idx] += stats.ray_casts;
         }
@@ -128,7 +126,6 @@ void Renderer::render()
         return;
     }
 
-    outputs.cameraPaths.ensureDeviceAllocation();
     outputs.color.ensureDeviceAllocation();
     outputs.casts.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
