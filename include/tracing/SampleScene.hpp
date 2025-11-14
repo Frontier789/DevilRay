@@ -134,139 +134,129 @@ struct SampleStats
     int ray_casts;
 };
 
+struct PathSampler
+{
+    Vec4 transmission{1,1,1,0};
+    Stack<const Object *, 3> obj_stack;
+    Ray ray;
+
+    inline constexpr PathSampler(Ray initialRay) : ray(std::move(initialRay)) {}
+};
+
 template<typename Rng>
-HD void samplePath(
-    const Ray &initialRay,
-    const int max_depth,
+HD std::optional<Intersection> samplePath(
+    PathSampler &sampler,
     const std::span<const Object> objects,
     const std::span<const Material> materials,
-    PathEntry *&path,
     Rng &rng,
     SampleStats &stats
 ){
-    Vec4 transmission{1,1,1,0};
+    auto &ray = sampler.ray;
+    auto &transmission = sampler.transmission;
+    auto &obj_stack = sampler.obj_stack;
 
-    Ray ray = initialRay;
+    const auto intersection = cast(ray, objects);
+    ++stats.ray_casts;
 
-    Stack<const Object *, 3> obj_stack;
+    if (!intersection.has_value()) return std::nullopt;
 
-    for (int depth=0;depth<max_depth;++depth)
-    {
-        const auto intersection = cast(ray, objects);
-        ++stats.ray_casts;
+    auto normal = intersection->n;
 
-        if (!intersection.has_value()) break;
+    const auto &material = materials[intersection->mat];
 
-        *path = PathEntry {
+    if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+        const auto new_v = uniformHemisphereSample(normal, rng);
+
+        const auto weakening_factor = dot(normal, new_v);
+        const auto path_sampling_probability = 1 / (2*pi);
+        const auto new_v_radiance = 1 / pi;
+        const auto beta = weakening_factor * new_v_radiance / path_sampling_probability;
+        sampler.transmission = sampler.transmission * beta * diffuse_material->diffuse_reflectance;
+
+        if (transmission.max() < 0.001) return std::nullopt;
+
+        sampler.ray = Ray{
             .p = intersection->p,
-            .uv = intersection->uv,
-            .n = intersection->n,
-            .mat = intersection->mat,
-            .total_transmission = transmission,
+            .v = new_v,
         };
-        ++path;
+    }
 
-        auto normal = intersection->n;
+    if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
 
-        if (dot(intersection->p - ray.p, intersection->p - ray.p) < 1e-12) {
-            ray.p = ray.p + normal * 1e-6;
-            continue;
-        }
+        // Find iors
+        float n1;
+        float n2;
 
-        const auto &material = materials[intersection->mat];
+        // leaving last object
+        if (obj_stack.isTop(intersection->object)) {
+            n1 = transparent_material->inside_medium.ior;
+            
+            obj_stack.pop();
 
-        if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-            const auto new_v = uniformHemisphereSample(normal, rng);
-
-            const auto weakening_factor = dot(normal, new_v);
-            const auto path_sampling_probability = 1 / (2*pi);
-            const auto new_v_radiance = 1 / pi;
-            const auto beta = weakening_factor * new_v_radiance / path_sampling_probability;
-            transmission = transmission * beta * diffuse_material->diffuse_reflectance;
-
-            if (transmission.max() < 0.001) break;
-
-            ray = Ray{
-                .p = intersection->p,
-                .v = new_v,
-            };
-        }
-
-        if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
-
-            // Find iors
-            float n1;
-            float n2;
-
-            // leaving last object
-            if (obj_stack.isTop(intersection->object)) {
-                n1 = transparent_material->inside_medium.ior;
-                
-                obj_stack.pop();
-
-                if (obj_stack.empty()) {
-                    n2 = 1;
-                } else {
-                    const auto &topMat = materials[getMaterial(*obj_stack.top())];
-                    n2 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
-                }
-
-                obj_stack.push(intersection->object);
+            if (obj_stack.empty()) {
+                n2 = 1;
             } else {
-                n2 = transparent_material->inside_medium.ior;
-
-                if (obj_stack.empty()) {
-                    n1 = 1;
-                } else {
-                    const auto &topMat = materials[getMaterial(*obj_stack.top())];
-                    n1 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
-                }
+                const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                n2 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
             }
 
-            // Reflect or refract
-            const auto eta = n1/n2;
-            const auto d = dot(ray.v, normal);
-            const auto k = 1 - eta*eta * (1 - d*d);
+            obj_stack.push(intersection->object);
+        } else {
+            n2 = transparent_material->inside_medium.ior;
 
-            Vec3 v;
+            if (obj_stack.empty()) {
+                n1 = 1;
+            } else {
+                const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                n1 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
+            }
+        }
 
-            // Total internal reflection
-            if (n1 > n2 && k < 0)
+        // Reflect or refract
+        const auto eta = n1/n2;
+        const auto d = dot(ray.v, normal);
+        const auto k = 1 - eta*eta * (1 - d*d);
+
+        Vec3 v;
+
+        // Total internal reflection
+        if (n1 > n2 && k < 0)
+        {
+            v = reflect(ray.v, normal, d);
+        }
+        else
+        {
+            const auto F = schlick(-d, n1, n2);
+            
+            // Fresnel reflection
+            if (rng.rnd() < F)
             {
                 v = reflect(ray.v, normal, d);
             }
             else
             {
-                const auto F = schlick(-d, n1, n2);
+                if (obj_stack.isTop(intersection->object)) {
+                    obj_stack.pop();
+                } else {
+                    obj_stack.push(intersection->object);
+                }
+
+                normal = normal * -1;
                 
-                // Fresnel reflection
-                if (rng.rnd() < F)
-                {
-                    v = reflect(ray.v, normal, d);
-                }
-                else
-                {
-                    if (obj_stack.isTop(intersection->object)) {
-                        obj_stack.pop();
-                    } else {
-                        obj_stack.push(intersection->object);
-                    }
-
-                    normal = normal * -1;
-                    
-                    const float dotp = -d;
-                    v = normal * (std::sqrt(k) - dotp * eta) + ray.v * eta;
-                }
+                const float dotp = -d;
+                v = normal * (std::sqrt(k) - dotp * eta) + ray.v * eta;
             }
-
-            ray = Ray{
-                .p = intersection->p,
-                .v = v,
-            };
         }
 
-        ray.p = ray.p + normal * 1e-5;
+        sampler.ray = Ray{
+            .p = intersection->p,
+            .v = v,
+        };
     }
+
+    sampler.ray.p = sampler.ray.p + normal * 1e-5;
+
+    return intersection;
 }
 
 template<typename Rng>
@@ -288,11 +278,28 @@ HD void sampleColor(
     PathEntry *path = entries.data();
     
     for (int i=0;i<iterations;++i) {
-        const auto ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
-
         auto pathEnd = path;
+        
+        {
+            auto ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
+            PathSampler sampler(std::move(ray));
 
-        samplePath(ray, max_depth, objects, materials, pathEnd, rng, stats);
+            for (int depth=0; depth<max_depth; ++depth)
+            {
+                const auto intersection = samplePath(sampler, objects, materials, rng, stats);
+
+                if (!intersection.has_value()) break;
+                
+                *pathEnd = PathEntry {
+                    .p = intersection->p,
+                    .uv = intersection->uv,
+                    .n = intersection->n,
+                    .mat = intersection->mat,
+                    .total_transmission = sampler.transmission,
+                };
+                ++pathEnd;
+            }
+        }
 
         Vec4 color{0,0,0,0};
 
