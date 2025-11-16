@@ -139,30 +139,33 @@ struct PathSampler
     Vec4 transmission{1,1,1,0};
     Stack<const Object *, 3> obj_stack;
     Ray ray;
-
-    inline constexpr PathSampler(Ray initialRay) : ray(std::move(initialRay)) {}
 };
 
-template<typename Rng>
-HD std::optional<Intersection> samplePath(
+inline HD std::optional<Intersection> nextVertex(
     PathSampler &sampler,
     const std::span<const Object> objects,
-    const std::span<const Material> materials,
-    Rng &rng,
     SampleStats &stats
 ){
-    auto &ray = sampler.ray;
-    auto &transmission = sampler.transmission;
-    auto &obj_stack = sampler.obj_stack;
+    auto &[transmission, obj_stack, ray] = sampler;
 
     const auto intersection = cast(ray, objects);
     ++stats.ray_casts;
 
-    if (!intersection.has_value()) return std::nullopt;
+    return intersection;
+}
 
-    auto normal = intersection->n;
+template<typename Rng>
+HD void generateNewRay(
+    PathSampler &sampler,
+    const Intersection &intersection,
+    const std::span<const Material> materials,
+    Rng &rng
+){
+    auto &[transmission, obj_stack, ray] = sampler;
 
-    const auto &material = materials[intersection->mat];
+    auto normal = intersection.n;
+
+    const auto &material = materials[intersection.mat];
 
     if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
         const auto new_v = uniformHemisphereSample(normal, rng);
@@ -173,10 +176,8 @@ HD std::optional<Intersection> samplePath(
         const auto beta = weakening_factor * new_v_radiance / path_sampling_probability;
         sampler.transmission = sampler.transmission * beta * diffuse_material->diffuse_reflectance;
 
-        if (transmission.max() < 0.001) return std::nullopt;
-
         sampler.ray = Ray{
-            .p = intersection->p,
+            .p = intersection.p,
             .v = new_v,
         };
     }
@@ -188,7 +189,7 @@ HD std::optional<Intersection> samplePath(
         float n2;
 
         // leaving last object
-        if (obj_stack.isTop(intersection->object)) {
+        if (obj_stack.isTop(intersection.object)) {
             n1 = transparent_material->inside_medium.ior;
             
             obj_stack.pop();
@@ -200,7 +201,7 @@ HD std::optional<Intersection> samplePath(
                 n2 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
             }
 
-            obj_stack.push(intersection->object);
+            obj_stack.push(intersection.object);
         } else {
             n2 = transparent_material->inside_medium.ior;
 
@@ -235,10 +236,10 @@ HD std::optional<Intersection> samplePath(
             }
             else
             {
-                if (obj_stack.isTop(intersection->object)) {
+                if (obj_stack.isTop(intersection.object)) {
                     obj_stack.pop();
                 } else {
-                    obj_stack.push(intersection->object);
+                    obj_stack.push(intersection.object);
                 }
 
                 normal = normal * -1;
@@ -249,14 +250,12 @@ HD std::optional<Intersection> samplePath(
         }
 
         sampler.ray = Ray{
-            .p = intersection->p,
+            .p = intersection.p,
             .v = v,
         };
     }
 
     sampler.ray.p = sampler.ray.p + normal * 1e-5;
-
-    return intersection;
 }
 
 template<typename Rng>
@@ -281,14 +280,15 @@ HD void sampleColor(
         auto pathEnd = path;
         
         {
-            auto ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
-            PathSampler sampler(std::move(ray));
+            PathSampler sampler;
+            sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
 
             for (int depth=0; depth<max_depth; ++depth)
             {
-                const auto intersection = samplePath(sampler, objects, materials, rng, stats);
-
+                const auto intersection = nextVertex(sampler, objects, stats);
                 if (!intersection.has_value()) break;
+
+                generateNewRay(sampler, *intersection, materials, rng);
                 
                 *pathEnd = PathEntry {
                     .p = intersection->p,
