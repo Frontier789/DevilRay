@@ -472,11 +472,11 @@ int main() {
 
             ImGui::Text("Render pass: %.1fms", renderTimes.mean());
 
-            auto &outputs = renderer.getOutputs();
+            auto &buffers = renderer.getBuffers();
             if (useCuda) {
-                outputs.casts.updateHostData();
+                buffers.casts.updateHostData();
             }
-            ImGui::Text("Rays per pixel: %s", counterToString(outputs.totalCasts() / resolution.width / resolution.height).c_str());
+            ImGui::Text("Rays per pixel: %s", counterToString(buffers.totalCasts() / resolution.width / resolution.height).c_str());
             
             glTextureSubImage2D(texture, 0, 0, 0, resolution.width / render_scale, resolution.height / render_scale, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
 

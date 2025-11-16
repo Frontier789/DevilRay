@@ -6,9 +6,9 @@
 
 #include <array>
 
-struct Outputs
+struct Buffers
 {
-    Outputs(Size2i resolution);
+    Buffers(Size2i resolution);
     
     void reset();
 

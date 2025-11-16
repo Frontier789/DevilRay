@@ -23,6 +23,7 @@ public:
     float elapsed_seconds() const;
 };
 
+constexpr float pi = std::numbers::pi_v<float>;
 
 template <typename F>
 void parallel_for(int range, const F &func) {

@@ -68,8 +68,8 @@ void Renderer::schedule_device_render()
 
     cuda_render<<<dimGrid, dimBlock>>>(
         resolution,
-        outputs.color.devicePtr(),
-        outputs.casts.devicePtr(),
+        buffers.color.devicePtr(),
+        buffers.casts.devicePtr(),
         camera,
         pixel_sampling,
         objects,

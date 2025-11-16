@@ -1,23 +1,23 @@
 #include "Renderer.hpp"
 #include "Image.hpp"
 
-#include "tracing/SampleScene.hpp"
+#include "tracing/PathGeneration.hpp"
 
 
-Outputs::Outputs(Size2i resolution)
+Buffers::Buffers(Size2i resolution)
     : color(resolution.area(), Vec4{0,0,0,0})
     , casts(resolution.area(), 0)
 {
 
 }
 
-void Outputs::reset()
+void Buffers::reset()
 {
     color.reset();
     casts.reset();
 }
 
-uint64_t Outputs::totalCasts() const
+uint64_t Buffers::totalCasts() const
 {
     const auto ptr = casts.hostPtr();
     const auto total = std::accumulate(ptr, ptr + casts.size(), uint64_t{0});
@@ -26,7 +26,7 @@ uint64_t Outputs::totalCasts() const
 }
 
 Renderer::Renderer(Size2i resolution)
-    : outputs(resolution)
+    : buffers(resolution)
     , pixel_sampling(PixelSampling::UniformRandom)
     , pixels(resolution.area())
     , resolution(resolution)
@@ -57,10 +57,10 @@ void Renderer::createPixels()
     };
 
     if (useCuda) {
-        outputs.color.updateHostData();
+        buffers.color.updateHostData();
     }
 
-    const auto data = outputs.color.hostPtr();
+    const auto data = buffers.color.hostPtr();
 
     for (int y=0;y<resolution.height;++y)
     for (int x=0;x<resolution.width;++x)
@@ -89,7 +89,7 @@ const uint32_t *Renderer::getPixels()
 
 void Renderer::clear()
 {
-    outputs.reset();
+    buffers.reset();
 }
 
 void Renderer::schedule_cpu_render()
@@ -107,12 +107,12 @@ void Renderer::schedule_cpu_render()
             const auto iterations = debug ? 1 : 10;
             
             const auto idx = x + y*resolution.width;
-            auto &pix = outputs.color.hostPtr()[idx];
+            auto &pix = buffers.color.hostPtr()[idx];
 
             SampleStats stats{.ray_casts = 0};
             sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, debug, random);
 
-            outputs.casts.hostPtr()[idx] += stats.ray_casts;
+            buffers.casts.hostPtr()[idx] += stats.ray_casts;
         }
         RandomPool::singleton().returnRandom(std::move(random));
 
@@ -126,8 +126,8 @@ void Renderer::render()
         return;
     }
 
-    outputs.color.ensureDeviceAllocation();
-    outputs.casts.ensureDeviceAllocation();
+    buffers.color.ensureDeviceAllocation();
+    buffers.casts.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     scene.ensureDeviceAllocation();

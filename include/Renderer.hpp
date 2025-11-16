@@ -15,7 +15,7 @@
 
 class Renderer
 {
-    Outputs outputs;
+    Buffers buffers;
     PixelSampling pixel_sampling;
 
     std::vector<uint32_t> pixels;
@@ -32,7 +32,7 @@ class Renderer
 public:
     Renderer(Size2i resolution);
 
-    const Outputs &getOutputs() const {return outputs;}
+    const Buffers &getBuffers() const {return buffers;}
     Size2i getResolution() const {return resolution;}
     void setDebug(bool dbg) { debug = dbg; }
     void useCudaDevice(bool use) { useCuda = use; }

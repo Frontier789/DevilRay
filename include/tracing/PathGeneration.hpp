@@ -4,6 +4,8 @@
 #include "tracing/Objects.hpp"
 #include "tracing/Intersection.hpp"
 #include "tracing/PixelSampling.hpp"
+#include "tracing/CameraRay.hpp"
+#include "tracing/DistributionSamplers.hpp"
 #include "Buffers.hpp"
 
 #include <optional>
@@ -33,26 +35,6 @@ inline HD Vec4 checkerPattern(
         Vec4{0.5,0.5,0.5,0}, 
         Vec4{0.8,0.8,0.8,0}
     );
-}
-
-constexpr float pi = std::numbers::pi_v<float>;
-
-#pragma nv_exec_check_disable
-template<typename Rng>
-HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
-{
-    const float theta0 = 2 * pi * r.rnd();
-    const float theta1 = std::acos(1 - 2 * r.rnd());
-
-    const float x = std::sin(theta1) * std::sin(theta0);
-    const float y = std::sin(theta1) * std::cos(theta0);
-    const float z = std::cos(theta1);
-
-    const auto v = Vec3{x,y,z};
-
-    if (dot(v, normal) < 0) return v*-1;
-
-    return v;
 }
 
 template<typename T, int N>
@@ -104,29 +86,6 @@ inline HD float schlick(const float dotp, const float n1, const float n2)
 HD inline int getMaterial(const Object &object)
 {
     return std::visit([](const auto &o){return o.mat;}, object);
-}
-
-template<typename Rng>
-HD Ray cameraRay(const Camera &cam, Vec2f pixelCoord, PixelSampling sampling, int index, Rng &rng)
-{
-    Vec2f subPixelCoord;
-
-    if (sampling == PixelSampling::Center) {
-        subPixelCoord = Vec2{0.5, 0.5};
-    }
-    if (sampling == PixelSampling::UniformRandom) {
-        subPixelCoord = Vec2{rng.rnd(), rng.rnd()};
-    }
-
-    const auto pixelCenter = pixelCoord + subPixelCoord;
-    const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size - cam.intrinsics.center;
-
-    const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
-    
-    return Ray{
-        .p = Vec3{0,0,0},
-        .v = Vec3{dir.x, dir.y, 1},
-    };
 }
 
 struct SampleStats
@@ -270,10 +229,10 @@ HD void sampleColor(
     bool debug,
     Rng &rng)
 {
-    const int max_depth = debug ? 1 : Outputs::maxPathLength;
+    const int max_depth = debug ? 1 : Buffers::maxPathLength;
     const auto iterations = debug ? 1 : 10;
 
-    std::array<PathEntry, Outputs::maxPathLength> entries;
+    std::array<PathEntry, Buffers::maxPathLength> entries;
     PathEntry *path = entries.data();
     
     for (int i=0;i<iterations;++i) {

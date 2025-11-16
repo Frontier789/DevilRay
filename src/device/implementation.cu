@@ -5,7 +5,7 @@
 
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
-#include "tracing/SampleScene.hpp"
+#include "tracing/PathGeneration.hpp"
 
 #include "IntersectionTestsImpl.hpp"
 #include "RendererImpl.hpp"
