@@ -22,6 +22,7 @@
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
+#include "tracing/LightSampling.hpp"
 
 /*
     PLAN
@@ -150,6 +151,9 @@ Scene createScene()
 {
     Scene scene;
 
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> coin;
+
     const int  light3 = scene.materials.size();
     {
         auto material = DiffuseMaterial{
@@ -173,7 +177,7 @@ Scene createScene()
     const int  light_bright = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{100,100,100},
+            .emission = Vec4{30,30,30},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
@@ -315,15 +319,39 @@ Scene createScene()
         scene.objects.push_back(std::move(obj));
     }
 
+    // {
+    //     auto obj = Square{
+    //         .p = Vec3{0,0.499,2},
+    //         .n = Vec3{0,1,0},
+    //         .right = Vec3{0,0,1},
+    //         .size = 0.5,
+    //     };
+    //     obj.mat = light_mid;
+    //     scene.objects.push_back(std::move(obj));
+    // }
+
     {
-        auto obj = Square{
-            .p = Vec3{0,0.499,2},
-            .n = Vec3{0,1,0},
-            .right = Vec3{0,0,1},
-            .size = 0.5,
-        };
-        obj.mat = light_mid;
-        scene.objects.push_back(std::move(obj));
+        const int N = 5;
+        const float totalSize = 0.5;
+        const float padding = 0.05;
+        const float individualSize = (0.5 - (N-1)*padding) / N;
+        
+        for (int x=0;x<N;++x) {
+            for (int y=0;y<N;++y) {
+                auto obj = Square{
+                    .p = Vec3{
+                        totalSize * -0.5f + (individualSize + padding) * x + individualSize * 0.5f,
+                        0.499f,
+                        2 + totalSize * -0.5f + (individualSize + padding) * y + individualSize * 0.5f
+                    },
+                    .n = Vec3{0,1,0},
+                    .right = Vec3{0,0,1},
+                    .size = individualSize,
+                };
+                obj.mat = light_mid;
+                scene.objects.push_back(std::move(obj));
+            }
+        }
     }
 
     {
@@ -332,6 +360,15 @@ Scene createScene()
             .radius = 100e-3,
         };
         obj.mat = blue;
+        scene.objects.push_back(std::move(obj));
+    }
+
+    {
+        auto obj = Sphere{
+            .center = Vec3{0.47, -0.4, 2.47},
+            .radius = 30e-3,
+        };
+        obj.mat = light_bright;
         scene.objects.push_back(std::move(obj));
     }
 

@@ -51,6 +51,7 @@ struct DeviceVector
     
     T *devicePtr() { return m_device.getPtr<T>(); }
     T *hostPtr() { return m_host.data(); }
+    const T *hostPtr() const { return m_host.data(); }
     size_t size() const { return m_host.size(); }
 
 private:

@@ -2,10 +2,13 @@
 #include "Image.hpp"
 
 #include "tracing/PathGeneration.hpp"
+#include "tracing/LightSampling.hpp"
+#include <iostream>
 
 
 Buffers::Buffers(Size2i resolution)
-    : color(resolution.area(), Vec4{0,0,0,0})
+    : lightWeights(0, 0)
+    , color(resolution.area(), Vec4{0,0,0,0})
     , casts(resolution.area(), 0)
 {
 
@@ -15,6 +18,13 @@ void Buffers::reset()
 {
     color.reset();
     casts.reset();
+}
+
+void Buffers::ensureDeviceAllocation()
+{
+    lightWeights.ensureDeviceAllocation();
+    color.ensureDeviceAllocation();
+    casts.ensureDeviceAllocation();
 }
 
 uint64_t Buffers::totalCasts() const
@@ -87,6 +97,44 @@ const uint32_t *Renderer::getPixels()
     return pixels.data();
 }
 
+namespace
+{
+    inline HD float rgbLuminance(const Vec4 &rgb)
+    {
+        return 0.2126 * rgb.x + 0.7152 * rgb.y + 0.0722 * rgb.z;
+    }
+}
+
+void Renderer::calculateLightWeights()
+{
+    const auto materials = scene.materials.hostPtr();
+    const auto objects = scene.objects.hostPtr();
+    const auto N = scene.objects.size();
+
+    buffers.lightWeights = DeviceArray<float>(N, 0);
+    const auto weights = buffers.lightWeights.hostPtr();
+
+    float weightSum = 0.0f;
+
+    for (size_t i=0;i<N;++i)
+    {
+        const auto matIndex = getMaterial(objects[i]);
+
+        const auto A = surfaceArea(objects[i]);
+        const auto M = radiantExitance(materials[matIndex]);
+
+        weights[i] = A*rgbLuminance(M);
+        weightSum += weights[i];
+    }
+
+    for (size_t i=0;i<N;++i)
+    {
+        weights[i] /= weightSum;
+
+        std::cout << "Object #" << i << ": " << weights[i] << std::endl;
+    }
+}
+
 void Renderer::clear()
 {
     buffers.reset();
@@ -126,8 +174,7 @@ void Renderer::render()
         return;
     }
 
-    buffers.color.ensureDeviceAllocation();
-    buffers.casts.ensureDeviceAllocation();
+    buffers.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
     scene.ensureDeviceAllocation();

@@ -38,7 +38,7 @@ public:
     void useCudaDevice(bool use) { useCuda = use; }
 
     void setCamera(Camera cam) { camera = std::move(cam); }
-    void setScene(Scene scn) { scene = std::move(scn); }
+    void setScene(Scene scn) { scene = std::move(scn); calculateLightWeights(); }
     void setPixelSampling(PixelSampling sampling) { pixel_sampling = sampling; }
 
     void render();
@@ -48,6 +48,8 @@ public:
     void saveImage(const std::string &fileName);
 
     const uint32_t *getPixels();
+
+    void calculateLightWeights();
 
 private:
     void schedule_cpu_render();

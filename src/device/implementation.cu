@@ -6,6 +6,7 @@
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/PathGeneration.hpp"
+#include "tracing/LightSampling.hpp"
 
 #include "IntersectionTestsImpl.hpp"
 #include "RendererImpl.hpp"
@@ -54,3 +55,35 @@ HD Vec4 checkerPattern(
     return bright * checker + dark * (1-checker);
 }
 
+
+HD float surfaceAreaImpl(const Square &square)
+{
+    return square.size * square.size;
+}
+
+HD float surfaceAreaImpl(const Sphere &sphere)
+{
+    const auto r = sphere.radius;
+
+    return 4*pi * r*r;
+}
+
+HD float surfaceArea(const Object &object)
+{
+    return std::visit([](auto &&o){return surfaceAreaImpl(o);}, object);
+}
+
+HD Vec4 radiantExitanceImpl(const TransparentMaterial &mat)
+{
+    return Vec4{0,0,0,0};
+}
+
+HD Vec4 radiantExitanceImpl(const DiffuseMaterial &mat)
+{
+    return mat.emission * pi;
+}
+
+HD Vec4 radiantExitance(const Material &mat)
+{
+    return std::visit([](auto &&o){return radiantExitanceImpl(o);}, mat);
+}

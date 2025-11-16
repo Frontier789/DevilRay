@@ -7,10 +7,31 @@ template<typename T>
 DeviceArray<T>::DeviceArray(int N, const T &initValue)
     : m_size(N)
     , m_initialValue(initValue)
-    , m_host(new T[N])
+    , m_host(new T[std::max(N, 1)])
     , m_device(nullptr)
 {
     
+}
+
+template<typename T>
+DeviceArray<T>::DeviceArray(DeviceArray<T> &&arr)
+{
+    *this = std::move(arr);
+}
+
+template<typename T>
+DeviceArray<T> &DeviceArray<T>::operator=(DeviceArray<T> &&arr)
+{
+    this->m_size = arr.m_size;
+    this->m_initialValue = arr.m_initialValue;
+    this->m_host = arr.m_host;
+    this->m_device = arr.m_device;
+
+    arr.m_size = 0;
+    arr.m_host = nullptr;
+    arr.m_device = nullptr;
+
+    return *this;
 }
 
 template<typename T>
@@ -56,5 +77,6 @@ void DeviceArray<T>::deleteDeviceMemory()
 }
 
 template struct DeviceArray<Vec4>;
+template struct DeviceArray<float>;
 template struct DeviceArray<uint32_t>;
 template struct DeviceArray<std::array<PathEntry, 10>>;

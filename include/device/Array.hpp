@@ -6,6 +6,8 @@ template<typename T>
 struct DeviceArray
 {
     DeviceArray(int N, const T &initValue);
+    DeviceArray(DeviceArray<T> &&arr);
+    DeviceArray &operator=(DeviceArray<T> &&arr);
 
     ~DeviceArray();
 
