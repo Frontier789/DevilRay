@@ -259,15 +259,25 @@ HD void sampleColor(
                 ++pathEnd;
             }
         }
-
+        
         Vec4 color{0,0,0,0};
 
-        for (PathEntry *pit = path; pit!=pathEnd; ++pit)
+        if (debug)
         {
-            const auto &material = materials[pit->mat];
+            if (path != pathEnd) {
+                const auto &material = materials[path->mat];
+                color = checkerPattern(path->uv, 7) * getDebugColor(material);
+            }
+        }
+        else
+        {
+            for (PathEntry *pit = path; pit!=pathEnd; ++pit)
+            {
+                const auto &material = materials[pit->mat];
 
-            if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-                color = color + diffuse_material->emission * pit->total_transmission;
+                if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+                    color = color + diffuse_material->emission * pit->total_transmission;
+                }
             }
         }
 
