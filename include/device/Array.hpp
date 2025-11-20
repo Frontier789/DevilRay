@@ -27,5 +27,3 @@ private:
     T *m_host;
     T *m_device;
 };
-
-extern template struct DeviceArray<Vec4>;

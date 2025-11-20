@@ -19,3 +19,35 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 
     return v;
 }
+
+struct AliasEntry
+{
+    float p_A;
+    int A;
+    int B;
+};
+
+struct AliasTable
+{
+    DeviceArray<AliasEntry> entries;
+};
+
+template<typename Rng>
+HD int sample(std::span<const AliasEntry> table, Rng &rng)
+{
+    const float r = rng.rnd();
+    const float findex = r * table.size();
+    const int index = static_cast<int>(findex);
+    
+    const float p = rng.rnd();
+
+    const auto &entry = table[index];
+
+    if (p < entry.p_A) {
+        return entry.A;
+    }
+
+    return entry.B;
+}
+
+AliasTable generateAliasTable(std::span<const float> importances);

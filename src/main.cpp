@@ -177,7 +177,7 @@ Scene createScene()
     const int  light_bright = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{30,30,30},
+            .emission = Vec4{3000,3000,3000},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
@@ -330,29 +330,29 @@ Scene createScene()
     //     scene.objects.push_back(std::move(obj));
     // }
 
-    {
-        const int N = 5;
-        const float totalSize = 0.5;
-        const float padding = 0.05;
-        const float individualSize = (0.5 - (N-1)*padding) / N;
+    // {
+    //     const int N = 5;
+    //     const float totalSize = 0.5;
+    //     const float padding = 0.05;
+    //     const float individualSize = (0.5 - (N-1)*padding) / N;
         
-        for (int x=0;x<N;++x) {
-            for (int y=0;y<N;++y) {
-                auto obj = Square{
-                    .p = Vec3{
-                        totalSize * -0.5f + (individualSize + padding) * x + individualSize * 0.5f,
-                        0.499f,
-                        2 + totalSize * -0.5f + (individualSize + padding) * y + individualSize * 0.5f
-                    },
-                    .n = Vec3{0,1,0},
-                    .right = Vec3{0,0,1},
-                    .size = individualSize,
-                };
-                obj.mat = light_mid;
-                scene.objects.push_back(std::move(obj));
-            }
-        }
-    }
+    //     for (int x=0;x<N;++x) {
+    //         for (int y=0;y<N;++y) {
+    //             auto obj = Square{
+    //                 .p = Vec3{
+    //                     totalSize * -0.5f + (individualSize + padding) * x + individualSize * 0.5f,
+    //                     0.499f,
+    //                     2 + totalSize * -0.5f + (individualSize + padding) * y + individualSize * 0.5f
+    //                 },
+    //                 .n = Vec3{0,1,0},
+    //                 .right = Vec3{0,0,1},
+    //                 .size = individualSize,
+    //             };
+    //             obj.mat = light_mid;
+    //             scene.objects.push_back(std::move(obj));
+    //         }
+    //     }
+    // }
 
     {
         auto obj = Sphere{
@@ -366,7 +366,7 @@ Scene createScene()
     {
         auto obj = Sphere{
             .center = Vec3{0.47, -0.4, 2.47},
-            .radius = 30e-3,
+            .radius = 1e-3,
         };
         obj.mat = light_bright;
         scene.objects.push_back(std::move(obj));
