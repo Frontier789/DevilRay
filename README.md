@@ -17,7 +17,7 @@ This contains a rendering tool that can run on the GPU and create realistic imag
 3. conan install . --build=missing
 4. cmake --preset conan-release
 5. cmake --build --preset conan-release
-6. build/Release/devil_ray
+6. build/Release/renderer/devil_ray_renderer
 
 ## Discalaimer
 

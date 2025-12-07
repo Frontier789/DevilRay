@@ -319,16 +319,16 @@ Scene createScene()
         scene.objects.push_back(std::move(obj));
     }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{0,0.499,2},
-    //         .n = Vec3{0,1,0},
-    //         .right = Vec3{0,0,1},
-    //         .size = 0.5,
-    //     };
-    //     obj.mat = light_mid;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{0,0.499,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 0.5,
+        };
+        obj.mat = light_mid;
+        scene.objects.push_back(std::move(obj));
+    }
 
     // {
     //     const int N = 5;
@@ -363,14 +363,14 @@ Scene createScene()
         scene.objects.push_back(std::move(obj));
     }
 
-    {
-        auto obj = Sphere{
-            .center = Vec3{0.47, -0.4, 2.47},
-            .radius = 1e-3,
-        };
-        obj.mat = light_bright;
-        scene.objects.push_back(std::move(obj));
-    }
+    // {
+    //     auto obj = Sphere{
+    //         .center = Vec3{0.47, -0.4, 2.47},
+    //         .radius = 1e-3,
+    //     };
+    //     obj.mat = light_bright;
+    //     scene.objects.push_back(std::move(obj));
+    // }
 
     // for (int x=0;x<10;++x) {
     //     for (int y=0;y<10;++y) {
