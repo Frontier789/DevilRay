@@ -1,5 +1,6 @@
 #include "device/Array.hpp"
 #include "tracing/Intersection.hpp"
+#include "tracing/DistributionSamplers.hpp"
 
 #include <array>
 
@@ -79,4 +80,5 @@ void DeviceArray<T>::deleteDeviceMemory()
 template struct DeviceArray<Vec4>;
 template struct DeviceArray<float>;
 template struct DeviceArray<uint32_t>;
+template struct DeviceArray<AliasEntry>;
 template struct DeviceArray<std::array<PathEntry, 10>>;

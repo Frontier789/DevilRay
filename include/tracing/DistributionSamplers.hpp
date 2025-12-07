@@ -1,6 +1,9 @@
 #pragma once
 
+#include "device/Array.hpp"
 #include "Utils.hpp"
+
+#include <span>
 
 #pragma nv_exec_check_disable
 template<typename Rng>
