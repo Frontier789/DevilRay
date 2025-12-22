@@ -126,6 +126,10 @@ struct Vec3
             x * v.y - y * v.x,
         };
     }
+
+    constexpr float dot(const Vec3 &v) const {
+        return x * v.x + y * v.y + z * v.z;
+    }
 };
 
 

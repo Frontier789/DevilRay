@@ -41,6 +41,46 @@ HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &ob
     }, object);
 }
 
+HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle)
+{
+    const auto A = triangle.a;
+    const auto B = triangle.b;
+    const auto C = triangle.c;
+
+    const auto n_f = (A - B).cross(A - C);
+    auto n = n_f.normalized();
+
+    auto dp = dot(ray.p - A, n);
+
+    if (dp < 0) {
+        n = n * -1;
+        dp = -dp;
+    }
+
+    // (ray.p - o) . n + ray.v . n * t = 0
+
+    const auto d = -dot(ray.v, n);
+    if (d < 1e-7f) return std::nullopt;
+
+    const float t = dp / d;
+
+    const Vec3 p = ray.p + ray.v * t;
+
+    const auto n_1 = (p - A).cross(C - A);
+    const auto n_2 = (B - A).cross(p - A);
+
+    const auto w_B = n_f.dot(n_1) / n_f.dot(n_f);
+    const auto w_C = n_f.dot(n_2) / n_f.dot(n_f);
+    const auto w_A = 1 - w_B - w_C;
+
+    if (w_A < 0 || w_B < 0 || w_C < 0) return std::nullopt;
+
+    return TriangleIntersection{
+        .t = t,
+        .bari = Vec3{w_A, w_B, w_C},
+    };
+}
+
 HD Vec4 checkerPattern(
     const Vec2f &uv, 
     const int checker_count, 

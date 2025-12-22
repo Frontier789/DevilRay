@@ -24,3 +24,18 @@ struct PathEntry
 };
 
 HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object);
+
+struct TriangleIntersection
+{
+    float t;
+    Vec3 bari;
+};
+
+struct TriangleVertices
+{
+    Vec3 a;
+    Vec3 b;
+    Vec3 c;
+};
+
+HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle);

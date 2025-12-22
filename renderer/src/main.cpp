@@ -23,6 +23,7 @@
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/LightSampling.hpp"
+#include "models/Mesh.hpp"
 
 /*
     PLAN
@@ -439,6 +440,13 @@ private:
 };
 
 int main() {
+
+    auto m = loadMesh("models/ico.obj");
+    std::cout << "Mesh '" << m.name << "' has " << m.points.size() << " points" << std::endl;
+    std::cout << "Mesh '" << m.name << "' has " << m.normals.size() << " normals" << std::endl;
+    std::cout << "Mesh '" << m.name << "' has " << m.triangles.size() << " tris" << std::endl;
+    return 0;
+
     printCudaDeviceInfo();
 
     const auto resolution = Size2i{640, 640};
