@@ -247,8 +247,6 @@ HD void sampleColor(
                 const auto intersection = nextVertex(sampler, objects, stats);
                 if (!intersection.has_value()) break;
 
-                generateNewRay(sampler, *intersection, materials, rng);
-                
                 *pathEnd = PathEntry {
                     .p = intersection->p,
                     .uv = intersection->uv,
@@ -257,6 +255,8 @@ HD void sampleColor(
                     .total_transmission = sampler.transmission,
                 };
                 ++pathEnd;
+
+                generateNewRay(sampler, *intersection, materials, rng);
             }
         }
         
