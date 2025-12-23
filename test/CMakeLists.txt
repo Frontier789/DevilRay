@@ -16,13 +16,18 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 include(GoogleTest)
 
-add_executable(
-  test_alias
-  src/test_alias.cpp
-)
-target_link_libraries(
-  test_alias
-  GTest::gtest_main
-  devil_ray_lib
-)
-gtest_discover_tests(test_alias)
+function(add_test_dr TEST_NAME)
+  add_executable(
+    ${TEST_NAME}
+    src/${TEST_NAME}.cpp
+  )
+  target_link_libraries(
+    ${TEST_NAME}
+    GTest::gtest_main
+    devil_ray_lib
+  )
+  gtest_discover_tests(${TEST_NAME})
+endfunction()
+
+add_test_dr(test_alias)
+add_test_dr(test_render)

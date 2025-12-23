@@ -2,6 +2,7 @@
 
 #include "device/DevUtils.hpp"
 
+#include "tracing/OutputOptions.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "tracing/Intersection.hpp"
 #include "tracing/Camera.hpp"
@@ -10,6 +11,7 @@
 
 #include "Buffers.hpp"
 
+#include <filesystem>
 #include <atomic>
 #include <vector>
 
@@ -29,6 +31,8 @@ class Renderer
 
     CudaRandomStates cuda_randoms;
 
+    OutputOptions output_options;
+
 public:
     Renderer(Size2i resolution);
 
@@ -40,12 +44,13 @@ public:
     void setCamera(Camera cam) { camera = std::move(cam); }
     void setScene(Scene scn) { scene = std::move(scn); calculateLightWeights(); }
     void setPixelSampling(PixelSampling sampling) { pixel_sampling = sampling; }
+    void setOutputOptions(OutputOptions options) { output_options = std::move(options); }
 
     void render();
     void clear();
 
     void createPixels();
-    void saveImage(const std::string &fileName);
+    void saveImage(const std::filesystem::path &path);
 
     const uint32_t *getPixels();
 

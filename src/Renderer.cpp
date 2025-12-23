@@ -41,24 +41,30 @@ Renderer::Renderer(Size2i resolution)
     , pixels(resolution.area())
     , resolution(resolution)
     , cuda_randoms(resolution)
+    , output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
 {
     
 }
 
 void Renderer::createPixels()
 {
-    auto toSRGB = [](float linear) -> float
+    const auto linearity = output_options.linearity;
+    auto toSRGB = [&linearity](float linear) -> float
     {
+        if (linearity == OutputLinearity::Linear) return linear;
+
         const float r = std::clamp(linear, 0.f, 1.f);
         if (r < 0.0031308) return r * 12.92;
         return std::pow(r, 1/2.4f)*1.055 - 0.055f;
     };
 
+    auto to_u32 = [](auto f) -> uint32_t {return static_cast<uint32_t>(std::round(f));};
+
     auto packPixel = [&](float r, float g, float b, float a) -> uint32_t {
-        return (static_cast<uint32_t>(toSRGB(r) * 255)<< 0) |
-            (static_cast<uint32_t>(toSRGB(g) * 255)<< 8) |
-            (static_cast<uint32_t>(toSRGB(b) * 255)<<16) |
-            (static_cast<uint32_t>(std::clamp(a, 0.0f, 1.0f) * 255)<<24);
+        return (to_u32(toSRGB(r) * 255)<< 0) |
+            (to_u32(toSRGB(g) * 255)<< 8) |
+            (to_u32(toSRGB(b) * 255)<<16) |
+            (to_u32(std::clamp(a, 0.0f, 1.0f) * 255)<<24);
     };
 
     auto setPixel = [&](int x, int y, float r, float g, float b, float a=1.0f) {
@@ -83,11 +89,11 @@ void Renderer::createPixels()
     }
 }
 
-void Renderer::saveImage(const std::string &fileName)
+void Renderer::saveImage(const std::filesystem::path &path)
 {
     createPixels();
 
-    savePNG(fileName, pixels, resolution);
+    savePNG(path.string(), pixels, resolution);
 }
 
 const uint32_t *Renderer::getPixels()
