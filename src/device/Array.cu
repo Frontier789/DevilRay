@@ -63,6 +63,14 @@ void DeviceArray<T>::ensureDeviceAllocation()
 }
 
 template<typename T>
+void DeviceArray<T>::updateDeviceData()
+{
+    if (!m_device) return;
+
+    cudaMemcpy(m_device, m_host, sizeof(T)*m_size, cudaMemcpyHostToDevice);
+}
+
+template<typename T>
 void DeviceArray<T>::updateHostData()
 {
     if (!m_device) return;

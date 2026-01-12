@@ -25,6 +25,15 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 {
     const auto v = uniformSphereSample(r);
 
+    return v;
+}
+
+#pragma nv_exec_check_disable
+template<typename Rng>
+HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
+{
+    const auto v = uniformSphereSample(r);
+
     if (dot(v, normal) < 0) return v*-1;
 
     return v;
@@ -62,7 +71,9 @@ HD int sample(std::span<const AliasEntry> table, Rng &rng)
 
     const auto &entry = table[index];
 
-    if (p < entry.p_A) {
+    // printf("Rng gave index %d\n\tWhich has p_A=%f\n\tP=%f\n\tA=%d B=%d\n", index, entry.p_A, p, entry.A, entry.B);
+
+    if (p <= entry.p_A) {
         return entry.A;
     }
 

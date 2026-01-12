@@ -37,6 +37,7 @@ AliasTable generateAliasTable(std::span<const float> importances)
     AliasTable table{
         .entries = DeviceArray<AliasEntry>(n, AliasEntry{})
     };
+    table.entries.ensureDeviceAllocation();
 
     if (n == 0) return table;
     if (totalImportance < 1e-5f) return generateUniformAliasTable(n);

@@ -7,8 +7,7 @@
 
 
 Buffers::Buffers(Size2i resolution)
-    : lightWeights(0, 0)
-    , color(resolution.area(), Vec4{0,0,0,0})
+    : color(resolution.area(), Vec4{0,0,0,0})
     , casts(resolution.area(), 0)
 {
 
@@ -22,7 +21,6 @@ void Buffers::reset()
 
 void Buffers::ensureDeviceAllocation()
 {
-    lightWeights.ensureDeviceAllocation();
     color.ensureDeviceAllocation();
     casts.ensureDeviceAllocation();
 }
@@ -127,9 +125,8 @@ void Renderer::calculateLightWeights()
     const auto objects = scene.objects.hostPtr();
     const auto N = scene.objects.size();
 
-    buffers.lightWeights = DeviceArray<float>(N, 0);
-    const auto weights = buffers.lightWeights.hostPtr();
-
+    std::vector<float> weights(N, 0);
+    
     float weightSum = 0.0f;
 
     for (size_t i=0;i<N;++i)
@@ -143,11 +140,20 @@ void Renderer::calculateLightWeights()
         weightSum += weights[i];
     }
 
+    std::cout << "Generating AliasTable from weights:\n";
     for (size_t i=0;i<N;++i)
     {
         weights[i] /= weightSum;
-
+        
         std::cout << "Object #" << i << ": " << weights[i] << std::endl;
+    }
+
+    light_sampler = generateAliasTable(weights);
+    light_sampler.entries.updateDeviceData();
+
+    for (const auto e : std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()})
+    {
+        std::cout << "A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << std::endl;
     }
 }
 
@@ -160,6 +166,7 @@ void Renderer::schedule_cpu_render()
 {
     const auto objects = std::span{scene.objects.hostPtr(), scene.objects.size()};
     const auto materials = std::span{scene.materials.hostPtr(), scene.materials.size()};
+    const auto light_table = std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()};
 
     parallel_for(resolution.height, [&](int y){
 
@@ -172,7 +179,7 @@ void Renderer::schedule_cpu_render()
             auto &pix = buffers.color.hostPtr()[idx];
 
             SampleStats stats{.ray_casts = 0};
-            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, debug, random);
+            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, light_table, debug, random);
 
             buffers.casts.hostPtr()[idx] += stats.ray_casts;
         }

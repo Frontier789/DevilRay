@@ -215,6 +215,96 @@ HD void generateNewRay(
     sampler.ray.p = sampler.ray.p + normal * 1e-5;
 }
 
+inline HD bool visible(Vec3 p0, Vec3 p1, std::span<const Object> objects)
+{
+    const auto distance = (p1 - p0).length();
+    const auto v = (p1 - p0) / distance;
+
+    Ray ray{.p = p0 + v * 1e-5, .v = v};
+
+    const auto hit = cast(ray, objects);
+    if (!hit.has_value()) return true;
+
+    return hit->t > distance - 1e-5 * 2;
+}
+
+struct LightSample
+{
+    Vec3 p;
+    Vec3 n;
+    int mat;
+    float pdf;
+};
+
+#pragma nv_exec_check_disable
+template<typename Rng>
+HD LightSample samplePointOnLights(
+    std::span<const Object> objects,
+    std::span<const AliasEntry> light_table,
+    Rng &rng)
+{
+    const auto index = sample(light_table, rng);
+    const auto &object = objects[index];
+    const auto mat = getMaterial(object);
+
+    // printf("Rolled %d\n", index);
+
+    return std::visit(Overloaded{
+        [&](const Sphere &s){
+            const auto n = uniformSphereSample(rng);
+            const auto p = n * s.radius + s.center;
+
+            return LightSample{
+                .p = p,
+                .n = n,
+                .mat = mat,
+                .pdf = 1.0f / (4.0f * pi * s.radius * s.radius),
+            };
+        },
+        [&](const Square &s){
+            const auto up = s.right.cross(s.n);
+
+            const auto r = s.right * (rng.rnd() - 0.5f) * s.size;
+            const auto u = up * (rng.rnd() - 0.5f) * s.size;
+
+            const auto p = r + u + s.p;
+            
+            return LightSample{
+                .p = p,
+                .n = s.n,
+                .mat = mat,
+                .pdf = 1.0f / (s.size * s.size),
+            };
+        }
+    }, object);
+}
+
+template<typename Rng>
+HD void sampleColorDebug(
+    Vec2f sensorPos,
+    Vec4 &pixel,
+    SampleStats &stats,
+    Camera camera,
+    PixelSampling pixel_sampling,
+    std::span<const Object> objects,
+    std::span<const Material> materials,
+    Rng &rng)
+{
+    PathSampler sampler;
+    sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
+
+    const auto intersection = nextVertex(sampler, objects, stats);
+    if (!intersection.has_value()) return;
+
+    const auto mat = intersection->mat;
+    const auto uv = intersection->uv;
+
+    pixel.w++;
+    
+    const auto &material = materials[mat];
+    pixel = pixel + checkerPattern(uv, 7) * getDebugColor(material);
+}
+
 template<typename Rng>
 HD void sampleColor(
     Vec2f sensorPos,
@@ -224,13 +314,16 @@ HD void sampleColor(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
-    DebugOptions debug,
+    std::span<const AliasEntry> light_table, 
+    bool debug,
     Rng &rng)
 {
-    const int max_depth = debug == DebugOptions::Off ? Buffers::maxPathLength : 1;
-    const auto iterations = debug == DebugOptions::Off ? 1 : 1;
+    if (debug) return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
 
-    std::array<PathEntry, Buffers::maxPathLength> entries;
+    constexpr int max_depth = 100;
+    constexpr auto iterations = 2;
+
+    std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
     
     for (int i=0;i<iterations;++i) {
@@ -297,14 +390,48 @@ HD void sampleColor(
             }
         }
         
+        LightSample light_sample = samplePointOnLights(objects, light_table, rng);
+        const auto *light_material = std::get_if<DiffuseMaterial>(&materials[light_sample.mat]);
+
+        // printf("Light sample: p=%f,%f,%f e=%f,%f,%f\n", 
+        //     light_sample.p.x, light_sample.p.y, light_sample.p.z,
+        //     light_material->emission.x, light_material->emission.y, light_material->emission.z
+        // );
+
         Vec4 color{0,0,0,0};
+        bool ray_constrained = true;
 
         for (PathEntry *pit = path; pit!=pathEnd; ++pit)
         {
             const auto &material = materials[pit->mat];
 
             if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-                color = color + diffuse_material->emission * pit->total_transmission;
+                if (ray_constrained) {
+                    color = color + diffuse_material->emission * pit->total_transmission;
+                }
+                
+                {
+                    if (visible(pit->p, light_sample.p, objects)) {
+                        const auto distance = (light_sample.p - pit->p).length();
+                        const auto v = (light_sample.p - pit->p) / distance;
+
+                        const auto brdf = diffuse_material->diffuse_reflectance / pi;
+
+                        const auto cos_phi_x_i = v.dot(pit->n);
+                        const auto cos_phi_y   = v.dot(light_sample.n);
+                        
+                        if (cos_phi_y > 0) {
+                            const auto geometric_term = std::abs(cos_phi_x_i * cos_phi_y) / distance / distance;
+    
+                            color = color + light_material->emission * brdf * geometric_term / light_sample.pdf * pit->total_transmission;
+                        }
+                    }
+                }
+
+                ray_constrained = false;
+            }
+            else if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
+                ray_constrained = true;
             }
         }
 
