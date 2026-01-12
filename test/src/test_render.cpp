@@ -138,10 +138,10 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
             const auto g = px.y / sampleCount;
             const auto b = px.z / sampleCount;
 
-            EXPECT_EQ(referenceSampleCount, sampleCount);
-            EXPECT_EQ(r, g);
-            EXPECT_EQ(g, b);
-            EXPECT_EQ(r, b);
+            ASSERT_EQ(referenceSampleCount, sampleCount);
+            ASSERT_EQ(r, g);
+            ASSERT_EQ(g, b);
+            ASSERT_EQ(r, b);
 
             const auto intensity = r;
             intensities.push_back(intensity);

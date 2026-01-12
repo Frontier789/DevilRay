@@ -36,7 +36,9 @@ HD Vec3 cosineWeightedHemisphereSample(const Vec3 &normal, Rng &r)
 {
     const auto v = uniformSphereSample(r);
 
-    return (v + normal).normalized();
+    const auto direction = v + normal;
+
+    return direction.normalized();
 }
 
 struct AliasEntry
@@ -62,7 +64,7 @@ HD int sample(std::span<const AliasEntry> table, Rng &rng)
 
     const auto &entry = table[index];
 
-    if (p < entry.p_A) {
+    if (p <= entry.p_A) {
         return entry.A;
     }
 

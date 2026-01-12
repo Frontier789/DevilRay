@@ -2,6 +2,7 @@
 
 #include "device/DevUtils.hpp"
 
+#include "tracing/DistributionSamplers.hpp"
 #include "tracing/OutputOptions.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "tracing/Intersection.hpp"
@@ -29,6 +30,7 @@ class Renderer
     OutputOptions output_options;
     PixelSampling pixel_sampling;
     Size2i resolution;
+    AliasTable light_sampler;
 
     std::vector<uint32_t> pixels;
     std::vector<uint32_t> displayPixels;

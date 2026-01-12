@@ -58,8 +58,16 @@ void DeviceArray<T>::ensureDeviceAllocation()
 {
     if (!m_device) {
         cudaMalloc(&m_device, sizeof(T)*m_size);
-        reset();
+        updateDeviceData();
     }
+}
+
+template<typename T>
+void DeviceArray<T>::updateDeviceData()
+{
+    if (!m_device) return;
+
+    cudaMemcpy(m_device, m_host, sizeof(T)*m_size, cudaMemcpyHostToDevice);
 }
 
 template<typename T>

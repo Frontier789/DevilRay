@@ -70,6 +70,8 @@ struct Application
     void handleUiEvents();
     void presentCurrentImage();
 
+    void resetCamera();
+
 private:
     void createWindow();
     void loadMeshes();

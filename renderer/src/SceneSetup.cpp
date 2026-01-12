@@ -183,16 +183,16 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(obj));
     }
 
-    {
-        auto obj = Square{
-            .p = Vec3{0,4.499,2},
-            .n = Vec3{0,1,0},
-            .right = Vec3{0,0,1},
-            .size = 5,
-        };
-        obj.mat = light_mid;
-        scene.objects.push_back(std::move(obj));
-    }
+    // {
+    //     auto obj = Square{
+    //         .p = Vec3{0,4.499,2},
+    //         .n = Vec3{0,1,0},
+    //         .right = Vec3{0,0,1},
+    //         .size = 5,
+    //     };
+    //     obj.mat = light_mid;
+    //     scene.objects.push_back(std::move(obj));
+    // }
 
     // {
     //     const int N = 5;

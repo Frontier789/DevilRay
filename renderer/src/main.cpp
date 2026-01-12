@@ -56,8 +56,14 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Q) && !ImGui::GetIO().WantTextInput)
-            glfwSetWindowShouldClose(app.window, true);
+        if (!ImGui::GetIO().WantTextInput)
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_Q))
+                glfwSetWindowShouldClose(app.window, true);
+
+            if (ImGui::IsKeyPressed(ImGuiKey_Backspace))
+                app.resetCamera();
+        }
 
         ImGui::Text("%s", fpsString.c_str());
 

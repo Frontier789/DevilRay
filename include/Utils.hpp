@@ -98,9 +98,11 @@ struct Vec4
     float y;
     float z;
     float w;
+
     constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
     constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
     constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
+    constexpr Vec4 operator/(const float f) const {return *this * (1.0f / f);}
     constexpr float max() const {return std::max(std::max(x,y),z);}
 };
 
@@ -114,12 +116,17 @@ struct Vec3
     constexpr Vec3 operator+(const Vec3 &v) const {return Vec3{x+v.x, y+v.y, z+v.z};}
     constexpr Vec3 operator*(const Vec3 &v) const {return Vec3{x*v.x, y*v.y, z*v.z};}
     constexpr Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
+    constexpr Vec3 operator/(const float f) const {return *this*(1.0f/f);}
+
+    constexpr float length() const {
+        return std::sqrt(x*x + y*y + z*z);
+    }
 
     constexpr Vec3 &operator+=(const Vec3 &v) { return *this = *this + v; }
 
     constexpr Vec3 normalized() const {
-        const auto length = std::sqrt(x*x + y*y + z*z);
-        return Vec3{x/length, y/length, z/length};
+        const auto l = length();
+        return Vec3{x/l, y/l, z/l};
     }
 
     constexpr Vec3 cross(const Vec3 &v) const {
@@ -134,14 +141,15 @@ struct Vec3
         return x * v.x + y * v.y + z * v.z;
     }
 
-    constexpr float length() const {
-        return std::sqrt(dot(*this));
-    }
-
     constexpr bool anyNan() const {
         return std::isnan(x) || std::isnan(y) || std::isnan(z);
     }
 };
+
+inline constexpr float luminance(const Vec4 &linear_rgb)
+{
+    return 0.2126f * linear_rgb.x + 0.7152f * linear_rgb.y + 0.0722f * linear_rgb.z;
+}
 
 template<typename T>
 struct Vec2
@@ -217,3 +225,5 @@ std::ostream &operator<<(std::ostream &os, const Vec2<T> &vec) {
     return os;
 }
 
+template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;

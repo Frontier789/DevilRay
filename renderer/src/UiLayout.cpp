@@ -13,6 +13,16 @@ std::string counterToString(uint64_t cntr)
     return std::to_string(cntr);
 }
 
+void Application::resetCamera()
+{
+    cameraController.target = Vec3{0,0,2};
+    cameraController.pitch = 0;
+    cameraController.yaw = 0;
+    cameraController.distance = 2;
+
+    renderer->setCamera(cameraController.getCamera());
+}
+
 void Application::handleUiEvents()
 {
     if (ImGui::SliderFloat("Focal length", &renderOptions.focal_length_mm, 3, 150, "%.1f mm"))
@@ -44,7 +54,7 @@ void Application::handleUiEvents()
 
         std::time_t time = std::time({});
         char timeString[100];
-        std::strftime(timeString, 100, "%Y_%m_%d_%H_%M.png", std::gmtime(&time));
+        std::strftime(timeString, 100, "%Y_%m_%d_%H_%M_%S.png", std::gmtime(&time));
         std::string timePng = timeString;
 
         std::cout << "Saving to " << imageFolder / timePng << std::endl;

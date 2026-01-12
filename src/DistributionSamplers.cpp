@@ -22,6 +22,14 @@ namespace
 
         return AliasTable{ .entries = std::move(table) };
     }
+
+    void ensurePALarger(AliasEntry &entry)
+    {
+        if (entry.p_A < 0.5f) {
+            entry.p_A = 1 - entry.p_A;
+            std::swap(entry.A, entry.B);
+        }
+    }
 }
 
 AliasTable generateAliasTable(std::span<const float> importances)
@@ -85,6 +93,7 @@ AliasTable generateAliasTable(std::span<const float> importances)
         under.B = over.A;
         over.p_A = over.p_A + under.p_A - 1;
 
+        ensurePALarger(under);
         *entriesPtr++ = std::move(under);
 
         if (over.p_A > 1) {
@@ -94,6 +103,7 @@ AliasTable generateAliasTable(std::span<const float> importances)
             underfull.push(over);
         }
         else {
+            ensurePALarger(over);
             *entriesPtr++ = std::move(over);
         }
     }

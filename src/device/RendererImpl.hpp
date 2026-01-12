@@ -27,6 +27,7 @@ __global__ void cuda_render(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
+    std::span<const AliasEntry> light_table,
     DebugOptions debug,
     curandState *randStates)
 {
@@ -39,7 +40,7 @@ __global__ void cuda_render(
     auto random = CudaRandom{randStates + idx};
 
     SampleStats stats{.ray_casts = 0};
-    sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, materials, debug, random);
+    sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, materials, light_table, debug, random);
 
     casts[idx] += stats.ray_casts; 
 }
@@ -76,6 +77,7 @@ void Renderer::schedule_device_render()
 
     const auto objects = std::span{scene.objects.devicePtr(), scene.objects.size()};
     const auto materials = std::span{scene.materials.devicePtr(), scene.materials.size()};
+    const auto light_table = std::span{light_sampler.entries.devicePtr(), light_sampler.entries.size()};
 
     cuda_render<<<dimGrid, dimBlock>>>(
         resolution,
@@ -85,6 +87,7 @@ void Renderer::schedule_device_render()
         localPixelSampling,
         objects,
         materials,
+        light_table,
         localDebug,
         cuda_randoms.ptr()
     );
@@ -92,4 +95,6 @@ void Renderer::schedule_device_render()
     CUDA_ERROR_CHECK();
 
     cudaDeviceSynchronize();
+
+    CUDA_ERROR_CHECK();
 }
