@@ -167,7 +167,7 @@ Scene createScene()
     const int  light_mid = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{4,4,4},
+            .emission = Vec4{100,100,100},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
@@ -324,7 +324,7 @@ Scene createScene()
             .p = Vec3{0,0.499,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 0.5,
+            .size = 0.1,
         };
         obj.mat = light_mid;
         scene.objects.push_back(std::move(obj));
@@ -391,7 +391,7 @@ Scene createScene()
             .center = Vec3{-0.25, -0.3, 1.8},
             .radius = 200e-3,
         };
-        obj.mat = glass;
+        obj.mat = blue;
         scene.objects.push_back(std::move(obj));
     }
 

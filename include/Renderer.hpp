@@ -2,6 +2,7 @@
 
 #include "device/DevUtils.hpp"
 
+#include "tracing/DistributionSamplers.hpp"
 #include "tracing/OutputOptions.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "tracing/Intersection.hpp"
@@ -30,6 +31,7 @@ class Renderer
     Timer timer;
 
     CudaRandomStates cuda_randoms;
+    AliasTable light_sampler;
 
     OutputOptions output_options;
 
