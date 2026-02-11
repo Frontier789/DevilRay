@@ -30,6 +30,17 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 
 #pragma nv_exec_check_disable
 template<typename Rng>
+HD Vec3 cosineWeightedHemisphereSample(const Vec3 &normal, Rng &r)
+{
+    const auto v = uniformSphereSample(r);
+
+    const auto direction = v + normal;
+
+    return direction.normalized();
+}
+
+#pragma nv_exec_check_disable
+template<typename Rng>
 HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 {
     const auto v = uniformSphereSample(r);

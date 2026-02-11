@@ -321,7 +321,7 @@ HD void sampleColor(
     if (debug) return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
 
     constexpr int max_depth = 100;
-    constexpr auto iterations = 2;
+    constexpr auto iterations = 3;
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
@@ -386,6 +386,20 @@ HD void sampleColor(
                 };
                 ++pathEnd;
 
+                // const auto l = luminance(sampler.transmission);
+                // if (l > 1000.0f) {
+                //     printf("Extreme limunance path: \n");
+                //     printf("\tLuminance: %f\n", l);
+                //     printf("\tDepth: %d\n", depth);
+                    
+                //     int d = 0;
+                //     for (PathEntry *qit = path; qit!=pathEnd; ++qit)
+                //     {
+                //         d+=1;
+                //         printf("\tVertex %d: %f,%f,%f, t=%f\n", d, qit->p.x, qit->p.y, qit->p.z, luminance(qit->total_transmission));
+                //     }
+                // }
+
                 generateNewRay(sampler, *intersection, materials, rng);
             }
         }
@@ -406,6 +420,9 @@ HD void sampleColor(
             const auto &material = materials[pit->mat];
 
             if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+
+                // color = color + diffuse_material->emission * pit->total_transmission;
+
                 if (ray_constrained) {
                     color = color + diffuse_material->emission * pit->total_transmission;
                 }

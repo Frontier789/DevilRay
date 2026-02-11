@@ -98,6 +98,7 @@ struct Vec4
     float y;
     float z;
     float w;
+
     constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
     constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
     constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
@@ -147,6 +148,10 @@ struct Vec3
     }
 };
 
+inline constexpr float luminance(const Vec4 &linear_rgb)
+{
+    return 0.2126f * linear_rgb.x + 0.7152f * linear_rgb.y + 0.0722f * linear_rgb.z;
+}
 
 template<typename T>
 struct Size2
