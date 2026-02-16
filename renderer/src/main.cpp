@@ -393,12 +393,12 @@ Scene createScene(TrisCollection &tris)
             .center = Vec3{-0.25, -0.3, 1.8},
             .radius = 200e-3,
         };
-        obj.mat = red;
+        obj.mat = glass;
         scene.objects.push_back(std::move(obj));
     }
 
     {
-        tris.mat = blue;
+        tris.mat = light3;
         tris.setPosition(Vec3{0.3, -0.3, 2});
         tris.setScale(Vec3{0.2f,0.2f,0.2f});
         scene.objects.push_back(std::move(tris));

@@ -275,6 +275,8 @@ HD void sampleColor(
         
                 pixel.w++;
                 pixel = pixel + color;
+
+                continue;
             }
 
             for (int depth=0; depth<max_depth; ++depth)
