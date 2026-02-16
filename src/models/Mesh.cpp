@@ -16,7 +16,7 @@ namespace
 
         std::vector<int> indices;
         int i;
-        while (ss >> i) indices.push_back(i);
+        while (ss >> i) indices.push_back(i-1);
 
         if (indices.size() != 3) {
             throw std::runtime_error("Unexpected number of indices in face vertex: " + std::to_string(indices.size()));

@@ -158,8 +158,6 @@ void Renderer::schedule_cpu_render()
 
         for (int x=0;x<resolution.width;++x)
         {
-            const auto iterations = debug ? 1 : 10;
-            
             const auto idx = x + y*resolution.width;
             auto &pix = buffers.color.hostPtr()[idx];
 

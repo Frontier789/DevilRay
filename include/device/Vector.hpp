@@ -26,6 +26,7 @@ private:
 template<typename T>
 struct DeviceVector
 {
+    explicit DeviceVector(std::vector<T> data) : m_host(std::move(data)), m_deviceNeedsUpdate{true} {}
     DeviceVector() : m_deviceNeedsUpdate{true} {}
 
     void deleteDeviceMemory() {

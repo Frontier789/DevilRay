@@ -112,6 +112,7 @@ struct Vec3
 
     constexpr Vec3 operator-(const Vec3 &v) const {return Vec3{x-v.x, y-v.y, z-v.z};}
     constexpr Vec3 operator+(const Vec3 &v) const {return Vec3{x+v.x, y+v.y, z+v.z};}
+    constexpr Vec3 operator*(const Vec3 &v) const {return Vec3{x*v.x, y*v.y, z*v.z};}
     constexpr Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
 
     constexpr Vec3 normalized() const {
@@ -129,6 +130,14 @@ struct Vec3
 
     constexpr float dot(const Vec3 &v) const {
         return x * v.x + y * v.y + z * v.z;
+    }
+
+    constexpr float length() const {
+        return std::sqrt(dot(*this));
+    }
+
+    constexpr bool anyNan() const {
+        return std::isnan(x) || std::isnan(y) || std::isnan(z);
     }
 };
 

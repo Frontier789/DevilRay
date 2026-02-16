@@ -1,3 +1,7 @@
+#pragma once
+
+#include "tracing/Objects.hpp"
+
 HD std::optional<Intersection> getIntersection(const Ray &ray, const Square &square)
 {
     // <p + v*t - o, n> = 0
@@ -35,6 +39,7 @@ HD std::optional<Intersection> getIntersection(const Ray &ray, const Square &squ
         .uv = uv,
         .n = n,
         .mat = square.mat,
+        .triangle = std::nullopt,
     };
 }
 
@@ -83,5 +88,50 @@ HD std::optional<Intersection> getIntersection(const Ray &ray, const Sphere &sph
         .uv = uv,
         .n = n,
         .mat = sphere.mat,
+        .triangle = std::nullopt,
     };
+}
+
+HD Vec3 triangleNormal(const TriangleVertices &triangle)
+{
+    return (triangle.a - triangle.b).cross(triangle.a - triangle.c).normalized();
+}
+
+HD std::optional<Intersection> getIntersection(const Ray &ray, const TrisCollection &tris)
+{
+    std::optional<Intersection> best = std::nullopt;
+
+    for (int i=0;i<tris.tris_count;++i)
+    {
+        const auto &indices = tris.triangles[i];
+
+        const auto triangle = TriangleVertices{
+            .a = tris.points[indices.a.pi] * tris.s + tris.p,
+            .b = tris.points[indices.b.pi] * tris.s + tris.p,
+            .c = tris.points[indices.c.pi] * tris.s + tris.p,
+        };
+
+        const auto intersection = testTriangleIntersection(ray, triangle);
+        
+        if (!intersection.has_value()) continue;
+
+        if (!best.has_value() || best->t > intersection->t)
+        {
+            const bool is_ccw = (triangle.a - triangle.b).cross(triangle.a - triangle.c).z > 0;
+
+            best = Intersection{
+                .t = intersection->t,
+                .p = ray.p + ray.v * intersection->t,
+                .uv = Vec2f{0,0},
+                .n = triangleNormal(triangle),
+                .mat = tris.mat,
+                .triangle = TriangleHitData{
+                    .bari = intersection->bari,
+                    .ccw = is_ccw,
+                },
+            };
+        }
+    }
+
+    return best;
 }

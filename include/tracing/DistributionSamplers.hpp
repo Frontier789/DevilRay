@@ -7,7 +7,7 @@
 
 #pragma nv_exec_check_disable
 template<typename Rng>
-HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
+HD Vec3 uniformSphereSample(Rng &r)
 {
     const float theta0 = 2 * pi * r.rnd();
     const float theta1 = std::acos(1 - 2 * r.rnd());
@@ -16,11 +16,27 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
     const float y = std::sin(theta1) * std::cos(theta0);
     const float z = std::cos(theta1);
 
-    const auto v = Vec3{x,y,z};
+    return Vec3{x,y,z};
+}
+
+#pragma nv_exec_check_disable
+template<typename Rng>
+HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
+{
+    const auto v = uniformSphereSample(r);
 
     if (dot(v, normal) < 0) return v*-1;
 
     return v;
+}
+
+#pragma nv_exec_check_disable
+template<typename Rng>
+HD Vec3 cosineWeightedHemisphereSample(const Vec3 &normal, Rng &r)
+{
+    const auto v = uniformSphereSample(r);
+
+    return (v + normal).normalized();
 }
 
 struct AliasEntry

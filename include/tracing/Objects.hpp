@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
+#include "models/Mesh.hpp"
 
 #include <optional>
 #include <variant>
@@ -24,4 +25,19 @@ struct Sphere : ObjectBase
     float radius;
 };
 
-using Object = std::variant<Square, Sphere>;
+struct TrisCollection : ObjectBase
+{
+    Vec3 *points;
+    Vec3 *normals;
+    Triangle *triangles;
+
+    Vec3 s;
+    Vec3 p;
+    int tris_count;
+    float surface_area;
+
+    void setPosition(const Vec3 &pos);
+    void setScale(const Vec3 &scale);
+};
+
+using Object = std::variant<Square, Sphere, TrisCollection>;

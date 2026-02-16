@@ -12,3 +12,6 @@ imgui.ini
 captures
 
 test_output
+
+# Blender backup files
+**/*.blend[0-9]

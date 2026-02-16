@@ -31,3 +31,4 @@ endfunction()
 
 add_test_dr(test_alias)
 add_test_dr(test_render)
+add_test_dr(test_intersection)

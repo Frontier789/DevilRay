@@ -23,6 +23,7 @@
 #include "tracing/Camera.hpp"
 #include "tracing/Objects.hpp"
 #include "tracing/LightSampling.hpp"
+#include "tracing/GpuTris.hpp"
 #include "models/Mesh.hpp"
 
 /*
@@ -148,7 +149,7 @@ Camera createCamera(Size2i resolution, const float focal_length, const float phy
     return cam;
 }
 
-Scene createScene()
+Scene createScene(TrisCollection &tris)
 {
     Scene scene;
 
@@ -355,14 +356,14 @@ Scene createScene()
     //     }
     // }
 
-    {
-        auto obj = Sphere{
-            .center = Vec3{0.3, -0.4, 2},
-            .radius = 100e-3,
-        };
-        obj.mat = blue;
-        scene.objects.push_back(std::move(obj));
-    }
+    // {
+    //     auto obj = Sphere{
+    //         .center = Vec3{0.3, -0.4, 2},
+    //         .radius = 100e-3,
+    //     };
+    //     obj.mat = blue;
+    //     scene.objects.push_back(std::move(obj));
+    // }
 
     // {
     //     auto obj = Sphere{
@@ -392,8 +393,15 @@ Scene createScene()
             .center = Vec3{-0.25, -0.3, 1.8},
             .radius = 200e-3,
         };
-        obj.mat = glass;
+        obj.mat = red;
         scene.objects.push_back(std::move(obj));
+    }
+
+    {
+        tris.mat = blue;
+        tris.setPosition(Vec3{0.3, -0.3, 2});
+        tris.setScale(Vec3{0.2f,0.2f,0.2f});
+        scene.objects.push_back(std::move(tris));
     }
 
 
@@ -440,19 +448,19 @@ private:
 };
 
 int main() {
-
-    auto m = loadMesh("models/ico.obj");
-    std::cout << "Mesh '" << m.name << "' has " << m.points.size() << " points" << std::endl;
-    std::cout << "Mesh '" << m.name << "' has " << m.normals.size() << " normals" << std::endl;
-    std::cout << "Mesh '" << m.name << "' has " << m.triangles.size() << " tris" << std::endl;
-    return 0;
-
     printCudaDeviceInfo();
 
     const auto resolution = Size2i{640, 640};
     const auto render_scale = 1;
 
     auto app = initApplication(resolution);
+
+    auto mesh = loadMesh("models/ico.obj");
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
+    auto gpu_mesh = convertMeshToTris(mesh);
+    auto mesh_object = viewGpuTris(gpu_mesh);
 
     try
     {
@@ -474,7 +482,7 @@ int main() {
         bool useCuda = true;
         int pixel_sampling = static_cast<int>(PixelSampling::UniformRandom);
 
-        renderer.setScene(createScene());
+        renderer.setScene(createScene(mesh_object));
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
         renderer.useCudaDevice(useCuda);

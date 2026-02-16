@@ -89,5 +89,8 @@
         "__debug": "cpp",
         "__tuple": "cpp",
         "target": "cpp"
-    }
+    },
+    "cSpell.words": [
+        "tris"
+    ]
 }

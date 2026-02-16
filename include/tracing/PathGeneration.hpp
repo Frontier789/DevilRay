@@ -127,13 +127,9 @@ HD void generateNewRay(
     const auto &material = materials[intersection.mat];
 
     if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-        const auto new_v = uniformHemisphereSample(normal, rng);
+        const auto new_v = cosineWeightedHemisphereSample(normal, rng);
 
-        const auto weakening_factor = dot(normal, new_v);
-        const auto path_sampling_probability = 1 / (2*pi);
-        const auto new_v_radiance = 1 / pi;
-        const auto beta = weakening_factor * new_v_radiance / path_sampling_probability;
-        sampler.transmission = sampler.transmission * beta * diffuse_material->diffuse_reflectance;
+        sampler.transmission = sampler.transmission * diffuse_material->diffuse_reflectance;
 
         sampler.ray = Ray{
             .p = intersection.p,

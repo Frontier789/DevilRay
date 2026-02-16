@@ -20,6 +20,7 @@ add_library(${PROJECT_NAME}
             src/Image.cpp
             src/Renderer.cpp
             src/Scene.cpp
+            src/GpuTris.cpp
             src/models/Mesh.cpp
             src/device/implementation.cu
             src/device/DevUtils.cu
