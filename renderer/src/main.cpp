@@ -478,7 +478,7 @@ int main() {
         RunningAverage renderTimes(20);
 
         float focal_length_mm = 14.2f;
-        bool debug = false;
+        DebugOptions debug = DebugOptions::Off;
         bool useCuda = true;
         int pixel_sampling = static_cast<int>(PixelSampling::UniformRandom);
 
@@ -495,7 +495,8 @@ int main() {
                 renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
             }
 
-            if (ImGui::Checkbox("Debug", &debug))
+            constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder"};
+            if (ImGui::Combo("Debug", reinterpret_cast<int*>(&debug), debug_names, IM_ARRAYSIZE(debug_names)))
             {
                 renderTimes.reset();
                 renderer.clear();

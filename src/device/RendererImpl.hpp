@@ -27,7 +27,7 @@ __global__ void cuda_render(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
-    bool debug,
+    DebugOptions debug,
     curandState *randStates)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;

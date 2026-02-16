@@ -10,6 +10,7 @@
 #include "tracing/Scene.hpp"
 
 #include "Buffers.hpp"
+#include "DebugOptions.hpp"
 
 #include <filesystem>
 #include <atomic>
@@ -22,7 +23,7 @@ class Renderer
 
     std::vector<uint32_t> pixels;
     Size2i resolution;
-    bool debug;
+    DebugOptions debug;
     bool useCuda;
 
     Camera camera;
@@ -38,7 +39,7 @@ public:
 
     const Buffers &getBuffers() const {return buffers;}
     Size2i getResolution() const {return resolution;}
-    void setDebug(bool dbg) { debug = dbg; }
+    void setDebug(DebugOptions dbg) { debug = std::move(dbg); }
     void useCudaDevice(bool use) { useCuda = use; }
 
     void setCamera(Camera cam) { camera = std::move(cam); }

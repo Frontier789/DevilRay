@@ -6,7 +6,9 @@
 #include "tracing/PixelSampling.hpp"
 #include "tracing/CameraRay.hpp"
 #include "tracing/DistributionSamplers.hpp"
+
 #include "Buffers.hpp"
+#include "DebugOptions.hpp"
 
 #include <optional>
 #include <span>
@@ -222,11 +224,11 @@ HD void sampleColor(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
-    bool debug,
+    DebugOptions debug,
     Rng &rng)
 {
-    const int max_depth = debug ? 1 : Buffers::maxPathLength;
-    const auto iterations = debug ? 1 : 10;
+    const int max_depth = debug == DebugOptions::Off ? Buffers::maxPathLength : 1;
+    const auto iterations = debug == DebugOptions::Off ? 1 : 1;
 
     std::array<PathEntry, Buffers::maxPathLength> entries;
     PathEntry *path = entries.data();
@@ -237,6 +239,43 @@ HD void sampleColor(
         {
             PathSampler sampler;
             sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
+
+            
+            if (debug != DebugOptions::Off)
+            {
+                const auto intersection = nextVertex(sampler, objects, stats);
+
+                Vec4 color{0,0,0,0};
+                if (intersection.has_value())
+                {
+                    const auto &material = materials[intersection->mat];
+                    color = getDebugColor(material);
+
+                    switch (debug) {
+                        case DebugOptions::BariCoords:
+                            if (intersection->triangle.has_value()) {
+                                const auto bari = intersection->triangle->bari;
+                                color = Vec4{bari.x, bari.y, bari.z, 0};
+                            }
+                            break;
+                        case DebugOptions::WindingOrder:
+                            if (intersection->triangle.has_value()) {
+                                constexpr auto clockWiseColor = Vec4{0.53, 0.82, 1.0, 0.0};
+                                constexpr auto counterClockWiseColor = Vec4{1.0, 0.73, 0.47, 0.0};
+                                color = intersection->triangle->ccw ? counterClockWiseColor : clockWiseColor;
+                            }
+                            break;
+                        case DebugOptions::UVChecker:
+                            color = checkerPattern(intersection->uv, 7) * getDebugColor(material);
+                            break;
+                        case DebugOptions::Off:
+                            break;
+                    }
+                }
+        
+                pixel.w++;
+                pixel = pixel + color;
+            }
 
             for (int depth=0; depth<max_depth; ++depth)
             {
@@ -258,22 +297,12 @@ HD void sampleColor(
         
         Vec4 color{0,0,0,0};
 
-        if (debug)
+        for (PathEntry *pit = path; pit!=pathEnd; ++pit)
         {
-            if (path != pathEnd) {
-                const auto &material = materials[path->mat];
-                color = checkerPattern(path->uv, 7) * getDebugColor(material);
-            }
-        }
-        else
-        {
-            for (PathEntry *pit = path; pit!=pathEnd; ++pit)
-            {
-                const auto &material = materials[pit->mat];
+            const auto &material = materials[pit->mat];
 
-                if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-                    color = color + diffuse_material->emission * pit->total_transmission;
-                }
+            if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+                color = color + diffuse_material->emission * pit->total_transmission;
             }
         }
 
