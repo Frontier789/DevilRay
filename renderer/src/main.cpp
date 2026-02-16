@@ -455,7 +455,7 @@ int main() {
 
     auto app = initApplication(resolution);
 
-    auto mesh = loadMesh("models/ico.obj");
+    auto mesh = loadMesh("models/suzanne.obj");
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
