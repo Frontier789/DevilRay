@@ -149,7 +149,7 @@ Camera createCamera(Size2i resolution, const float focal_length, const float phy
     return cam;
 }
 
-Scene createScene(TrisCollection &tris)
+Scene createScene(GpuTris &suzanne, GpuTris &cube)
 {
     Scene scene;
 
@@ -388,20 +388,29 @@ Scene createScene(TrisCollection &tris)
     //     }
     // }
 
-    {
-        auto obj = Sphere{
-            .center = Vec3{-0.25, -0.3, 1.8},
-            .radius = 200e-3,
-        };
-        obj.mat = glass;
-        scene.objects.push_back(std::move(obj));
-    }
+    // {
+    //     auto obj = Sphere{
+    //         .center = Vec3{-0.25, -0.3, 1.8},
+    //         .radius = 200e-3,
+    //     };
+    //     obj.mat = glass;
+    //     scene.objects.push_back(std::move(obj));
+    // }
 
     {
-        tris.mat = light3;
-        tris.setPosition(Vec3{0.3, -0.3, 2});
-        tris.setScale(Vec3{0.2f,0.2f,0.2f});
-        scene.objects.push_back(std::move(tris));
+        auto mesh_object_suzanne = viewGpuTris(suzanne);
+        mesh_object_suzanne.mat = blue;
+        mesh_object_suzanne.setPosition(Vec3{0.0, -0.3, 2});
+        mesh_object_suzanne.setScale(Vec3{0.15f,0.15f,0.15f});
+        scene.objects.push_back(std::move(mesh_object_suzanne));
+    }
+    
+    {
+        auto mesh_object_cube = viewGpuTris(cube);
+        mesh_object_cube.mat = white;
+        mesh_object_cube.setPosition(Vec3{0.0, -0.7, 2});
+        mesh_object_cube.setScale(Vec3{0.2f,0.2f,0.2f});
+        scene.objects.push_back(std::move(mesh_object_cube));
     }
 
 
@@ -447,6 +456,17 @@ private:
     int m_sampleCount;
 };
 
+GpuTris loadMeshAndPrint(const std::string &file)
+{
+    auto mesh = loadMesh(file);
+    
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
+    
+    return convertMeshToTris(mesh);
+}
+
 int main() {
     printCudaDeviceInfo();
 
@@ -455,13 +475,9 @@ int main() {
 
     auto app = initApplication(resolution);
 
-    auto mesh = loadMesh("models/suzanne.obj");
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
-    auto gpu_mesh = convertMeshToTris(mesh);
-    auto mesh_object = viewGpuTris(gpu_mesh);
-
+    auto gpu_mesh_suzanne = loadMeshAndPrint("models/suzanne.obj");
+    auto gpu_mesh_cube = loadMeshAndPrint("models/cube.obj");
+    
     try
     {
         std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
@@ -482,7 +498,7 @@ int main() {
         bool useCuda = true;
         int pixel_sampling = static_cast<int>(PixelSampling::UniformRandom);
 
-        renderer.setScene(createScene(mesh_object));
+        renderer.setScene(createScene(gpu_mesh_suzanne, gpu_mesh_cube));
         renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
         renderer.setDebug(debug);
         renderer.useCudaDevice(useCuda);
