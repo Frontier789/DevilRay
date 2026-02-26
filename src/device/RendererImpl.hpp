@@ -28,7 +28,7 @@ __global__ void cuda_render(
     std::span<const Object> objects,
     std::span<const Material> materials,
     std::span<const AliasEntry> light_table,
-    bool debug,
+    DebugOptions debug,
     curandState *randStates)
 {
     int x = blockIdx.x * blockDim.x + threadIdx.x;

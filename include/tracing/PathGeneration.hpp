@@ -275,6 +275,14 @@ HD LightSample samplePointOnLights(
                 .mat = mat,
                 .pdf = 1.0f / (s.size * s.size),
             };
+        },
+        [&](const TrisCollection &s){
+            return LightSample{ // TODO
+                .p = Vec3{},
+                .n = Vec3{},
+                .mat = 0,
+                .pdf = 0,
+            };
         }
     }, object);
 }
@@ -314,14 +322,16 @@ HD void sampleColor(
     PixelSampling pixel_sampling,
     std::span<const Object> objects,
     std::span<const Material> materials,
-    std::span<const AliasEntry> light_table, 
-    bool debug,
+    std::span<const AliasEntry> light_table,
+    DebugOptions debug,
     Rng &rng)
 {
-    if (debug) return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
+    if (debug == DebugOptions::UVChecker) {
+        return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
+    }
 
-    constexpr int max_depth = 100;
-    constexpr auto iterations = 2;
+    constexpr int max_depth = 20;
+    constexpr auto iterations = 1;
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
@@ -333,7 +343,6 @@ HD void sampleColor(
             PathSampler sampler;
             sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
 
-            
             if (debug != DebugOptions::Off)
             {
                 const auto intersection = nextVertex(sampler, objects, stats);

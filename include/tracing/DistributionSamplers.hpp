@@ -21,15 +21,6 @@ HD Vec3 uniformSphereSample(Rng &r)
 
 #pragma nv_exec_check_disable
 template<typename Rng>
-HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
-{
-    const auto v = uniformSphereSample(r);
-
-    return v;
-}
-
-#pragma nv_exec_check_disable
-template<typename Rng>
 HD Vec3 cosineWeightedHemisphereSample(const Vec3 &normal, Rng &r)
 {
     const auto v = uniformSphereSample(r);
@@ -48,15 +39,6 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
     if (dot(v, normal) < 0) return v*-1;
 
     return v;
-}
-
-#pragma nv_exec_check_disable
-template<typename Rng>
-HD Vec3 cosineWeightedHemisphereSample(const Vec3 &normal, Rng &r)
-{
-    const auto v = uniformSphereSample(r);
-
-    return (v + normal).normalized();
 }
 
 struct AliasEntry
