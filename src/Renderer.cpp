@@ -103,6 +103,16 @@ const uint32_t *Renderer::getPixels()
     return pixels.data();
 }
 
+const Vec4 *Renderer::getRawPixels()
+{
+    if (useCuda) {
+        buffers.color.updateHostData();
+    }
+
+    return buffers.color.hostPtr();
+}
+
+
 namespace
 {
     inline HD float rgbLuminance(const Vec4 &rgb)

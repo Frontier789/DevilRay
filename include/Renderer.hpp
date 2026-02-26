@@ -54,6 +54,7 @@ public:
     void saveImage(const std::filesystem::path &path);
 
     const uint32_t *getPixels();
+    const Vec4 *getRawPixels();
 
     void calculateLightWeights();
 

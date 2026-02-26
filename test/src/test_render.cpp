@@ -112,7 +112,7 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     renderer.setOutputOptions(OutputOptions{.linearity=OutputLinearity::Linear});
     renderer.setDebug(DebugOptions::Off);
     renderer.useCudaDevice(true);
-    for (int i=0;i<10;++i)
+    for (int i=0;i<100;++i)
     renderer.render();
     renderer.createPixels();
 
@@ -120,23 +120,29 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     renderer.saveImage(outputPath / "analytic_diffuse_planes.png");
 
     // 5. Verification
-    const uint32_t* pixels = renderer.getPixels();
+    const Vec4* pixels = renderer.getRawPixels();
     
     std::vector<float> intensities;
     intensities.reserve(resolution.area());
+
+    const auto referenceSampleCount = pixels[0].w;
 
     for (int i=0;i<resolution.height;++i) {
         for (int j=0;j<resolution.width;++j) {
             const auto px = pixels[i * resolution.width + j];
 
-            const auto r = static_cast<int>((px >>  0) & 0xff);
-            const auto g = static_cast<int>((px >>  8) & 0xff);
-            const auto b = static_cast<int>((px >> 16) & 0xff);
+            const auto sampleCount = px.w;
+            const auto r = px.x / sampleCount;
+            const auto g = px.y / sampleCount;
+            const auto b = px.z / sampleCount;
 
+            EXPECT_EQ(referenceSampleCount, sampleCount);
             EXPECT_EQ(r, g);
+            EXPECT_EQ(g, b);
             EXPECT_EQ(r, b);
 
-            intensities.push_back(static_cast<float>(r));
+            const auto intensity = r;
+            intensities.push_back(intensity);
         }
     }
 
@@ -157,9 +163,9 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     const double stddev = std::sqrt(sum2 / n - mean*mean);
     const double skew = (sum3/n - 3*mean*stddev*stddev - mean*mean*mean) / (stddev*stddev*stddev);
 
-    EXPECT_LE(std::abs(mean - 255.0 * emittance), 0.01);
-    EXPECT_LE(stddev, 10.0);
-    EXPECT_LE(skew, 0.01);
+    EXPECT_NEAR(mean, emittance, 0.01);
+    EXPECT_LE(stddev, 0.04);
+    EXPECT_LE(skew, 4e-5);
 }
 
 
