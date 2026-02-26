@@ -321,7 +321,7 @@ HD void sampleColor(
     if (debug) return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
 
     constexpr int max_depth = 100;
-    constexpr auto iterations = 3;
+    constexpr auto iterations = 2;
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
@@ -387,7 +387,7 @@ HD void sampleColor(
                 ++pathEnd;
 
                 // const auto l = luminance(sampler.transmission);
-                // if (l > 1000.0f) {
+                // if (l > 10.0f) {
                 //     printf("Extreme limunance path: \n");
                 //     printf("\tLuminance: %f\n", l);
                 //     printf("\tDepth: %d\n", depth);

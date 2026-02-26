@@ -169,7 +169,7 @@ Scene createScene(GpuTris &suzanne, GpuTris &cube)
     const int  light_mid = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{4,4,4},
+            .emission = Vec4{400,400,400},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
@@ -326,7 +326,7 @@ Scene createScene(GpuTris &suzanne, GpuTris &cube)
             .p = Vec3{0,0.499,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 0.5,
+            .size = 0.05,
         };
         obj.mat = light_mid;
         scene.objects.push_back(std::move(obj));
