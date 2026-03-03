@@ -15,6 +15,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
 find_package(stb REQUIRED)
 
 add_library(${PROJECT_NAME}
+            src/CameraController.cpp
             src/DistributionSamplers.cpp
             src/Utils.cpp
             src/Image.cpp
