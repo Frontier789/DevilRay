@@ -132,11 +132,16 @@ GLuint createTexture(Size2i resolution)
     return texture;
 }
 
-Camera createCamera(Size2i resolution, const float focal_length, const float physical_pixel_size)
-{
+Camera createCamera(
+    Size2i resolution,
+    Vec3 position,
+    const float focal_length_mm,
+    const float physical_pixel_size
+){
     Camera cam{
+        .transform = Matrix4x4f::translation(position * -1),
         .intrinsics = Intrinsics{
-            .focal_length = focal_length,
+            .focal_length = focal_length_mm / 1000.0f,
             .center = Vec2{
                         resolution.width/2.f * physical_pixel_size,
                         resolution.height/2.f * physical_pixel_size,
@@ -397,13 +402,13 @@ Scene createScene(GpuTris &suzanne, GpuTris &cube)
     //     scene.objects.push_back(std::move(obj));
     // }
 
-    {
-        auto mesh_object_suzanne = viewGpuTris(suzanne);
-        mesh_object_suzanne.mat = blue;
-        mesh_object_suzanne.setPosition(Vec3{0.0, -0.3, 2});
-        mesh_object_suzanne.setScale(Vec3{0.15f,0.15f,0.15f});
-        scene.objects.push_back(std::move(mesh_object_suzanne));
-    }
+    // {
+    //     auto mesh_object_suzanne = viewGpuTris(suzanne);
+    //     mesh_object_suzanne.mat = blue;
+    //     mesh_object_suzanne.setPosition(Vec3{0.0, -0.3, 2});
+    //     mesh_object_suzanne.setScale(Vec3{0.15f,0.15f,0.15f});
+    //     scene.objects.push_back(std::move(mesh_object_suzanne));
+    // }
     
     {
         auto mesh_object_cube = viewGpuTris(cube);
@@ -467,11 +472,111 @@ GpuTris loadMeshAndPrint(const std::string &file)
     return convertMeshToTris(mesh);
 }
 
+struct CameraController
+{
+    Camera camera;
+
+    Vec3 target;
+    Vec3 pos;
+    Vec3 up;
+
+    Matrix4x4f calculateTransform() const;
+
+    void handleDrag(Vec2f offset_in_pixels);
+    void handleRotate(Vec2f offset_in_pixels);
+
+    Vec3 forward() const;
+};
+
+Matrix4x4f CameraController::calculateTransform() const
+{
+    const Vec3 f = forward();
+    const Vec3 u = up;
+    const Vec3 r = f.cross(u).normalized(); // TODO: ensure up is always perpendicular to forward.
+
+    const auto rotation = Matrix4x4f{
+        .values = {
+            {r.x, u.x, f.x, 0},
+            {r.y, u.y, f.y, 0},
+            {r.z, u.z, f.z, 0},
+            {  0,   0,   0, 1},
+        }
+    };
+
+    const auto placement = Matrix4x4f::translation(pos * -1);
+
+    return rotation * placement;
+}
+
+Vec3 CameraController::forward() const
+{
+    return (target - pos).normalized();
+}
+
+void CameraController::handleRotate(Vec2f offset_in_pixels)
+{
+    // {
+    //     const auto offset = pos - target;
+    //     const auto distance = offset.length();
+    
+    //     const auto angle = -offset_in_pixels.x / 200.0f;
+    //     const auto rot = Matrix4x4f::rotation(Vec3{0, 1, 0}, angle);
+    
+    //     const auto new_offset = rot.applyToDirection(offset); 
+    //     const auto new_up = rot.applyToDirection(up);
+    
+    //     pos = target + new_offset;
+    //     up = new_up;
+    // }
+    
+    {
+        const Vec3 f = forward();
+        const Vec3 u = up;
+        const Vec3 r = f.cross(u).normalized();
+
+        const auto offset = pos - target;
+        const auto distance = offset.length();
+    
+        const auto angle = offset_in_pixels.y / 200.0f;
+        const auto rot = Matrix4x4f::rotation(r, angle);
+
+        std::cout << "Rotation is \n" << rot << std::endl;
+    
+        const auto new_offset = rot.applyToDirection(offset); 
+        const auto new_up = rot.applyToDirection(up);
+    
+        pos = target + new_offset;
+        up = new_up;
+        
+        std::cout << "pos = " << pos << " up = " << up << std::endl;
+    }
+}
+
+void CameraController::handleDrag(Vec2f offset_in_pixels)
+{
+    const auto distance_to_target_plane = (target - pos).length();
+
+    const auto d = distance_to_target_plane;
+    const auto f = camera.intrinsics.focal_length;
+    const auto px = camera.physical_pixel_size.toVec();
+
+    const auto offset_on_sensor = offset_in_pixels * px;
+    const auto offset_on_target_plane = offset_on_sensor * (d / f);
+    
+    const auto right = forward().cross(up);
+
+    const auto offset_in_space = up * offset_on_target_plane.y + right * offset_on_target_plane.x;
+
+    pos += offset_in_space;
+    target += offset_in_space;
+}
+
 int main() {
     printCudaDeviceInfo();
 
     const auto resolution = Size2i{640, 640};
-    const auto render_scale = 1;
+    const auto render_scale = 4;
+    const auto physical_pixel_size = 3.72e-6 * 4 * render_scale;
 
     auto app = initApplication(resolution);
 
@@ -497,9 +602,18 @@ int main() {
         DebugOptions debug = DebugOptions::Off;
         bool useCuda = true;
         int pixel_sampling = static_cast<int>(PixelSampling::UniformRandom);
+        CameraController cameraController{
+            .camera = createCamera(renderer.getResolution(), Vec3{}, focal_length_mm, physical_pixel_size),
+            .target = Vec3{0,0,2},
+            .pos = Vec3{},
+            .up = Vec3{0,1,0},
+        };
+        ImVec2 currentMouse = ImGui::GetMousePos();
+        bool mouseDown = false;
 
         renderer.setScene(createScene(gpu_mesh_suzanne, gpu_mesh_cube));
-        renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
+        cameraController.camera.transform = cameraController.calculateTransform(); // TODO: automate this
+        renderer.setCamera(cameraController.camera);
         renderer.setDebug(debug);
         renderer.useCudaDevice(useCuda);
 
@@ -508,7 +622,11 @@ int main() {
             if (ImGui::SliderFloat("Focal length", &focal_length_mm, 3, 150, "%.1f mm")) {
                 renderTimes.reset();
                 renderer.clear();
-                renderer.setCamera(createCamera(renderer.getResolution(), focal_length_mm / 1000, 3.72e-6 * 4 * render_scale));
+
+                cameraController.camera = createCamera(renderer.getResolution(), Vec3{}, focal_length_mm, physical_pixel_size);
+                cameraController.camera.transform = cameraController.calculateTransform();
+
+                renderer.setCamera(cameraController.camera);
             }
 
             constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder"};
@@ -517,14 +635,6 @@ int main() {
                 renderTimes.reset();
                 renderer.clear();
                 renderer.setDebug(debug);
-            }
-
-            ImGui::SameLine();
-            if (ImGui::Checkbox("Use CUDA", &useCuda))
-            {
-                renderTimes.reset();
-                renderer.clear();
-                renderer.useCudaDevice(useCuda);
             }
 
             constexpr const char* pixel_sampling_names[] = {"Center", "UniformRandom"};
@@ -563,6 +673,39 @@ int main() {
                 std::cout << "Saving to " << imageFolder / timePng << std::endl;
 
                 renderer.saveImage(imageFolder / timePng);
+            }
+
+            const auto mouse = ImGui::GetMousePos();
+            if (ImGui::IsMousePosValid(&mouse))
+            {
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Middle))
+                {
+                    if (!mouseDown) {
+                        mouseDown = true;
+                        currentMouse = mouse;
+                    }
+
+                    if (mouse.x != currentMouse.x || mouse.y != currentMouse.y) {
+                        const auto dx = mouse.x - currentMouse.x;
+                        const auto dy = mouse.y - currentMouse.y;
+                        currentMouse = mouse;
+
+                        const auto pixelOffset = Vec2f{dx, -dy} / render_scale;
+
+                        cameraController.handleRotate(pixelOffset);
+                        cameraController.camera.transform = cameraController.calculateTransform();
+
+                        renderTimes.reset();
+                        renderer.clear();
+                        renderer.setCamera(cameraController.camera);
+                        for (int i=0;i<10;++i) renderer.render();
+
+                    }
+                }
+                else
+                {
+                    mouseDown = false;
+                }
             }
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
+#include "models/Matrix.hpp"
 
 struct Intrinsics
 {
@@ -10,6 +11,7 @@ struct Intrinsics
 
 struct Camera
 {
+    Matrix4x4f transform;
     Intrinsics intrinsics;
     Size2i resolution;
     Size2f physical_pixel_size;

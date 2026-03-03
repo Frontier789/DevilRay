@@ -115,6 +115,8 @@ struct Vec3
     constexpr Vec3 operator*(const Vec3 &v) const {return Vec3{x*v.x, y*v.y, z*v.z};}
     constexpr Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
 
+    constexpr Vec3 &operator+=(const Vec3 &v) { return *this = *this + v; }
+
     constexpr Vec3 normalized() const {
         const auto length = std::sqrt(x*x + y*y + z*z);
         return Vec3{x/length, y/length, z/length};
@@ -141,21 +143,6 @@ struct Vec3
     }
 };
 
-
-template<typename T>
-struct Size2
-{
-    T width;
-    T height;
-
-    constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
-
-    T area() const {return width * height;}
-};
-
-using Size2i = Size2<int>;
-using Size2f = Size2<float>;
-
 template<typename T>
 struct Vec2
 {
@@ -164,7 +151,8 @@ struct Vec2
     
     constexpr Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
     constexpr Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
-    constexpr Vec2 operator*(const Size2<T> &s) const {return Vec2{x*s.width, y*s.height};}
+    constexpr Vec2 operator/(const Vec2 &v) const {return Vec2{x/v.x, y/v.y};}
+    constexpr Vec2 operator*(const Vec2 &v) const {return Vec2{x*v.x, y*v.y};}
     constexpr Vec2 operator*(const T &f) const {return Vec2{x*f, y*f};}
     constexpr Vec2 operator/(const T &f) const {return Vec2{x/f, y/f};}
 
@@ -177,6 +165,22 @@ struct Vec2
 
 using Vec2i = Vec2<int>;
 using Vec2f = Vec2<float>;
+
+template<typename T>
+struct Size2
+{
+    T width;
+    T height;
+
+    constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
+
+    constexpr T area() const {return width * height;}
+
+    constexpr Vec2<T> toVec() const { return Vec2<T>{.x = width, .y = height}; }
+};
+
+using Size2i = Size2<int>;
+using Size2f = Size2<float>;
 
 inline constexpr float dot(const Vec3 &a, const Vec3 &b)
 {
