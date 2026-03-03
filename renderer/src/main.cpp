@@ -402,13 +402,13 @@ Scene createScene(GpuTris &suzanne, GpuTris &cube)
     //     scene.objects.push_back(std::move(obj));
     // }
 
-    // {
-    //     auto mesh_object_suzanne = viewGpuTris(suzanne);
-    //     mesh_object_suzanne.mat = blue;
-    //     mesh_object_suzanne.setPosition(Vec3{0.0, -0.3, 2});
-    //     mesh_object_suzanne.setScale(Vec3{0.15f,0.15f,0.15f});
-    //     scene.objects.push_back(std::move(mesh_object_suzanne));
-    // }
+    {
+        auto mesh_object_suzanne = viewGpuTris(suzanne);
+        mesh_object_suzanne.mat = blue;
+        mesh_object_suzanne.setPosition(Vec3{0.0, -0.3, 2});
+        mesh_object_suzanne.setScale(Vec3{0.15f,0.15f,0.15f});
+        scene.objects.push_back(std::move(mesh_object_suzanne));
+    }
     
     {
         auto mesh_object_cube = viewGpuTris(cube);
@@ -477,98 +477,101 @@ struct CameraController
     Camera camera;
 
     Vec3 target;
-    Vec3 pos;
-    Vec3 up;
+    float pitch;
+    float yaw;
+    float distance;
 
     Matrix4x4f calculateTransform() const;
 
     void handleDrag(Vec2f offset_in_pixels);
     void handleRotate(Vec2f offset_in_pixels);
+    void handleScroll(float amount);
 
+    Vec3 position() const;
     Vec3 forward() const;
+    Vec3 up() const;
+    Vec3 right() const;
 };
 
-Matrix4x4f CameraController::calculateTransform() const
-{
-    const Vec3 f = forward();
-    const Vec3 u = up;
-    const Vec3 r = f.cross(u).normalized(); // TODO: ensure up is always perpendicular to forward.
+#include <cmath>
 
-    const auto rotation = Matrix4x4f{
-        .values = {
-            {r.x, u.x, f.x, 0},
-            {r.y, u.y, f.y, 0},
-            {r.z, u.z, f.z, 0},
-            {  0,   0,   0, 1},
-        }
+// Helper to normalize vectors if your Vec3 doesn't have it
+// Assuming Vec3 has .x, .y, .z and standard operators
+
+Vec3 CameraController::forward() const {
+    return Vec3{
+        std::cos(pitch) * std::sin(yaw),
+        std::sin(pitch),
+        std::cos(pitch) * std::cos(yaw)
     };
-
-    const auto placement = Matrix4x4f::translation(pos * -1);
-
-    return rotation * placement;
 }
 
-Vec3 CameraController::forward() const
-{
-    return (target - pos).normalized();
+Vec3 CameraController::right() const {
+    Vec3 f = forward();
+    Vec3 worldUp = {0.0f, 1.0f, 0.0f};
+    
+    // Cross product: worldUp x f
+    return Vec3{
+        worldUp.y * f.z - worldUp.z * f.y,
+        worldUp.z * f.x - worldUp.x * f.z,
+        worldUp.x * f.y - worldUp.y * f.x
+    }.normalized(); // Ensure the result is a unit vector
+}
+
+Vec3 CameraController::up() const {
+    const auto f = forward();
+    const auto r = right();
+    
+    return f.cross(r);
+}
+
+Vec3 CameraController::position() const {
+    return target - forward() * distance;
+}
+
+Matrix4x4f CameraController::calculateTransform() const {
+    const auto f = forward();
+    const auto r = right();
+    const auto u = up();
+    const auto p = position();
+
+    return Matrix4x4f{
+        .values = {
+            {r.x, u.x, f.x, p.x},
+            {r.y, u.y, f.y, p.y},
+            {r.z, u.z, f.z, p.z},
+            {  0,   0,   0,   1},
+        }
+    };
 }
 
 void CameraController::handleRotate(Vec2f offset_in_pixels)
 {
-    // {
-    //     const auto offset = pos - target;
-    //     const auto distance = offset.length();
-    
-    //     const auto angle = -offset_in_pixels.x / 200.0f;
-    //     const auto rot = Matrix4x4f::rotation(Vec3{0, 1, 0}, angle);
-    
-    //     const auto new_offset = rot.applyToDirection(offset); 
-    //     const auto new_up = rot.applyToDirection(up);
-    
-    //     pos = target + new_offset;
-    //     up = new_up;
-    // }
-    
-    {
-        const Vec3 f = forward();
-        const Vec3 u = up;
-        const Vec3 r = f.cross(u).normalized();
-
-        const auto offset = pos - target;
-        const auto distance = offset.length();
-    
-        const auto angle = offset_in_pixels.y / 200.0f;
-        const auto rot = Matrix4x4f::rotation(r, angle);
-
-        std::cout << "Rotation is \n" << rot << std::endl;
-    
-        const auto new_offset = rot.applyToDirection(offset); 
-        const auto new_up = rot.applyToDirection(up);
-    
-        pos = target + new_offset;
-        up = new_up;
-        
-        std::cout << "pos = " << pos << " up = " << up << std::endl;
-    }
+    pitch += offset_in_pixels.y * -0.03f;
+    yaw += offset_in_pixels.x * 0.02f;
 }
 
 void CameraController::handleDrag(Vec2f offset_in_pixels)
 {
-    const auto distance_to_target_plane = (target - pos).length();
+    const auto u = up();
 
-    const auto d = distance_to_target_plane;
+    const auto d = distance;
     const auto f = camera.intrinsics.focal_length;
     const auto px = camera.physical_pixel_size.toVec();
 
     const auto offset_on_sensor = offset_in_pixels * px;
     const auto offset_on_target_plane = offset_on_sensor * (d / f);
     
-    const auto right = forward().cross(up);
+    const auto right = forward().cross(u);
 
-    const auto offset_in_space = up * offset_on_target_plane.y + right * offset_on_target_plane.x;
+    const auto offset_in_space = u * offset_on_target_plane.y + right * offset_on_target_plane.x;
 
-    pos += offset_in_space;
     target += offset_in_space;
+}
+
+void CameraController::handleScroll(float amount)
+{
+    distance *= std::pow(0.8f, amount);
 }
 
 int main() {
@@ -605,8 +608,9 @@ int main() {
         CameraController cameraController{
             .camera = createCamera(renderer.getResolution(), Vec3{}, focal_length_mm, physical_pixel_size),
             .target = Vec3{0,0,2},
-            .pos = Vec3{},
-            .up = Vec3{0,1,0},
+            .pitch = 0,
+            .yaw = 0,
+            .distance = 2,
         };
         ImVec2 currentMouse = ImGui::GetMousePos();
         bool mouseDown = false;
@@ -658,8 +662,6 @@ int main() {
             }
             ImGui::Text("Rays per pixel: %s", counterToString(buffers.totalCasts() / resolution.width / resolution.height).c_str());
             
-            glTextureSubImage2D(texture, 0, 0, 0, resolution.width / render_scale, resolution.height / render_scale, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
-
             if (ImGui::Button("Capture snapshot"))
             {
                 const auto imageFolder = std::filesystem::path{"captures"};
@@ -678,7 +680,19 @@ int main() {
             const auto mouse = ImGui::GetMousePos();
             if (ImGui::IsMousePosValid(&mouse))
             {
-                if (ImGui::IsMouseDown(ImGuiMouseButton_Middle))
+                const auto io = ImGui::GetIO();
+                const auto wheel = io.MouseWheel;
+                if (wheel != 0) {
+                    cameraController.handleScroll(wheel);
+                    cameraController.camera.transform = cameraController.calculateTransform();
+
+                    renderTimes.reset();
+                    renderer.clear();
+                    renderer.setCamera(cameraController.camera);
+                    for (int i=0;i<10;++i) renderer.render();
+                }
+
+                if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
                 {
                     if (!mouseDown) {
                         mouseDown = true;
@@ -690,16 +704,19 @@ int main() {
                         const auto dy = mouse.y - currentMouse.y;
                         currentMouse = mouse;
 
-                        const auto pixelOffset = Vec2f{dx, -dy} / render_scale;
-
-                        cameraController.handleRotate(pixelOffset);
+                        const auto pixelOffset = Vec2f{dx, dy} / render_scale;
+                        
+                        if (io.KeyShift) {
+                            cameraController.handleDrag(pixelOffset);
+                        } else {
+                            cameraController.handleRotate(pixelOffset);
+                        }
                         cameraController.camera.transform = cameraController.calculateTransform();
 
                         renderTimes.reset();
                         renderer.clear();
                         renderer.setCamera(cameraController.camera);
                         for (int i=0;i<10;++i) renderer.render();
-
                     }
                 }
                 else
@@ -707,6 +724,8 @@ int main() {
                     mouseDown = false;
                 }
             }
+
+            glTextureSubImage2D(texture, 0, 0, 0, resolution.width / render_scale, resolution.height / render_scale, GL_RGBA, GL_UNSIGNED_BYTE, renderer.getPixels());
 
             glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             glClear(GL_COLOR_BUFFER_BIT);
