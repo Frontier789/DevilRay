@@ -9,6 +9,8 @@
 #include <imgui_impl_glfw.h>
 #include <GL/glew.h>
 
+#include <thread>
+
 struct Meshes
 {
     GpuTris suzanne;
@@ -52,6 +54,10 @@ struct Application
     UiHandler uiHandler;
     OGLObjects glObjects;
 
+    std::thread renderingThread;
+    std::atomic<bool> renderingNeedsReset;
+    std::atomic<bool> renderingShouldStop;
+
     Application();
     ~Application();
 
@@ -65,6 +71,8 @@ private:
     void initCameraController();
     void initUiHandler();
     void initRenderer();
+
+    void renderWorker();
 };
 
 Scene createScene(Meshes &meshes);
