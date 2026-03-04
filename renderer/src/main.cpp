@@ -39,14 +39,6 @@
      - stratify sample pixels
 */
 
-void onKeyEvent(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
-    if (key == GLFW_KEY_Q)
-    {
-        glfwSetWindowShouldClose(window, true);
-    }
-}
-
 template<typename DrawCallback>
 void runEventLoop(Application &app, DrawCallback drawCallback)
 {
@@ -55,14 +47,15 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
     int framesSinceLastPrint = 0;
     std::string fpsString = "? fps";
 
-    glfwSetKeyCallback(app.window, onKeyEvent);
-
     while (!glfwWindowShouldClose(app.window)) {
         glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Q) && !ImGui::GetIO().WantTextInput)
+            glfwSetWindowShouldClose(app.window, true);
 
         // ImGui demo window (for testing purposes)
         // ImGui::ShowDemoWindow();
