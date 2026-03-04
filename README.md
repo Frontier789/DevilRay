@@ -19,6 +19,14 @@ This contains a rendering tool that can run on the GPU and create realistic imag
 5. cmake --build --preset conan-release
 6. build/Release/renderer/devil_ray_renderer
 
+## How to debug
+
+1. Reuse same venv
+2. conan install . --build=missing -s build_type=Debug
+3. cmake --preset conan-debug
+4. cmake --build --preset conan-debug
+5. gdb build/Debug/renderer/devil_ray_renderer
+
 ## Disclaimer
 
 I use AI tools for multiple purposes throughout this project:
