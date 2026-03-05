@@ -77,6 +77,8 @@ private:
     void initUiHandler();
     void initRenderer();
 
+    void handleCameraControl();
+
     void renderWorker();
 };
 

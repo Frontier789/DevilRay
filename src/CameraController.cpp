@@ -8,23 +8,27 @@ Vec3 CameraController::forward() const {
     };
 }
 
+bool CameraController::isUpsideDown() const
+{
+    return pitch < pi*-0.5f || pitch > pi*0.5f;
+}
+
 Vec3 CameraController::right() const {
-    Vec3 f = forward();
-    Vec3 worldUp = {0.0f, 1.0f, 0.0f};
+    const auto f = forward();
+    const auto worldUp = Vec3{0.0f, 1.0f, 0.0f};
     
-    // Cross product: worldUp x f
-    return Vec3{
-        worldUp.y * f.z - worldUp.z * f.y,
-        worldUp.z * f.x - worldUp.x * f.z,
-        worldUp.x * f.y - worldUp.y * f.x
-    }.normalized(); // Ensure the result is a unit vector
+    const auto r = worldUp.cross(f).normalized();
+
+    return isUpsideDown() ? r * -1 : r;
 }
 
 Vec3 CameraController::up() const {
     const auto f = forward();
     const auto r = right();
     
-    return f.cross(r);
+    const auto u = f.cross(r);
+
+    return u;
 }
 
 Vec3 CameraController::position() const {
@@ -56,7 +60,10 @@ Camera CameraController::getCamera() const {
 void CameraController::handleRotate(Vec2f offset_in_pixels)
 {
     pitch += offset_in_pixels.y * -0.007f;
-    yaw += offset_in_pixels.x * 0.005f;
+    yaw += offset_in_pixels.x * 0.005f * (isUpsideDown() ? -1 : 1);
+
+    if (pitch > 1.5f*pi) pitch -= 2*pi;
+    if (pitch < -1.5f*pi) pitch += 2*pi;
 }
 
 void CameraController::handleDrag(Vec2f offset_in_pixels)

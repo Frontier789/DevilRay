@@ -14,6 +14,7 @@ struct CameraController
     Matrix4x4f calculateTransform() const;
 
     Camera getCamera() const;
+    bool isUpsideDown() const;
 
     void handleDrag(Vec2f offset_in_pixels);
     void handleRotate(Vec2f offset_in_pixels);

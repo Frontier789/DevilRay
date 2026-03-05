@@ -122,7 +122,7 @@ Scene createScene(Meshes &meshes)
             .p = Vec3{0,0,2.5},
             .n = Vec3{0,0,-1},
             .right = Vec3{1,0,0},
-            .size = 1,
+            .size = 0.6,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));    
@@ -133,7 +133,7 @@ Scene createScene(Meshes &meshes)
             .p = Vec3{0.5,0,2},
             .n = Vec3{1,0,0},
             .right = Vec3{0,1,0},
-            .size = 1,
+            .size = 0.6,
         };
         obj.mat = red;
         scene.objects.push_back(std::move(obj));
@@ -144,7 +144,7 @@ Scene createScene(Meshes &meshes)
             .p = Vec3{-0.5,0,2},
             .n = Vec3{1,0,0},
             .right = Vec3{0,1,0},
-            .size = 1,
+            .size = 0.6,
         };
         obj.mat = green;
         scene.objects.push_back(std::move(obj));
@@ -155,7 +155,7 @@ Scene createScene(Meshes &meshes)
             .p = Vec3{0,0.5,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 1,
+            .size = 0.6,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));
@@ -166,7 +166,7 @@ Scene createScene(Meshes &meshes)
             .p = Vec3{0,-0.5,2},
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
-            .size = 1,
+            .size = 0.6,
         };
         obj.mat = white;
         scene.objects.push_back(std::move(obj));
@@ -178,6 +178,17 @@ Scene createScene(Meshes &meshes)
             .n = Vec3{0,1,0},
             .right = Vec3{0,0,1},
             .size = 0.5,
+        };
+        obj.mat = light_mid;
+        scene.objects.push_back(std::move(obj));
+    }
+
+    {
+        auto obj = Square{
+            .p = Vec3{0,4.499,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 5,
         };
         obj.mat = light_mid;
         scene.objects.push_back(std::move(obj));
