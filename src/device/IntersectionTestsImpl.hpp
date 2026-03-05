@@ -117,7 +117,8 @@ HD std::optional<Intersection> getIntersection(const Ray &ray, const TrisCollect
 
         if (!best.has_value() || best->t > intersection->t)
         {
-            const bool is_ccw = (triangle.a - triangle.b).cross(triangle.a - triangle.c).z > 0;
+            const auto norm = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
+            const bool is_ccw = norm.dot(ray.v) > 0;
 
             best = Intersection{
                 .t = intersection->t,
