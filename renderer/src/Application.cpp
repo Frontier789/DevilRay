@@ -193,8 +193,7 @@ void Application::initRenderer()
     renderer = std::make_unique<Renderer>(resolution / render_scale);
 
     renderer->setScene(createScene(meshes));
-    cameraController.camera.transform = cameraController.calculateTransform(); // TODO: automate this
-    renderer->setCamera(cameraController.camera);
+    renderer->setCamera(cameraController.getCamera());
     renderer->setDebug(renderOptions.debug);
 
     renderingThread = std::jthread([this]{

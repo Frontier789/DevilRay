@@ -20,9 +20,8 @@ void Application::handleUiEvents()
         renderTimes.reset();
 
         cameraController.camera = createCamera(resolution / render_scale, Vec3{}, renderOptions.focal_length_mm, physical_pixel_size);
-        cameraController.camera.transform = cameraController.calculateTransform();
 
-        renderer->setCamera(cameraController.camera);
+        renderer->setCamera(cameraController.getCamera());
     }
 
     constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder"};
@@ -74,10 +73,9 @@ void Application::handleUiEvents()
             const auto wheel = io.MouseWheel;
             if (wheel != 0) {
                 cameraController.handleScroll(wheel);
-                cameraController.camera.transform = cameraController.calculateTransform();
     
                 renderTimes.reset();
-                renderer->setCamera(cameraController.camera);
+                renderer->setCamera(cameraController.getCamera());
             }
     
             if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -99,10 +97,9 @@ void Application::handleUiEvents()
                     } else {
                         cameraController.handleRotate(pixelOffset);
                     }
-                    cameraController.camera.transform = cameraController.calculateTransform();
-    
+
                     renderTimes.reset();
-                    renderer->setCamera(cameraController.camera);
+                    renderer->setCamera(cameraController.getCamera());
                 }
             }
             else

@@ -47,6 +47,12 @@ Matrix4x4f CameraController::calculateTransform() const {
     };
 }
 
+Camera CameraController::getCamera() const {
+    camera.transform = calculateTransform();
+
+    return camera;
+}
+
 void CameraController::handleRotate(Vec2f offset_in_pixels)
 {
     pitch += offset_in_pixels.y * -0.007f;
