@@ -43,6 +43,7 @@ Renderer::Renderer(Size2i resolution)
     , resolution(resolution)
     , cuda_randoms(resolution)
     , output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
+    , renderTimes(20)
 {
     
 }
@@ -219,6 +220,7 @@ void Renderer::render()
 
         if (needsToBeCleared)
         {
+            renderTimes.reset();
             buffers.reset();
             needsToBeCleared = false;
         }
@@ -230,6 +232,8 @@ void Renderer::render()
     scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
+
+    Timer t;
     schedule_device_render();
 
     createPixels();
@@ -238,4 +242,6 @@ void Renderer::render()
         std::scoped_lock guard{displayMutex};
         std::memcpy(displayPixels.data(), pixels.data(), pixels.size() * sizeof(uint32_t));
     }
+    const auto elapsed_ms = t.elapsed_seconds() * 1000;
+    renderTimes.add(elapsed_ms);
 }

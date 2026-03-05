@@ -55,7 +55,6 @@ struct Application
 
     Meshes meshes;
 
-    RunningAverage renderTimes;
     RenderOptions renderOptions;
     CameraController cameraController;
     UiHandler uiHandler;

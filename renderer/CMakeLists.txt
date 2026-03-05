@@ -11,7 +11,6 @@ find_package(glew REQUIRED)
 add_executable(${PROJECT_NAME}
                src/Application.cpp
                src/RenderThread.cpp
-               src/RunningAverage.cpp
                src/SceneSetup.cpp
                src/Shaders.cpp
                src/UiLayout.cpp

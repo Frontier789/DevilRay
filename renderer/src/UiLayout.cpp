@@ -17,8 +17,6 @@ void Application::handleUiEvents()
 {
     if (ImGui::SliderFloat("Focal length", &renderOptions.focal_length_mm, 3, 150, "%.1f mm"))
     {
-        renderTimes.reset();
-
         cameraController.camera = createCamera(resolution / render_scale, Vec3{}, renderOptions.focal_length_mm, physical_pixel_size);
 
         renderer->setCamera(cameraController.getCamera());
@@ -27,14 +25,12 @@ void Application::handleUiEvents()
     constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder"};
     if (ImGui::Combo("Debug", reinterpret_cast<int*>(&renderOptions.debug), debug_names, IM_ARRAYSIZE(debug_names)))
     {
-        renderTimes.reset();
         renderer->setDebug(renderOptions.debug);
     }
 
     constexpr const char* pixel_sampling_names[] = {"Center", "UniformRandom"};
     if (ImGui::Combo("Pixel Sampling", reinterpret_cast<int*>(&renderOptions.pixel_sampling), pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
     {
-        renderTimes.reset(); // TODO: make thread safe
         renderer->setPixelSampling(renderOptions.pixel_sampling);
     }
 
@@ -74,7 +70,6 @@ void Application::handleUiEvents()
             if (wheel != 0) {
                 cameraController.handleScroll(wheel);
     
-                renderTimes.reset();
                 renderer->setCamera(cameraController.getCamera());
             }
     
@@ -98,7 +93,6 @@ void Application::handleUiEvents()
                         cameraController.handleRotate(pixelOffset);
                     }
 
-                    renderTimes.reset();
                     renderer->setCamera(cameraController.getCamera());
                 }
             }

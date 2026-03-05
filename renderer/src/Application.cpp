@@ -202,7 +202,6 @@ void Application::initRenderer()
 }
 
 Application::Application()
-    : renderTimes(20)
 {
     initGLFW();
 

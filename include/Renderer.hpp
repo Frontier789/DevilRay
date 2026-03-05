@@ -11,6 +11,7 @@
 
 #include "Buffers.hpp"
 #include "DebugOptions.hpp"
+#include "RunningAverage.hpp"
 
 #include <filesystem>
 #include <atomic>
@@ -21,20 +22,20 @@
 class Renderer
 {
     Buffers buffers;
+
+    Camera camera;
+    DebugOptions debug;
+    OutputOptions output_options;
     PixelSampling pixel_sampling;
+    Size2i resolution;
 
     std::vector<uint32_t> pixels;
     std::vector<uint32_t> displayPixels;
-    Size2i resolution;
-    DebugOptions debug;
 
-    Camera camera;
     Scene scene;
-    Timer timer;
-
+    
     CudaRandomStates cuda_randoms;
-
-    OutputOptions output_options;
+    RunningAverage renderTimes;
 
     std::mutex renderMutex;
     std::mutex displayMutex;
@@ -44,6 +45,7 @@ public:
     Renderer(Size2i resolution);
 
     const Buffers &getBuffers() const { return buffers; }
+    float getMeanRenderTimes() const { return renderTimes.mean(); }
 
     void setDebug(DebugOptions dbg);
     void setCamera(Camera cam);
