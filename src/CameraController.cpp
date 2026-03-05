@@ -49,8 +49,8 @@ Matrix4x4f CameraController::calculateTransform() const {
 
 void CameraController::handleRotate(Vec2f offset_in_pixels)
 {
-    pitch += offset_in_pixels.y * -0.03f;
-    yaw += offset_in_pixels.x * 0.02f;
+    pitch += offset_in_pixels.y * -0.007f;
+    yaw += offset_in_pixels.x * 0.005f;
 }
 
 void CameraController::handleDrag(Vec2f offset_in_pixels)

@@ -111,7 +111,6 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     // 4. Render
     renderer.setOutputOptions(OutputOptions{.linearity=OutputLinearity::Linear});
     renderer.setDebug(DebugOptions::Off);
-    renderer.useCudaDevice(true);
     for (int i=0;i<100;++i)
     renderer.render();
     renderer.createPixels();
@@ -210,7 +209,6 @@ TEST(RendererTest, DebugRenderSquare) {
     // 4. Render
     renderer.setOutputOptions(OutputOptions{.linearity=OutputLinearity::GammaCorrected});
     renderer.setDebug(DebugOptions::UVChecker);
-    renderer.useCudaDevice(true);
     renderer.render();
     renderer.createPixels();
 

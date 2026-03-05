@@ -40,7 +40,7 @@ struct UiHandler
 struct Application
 {
     static constexpr Size2i resolution{640, 640};
-    static constexpr int render_scale = 4;
+    static constexpr int render_scale = 1;
     static constexpr float physical_pixel_size = 3.72e-6 * 4 * render_scale;
 
     GLFWwindow *window;
@@ -54,9 +54,10 @@ struct Application
     UiHandler uiHandler;
     OGLObjects glObjects;
 
-    std::thread renderingThread;
+    std::jthread renderingThread;
     std::atomic<bool> renderingNeedsReset;
     std::atomic<bool> renderingShouldStop;
+    std::atomic<float> averageRenderTime;
 
     Application();
     ~Application();

@@ -19,7 +19,7 @@ void Application::handleUiEvents()
         renderTimes.reset();
         renderer->clear();
 
-        cameraController.camera = createCamera(renderer->getResolution(), Vec3{}, renderOptions.focal_length_mm, physical_pixel_size);
+        cameraController.camera = createCamera(resolution / render_scale, Vec3{}, renderOptions.focal_length_mm, physical_pixel_size);
         cameraController.camera.transform = cameraController.calculateTransform();
 
         renderer->setCamera(cameraController.camera);
@@ -36,22 +36,21 @@ void Application::handleUiEvents()
     constexpr const char* pixel_sampling_names[] = {"Center", "UniformRandom"};
     if (ImGui::Combo("Pixel Sampling", reinterpret_cast<int*>(&renderOptions.pixel_sampling), pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
     {
-        renderTimes.reset();
+        renderTimes.reset(); // TODO: make thread safe
         renderer->clear();
         renderer->setPixelSampling(renderOptions.pixel_sampling);
     }
 
-    Timer t;
-    renderer->render();
-    const auto elapsed_ms = t.elapsed_seconds() * 1000;
-    renderTimes.add(elapsed_ms);
+    ImGui::Text("Render pass: %.1fms", averageRenderTime.load(std::memory_order::relaxed));
 
-    ImGui::Text("Render pass: %.1fms", renderTimes.mean());
+    // {
+    //     std::scoped_lock guard{renderingMutex};
 
-    auto &buffers = renderer->getBuffers();
-    buffers.casts.updateHostData();
-
-    ImGui::Text("Rays per pixel: %s", counterToString(buffers.totalCasts() / resolution.width / resolution.height).c_str());
+    //     auto &buffers = renderer->getBuffers();
+    //     buffers.casts.updateHostData();
+    
+    //     ImGui::Text("Rays per pixel: %s", counterToString(buffers.totalCasts() / resolution.width / resolution.height).c_str());
+    // }
     
     if (ImGui::Button("Capture snapshot"))
     {
@@ -80,7 +79,6 @@ void Application::handleUiEvents()
             renderTimes.reset();
             renderer->clear();
             renderer->setCamera(cameraController.camera);
-            for (int i=0;i<1;++i) renderer->render();
         }
 
         if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
@@ -95,10 +93,10 @@ void Application::handleUiEvents()
                 const auto dy = mouse.y - uiHandler.currentMouse.y;
                 uiHandler.currentMouse = mouse;
 
-                const auto pixelOffset = Vec2f{dx, dy} / render_scale;
+                const auto pixelOffset = Vec2f{dx, dy};
                 
                 if (io.KeyShift) {
-                    cameraController.handleDrag(pixelOffset);
+                    cameraController.handleDrag(pixelOffset / render_scale);
                 } else {
                     cameraController.handleRotate(pixelOffset);
                 }
@@ -107,7 +105,6 @@ void Application::handleUiEvents()
                 renderTimes.reset();
                 renderer->clear();
                 renderer->setCamera(cameraController.camera);
-                for (int i=0;i<1;++i) renderer->render();
             }
         }
         else

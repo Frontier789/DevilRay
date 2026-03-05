@@ -39,6 +39,7 @@ Renderer::Renderer(Size2i resolution)
     : buffers(resolution)
     , pixel_sampling(PixelSampling::UniformRandom)
     , pixels(resolution.area())
+    , displayPixels(resolution.area(), 0)
     , resolution(resolution)
     , cuda_randoms(resolution)
     , output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
@@ -72,9 +73,7 @@ void Renderer::createPixels()
         pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
     };
 
-    if (useCuda) {
-        buffers.color.updateHostData();
-    }
+    buffers.color.updateHostData();
 
     const auto data = buffers.color.hostPtr();
 
@@ -98,16 +97,14 @@ void Renderer::saveImage(const std::filesystem::path &path)
 
 const uint32_t *Renderer::getPixels()
 {
-    createPixels();
+    std::scoped_lock guard{displayMutex};
 
-    return pixels.data();
+    return displayPixels.data();
 }
 
 const Vec4 *Renderer::getRawPixels()
 {
-    if (useCuda) {
-        buffers.color.updateHostData();
-    }
+    buffers.color.updateHostData();
 
     return buffers.color.hostPtr();
 }
@@ -151,9 +148,19 @@ void Renderer::calculateLightWeights()
     }
 }
 
+
+void Renderer::setCamera(Camera cam)
+{
+    std::scoped_lock guard{renderMutex};
+
+    camera = std::move(cam);
+}
+
 void Renderer::clear()
 {
-    buffers.reset();
+    std::scoped_lock guard{renderMutex};
+
+    clearRequested = true;
 }
 
 void Renderer::schedule_cpu_render()
@@ -183,9 +190,14 @@ void Renderer::schedule_cpu_render()
 
 void Renderer::render()
 {
-    if (!useCuda) {
-        schedule_cpu_render();
-        return;
+    {
+        std::scoped_lock guard{renderMutex};
+
+        if (clearRequested)
+        {
+            buffers.reset();
+            clearRequested = false;
+        }
     }
 
     buffers.ensureDeviceAllocation();
@@ -194,5 +206,12 @@ void Renderer::render()
     scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
-    schedule_device_render();   
+    schedule_device_render();
+
+    createPixels();
+
+    {
+        std::scoped_lock guard{displayMutex};
+        std::memcpy(displayPixels.data(), pixels.data(), pixels.size() * sizeof(uint32_t));
+    }
 }

@@ -196,7 +196,10 @@ void Application::initRenderer()
     cameraController.camera.transform = cameraController.calculateTransform(); // TODO: automate this
     renderer->setCamera(cameraController.camera);
     renderer->setDebug(renderOptions.debug);
-    renderer->useCudaDevice(true);
+
+    renderingThread = std::jthread([this]{
+        renderWorker();
+    });
 }
 
 Application::Application()
@@ -214,6 +217,9 @@ Application::Application()
 
 Application::~Application()
 {
+    renderingShouldStop.store(true, std::memory_order::relaxed);
+    renderingThread.join();
+
     glDeleteProgram(glObjects.shader);
 
     ImGui_ImplOpenGL3_Shutdown();

@@ -63,6 +63,17 @@ void Renderer::schedule_device_render()
         std::cout << "suggested blockSize = " << blockSize << std::endl;
     }
 
+    Camera localCamera;
+    PixelSampling localPixelSampling;
+    DebugOptions localDebug;
+
+    {
+        std::scoped_lock guard{renderMutex};
+        localCamera = camera;
+        localPixelSampling = pixel_sampling;
+        localDebug = debug;
+    }
+
     const auto objects = std::span{scene.objects.devicePtr(), scene.objects.size()};
     const auto materials = std::span{scene.materials.devicePtr(), scene.materials.size()};
 
@@ -70,13 +81,14 @@ void Renderer::schedule_device_render()
         resolution,
         buffers.color.devicePtr(),
         buffers.casts.devicePtr(),
-        camera,
-        pixel_sampling,
+        localCamera,
+        localPixelSampling,
         objects,
         materials,
-        debug,
+        localDebug,
         cuda_randoms.ptr()
     );
+
     CUDA_ERROR_CHECK();
 
     cudaDeviceSynchronize();
