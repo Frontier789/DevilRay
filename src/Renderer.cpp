@@ -149,18 +149,42 @@ void Renderer::calculateLightWeights()
 }
 
 
+void Renderer::setDebug(DebugOptions dbg)
+{
+    std::scoped_lock guard{renderMutex};
+
+    debug = std::move(dbg);
+    needsToBeCleared = true;
+}
+
 void Renderer::setCamera(Camera cam)
 {
     std::scoped_lock guard{renderMutex};
 
     camera = std::move(cam);
+    needsToBeCleared = true;
 }
 
 void Renderer::clear()
 {
     std::scoped_lock guard{renderMutex};
 
-    clearRequested = true;
+    needsToBeCleared = true;
+}
+
+void Renderer::setPixelSampling(PixelSampling sampling)
+{
+    std::scoped_lock guard{renderMutex};
+
+    pixel_sampling = sampling;
+    needsToBeCleared = true;
+}
+
+void Renderer::setOutputOptions(OutputOptions options)
+{
+    std::scoped_lock guard{renderMutex};
+
+    output_options = std::move(options);
 }
 
 void Renderer::schedule_cpu_render()
@@ -193,10 +217,10 @@ void Renderer::render()
     {
         std::scoped_lock guard{renderMutex};
 
-        if (clearRequested)
+        if (needsToBeCleared)
         {
             buffers.reset();
-            clearRequested = false;
+            needsToBeCleared = false;
         }
     }
 

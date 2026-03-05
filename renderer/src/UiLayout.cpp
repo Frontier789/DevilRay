@@ -15,9 +15,9 @@ std::string counterToString(uint64_t cntr)
 
 void Application::handleUiEvents()
 {
-    if (ImGui::SliderFloat("Focal length", &renderOptions.focal_length_mm, 3, 150, "%.1f mm")) {
+    if (ImGui::SliderFloat("Focal length", &renderOptions.focal_length_mm, 3, 150, "%.1f mm"))
+    {
         renderTimes.reset();
-        renderer->clear();
 
         cameraController.camera = createCamera(resolution / render_scale, Vec3{}, renderOptions.focal_length_mm, physical_pixel_size);
         cameraController.camera.transform = cameraController.calculateTransform();
@@ -29,7 +29,6 @@ void Application::handleUiEvents()
     if (ImGui::Combo("Debug", reinterpret_cast<int*>(&renderOptions.debug), debug_names, IM_ARRAYSIZE(debug_names)))
     {
         renderTimes.reset();
-        renderer->clear();
         renderer->setDebug(renderOptions.debug);
     }
 
@@ -37,11 +36,10 @@ void Application::handleUiEvents()
     if (ImGui::Combo("Pixel Sampling", reinterpret_cast<int*>(&renderOptions.pixel_sampling), pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
     {
         renderTimes.reset(); // TODO: make thread safe
-        renderer->clear();
         renderer->setPixelSampling(renderOptions.pixel_sampling);
     }
 
-    ImGui::Text("Render pass: %.1fms", averageRenderTime.load(std::memory_order::relaxed));
+    ImGui::Text("Render pass: %.1fms", asyncData.averageRenderTime.load(std::memory_order::relaxed));
 
     // {
     //     std::scoped_lock guard{renderingMutex};
@@ -79,7 +77,6 @@ void Application::handleUiEvents()
                 cameraController.camera.transform = cameraController.calculateTransform();
     
                 renderTimes.reset();
-                renderer->clear();
                 renderer->setCamera(cameraController.camera);
             }
     
@@ -105,7 +102,6 @@ void Application::handleUiEvents()
                     cameraController.camera.transform = cameraController.calculateTransform();
     
                     renderTimes.reset();
-                    renderer->clear();
                     renderer->setCamera(cameraController.camera);
                 }
             }

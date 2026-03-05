@@ -37,6 +37,13 @@ struct UiHandler
     bool mouseDown = false;
 };
 
+struct AsyncData
+{
+    std::atomic<bool> renderingNeedsReset;
+    std::atomic<bool> renderingShouldStop;
+    std::atomic<float> averageRenderTime;
+};
+
 struct Application
 {
     static constexpr Size2i resolution{640, 640};
@@ -55,9 +62,7 @@ struct Application
     OGLObjects glObjects;
 
     std::jthread renderingThread;
-    std::atomic<bool> renderingNeedsReset;
-    std::atomic<bool> renderingShouldStop;
-    std::atomic<float> averageRenderTime;
+    AsyncData asyncData;
 
     Application();
     ~Application();

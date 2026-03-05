@@ -38,18 +38,18 @@ class Renderer
 
     std::mutex renderMutex;
     std::mutex displayMutex;
-    bool clearRequested = false;
+    bool needsToBeCleared = false;
 
 public:
     Renderer(Size2i resolution);
 
     const Buffers &getBuffers() const { return buffers; }
-    void setDebug(DebugOptions dbg) { debug = std::move(dbg); }
 
+    void setDebug(DebugOptions dbg);
     void setCamera(Camera cam);
     void setScene(Scene scn) { scene = std::move(scn); calculateLightWeights(); }
-    void setPixelSampling(PixelSampling sampling) { pixel_sampling = sampling; }
-    void setOutputOptions(OutputOptions options) { output_options = std::move(options); }
+    void setPixelSampling(PixelSampling sampling);
+    void setOutputOptions(OutputOptions options);
 
     void render();
     void clear();

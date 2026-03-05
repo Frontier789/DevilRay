@@ -217,7 +217,7 @@ Application::Application()
 
 Application::~Application()
 {
-    renderingShouldStop.store(true, std::memory_order::relaxed);
+    asyncData.renderingShouldStop.store(true, std::memory_order::relaxed);
     renderingThread.join();
 
     glDeleteProgram(glObjects.shader);
