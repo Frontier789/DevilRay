@@ -128,60 +128,60 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(obj));    
     }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{0.5,0,2},
-    //         .n = Vec3{1,0,0},
-    //         .right = Vec3{0,1,0},
-    //         .size = 1,
-    //     };
-    //     obj.mat = red;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{0.5,0,2},
+            .n = Vec3{1,0,0},
+            .right = Vec3{0,1,0},
+            .size = 1,
+        };
+        obj.mat = red;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{-0.5,0,2},
-    //         .n = Vec3{1,0,0},
-    //         .right = Vec3{0,1,0},
-    //         .size = 1,
-    //     };
-    //     obj.mat = green;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{-0.5,0,2},
+            .n = Vec3{1,0,0},
+            .right = Vec3{0,1,0},
+            .size = 1,
+        };
+        obj.mat = green;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{0,0.5,2},
-    //         .n = Vec3{0,1,0},
-    //         .right = Vec3{0,0,1},
-    //         .size = 1,
-    //     };
-    //     obj.mat = white;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{0,0.5,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 1,
+        };
+        obj.mat = white;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{0,-0.5,2},
-    //         .n = Vec3{0,1,0},
-    //         .right = Vec3{0,0,1},
-    //         .size = 1,
-    //     };
-    //     obj.mat = white;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{0,-0.5,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 1,
+        };
+        obj.mat = white;
+        scene.objects.push_back(std::move(obj));
+    }
 
-    // {
-    //     auto obj = Square{
-    //         .p = Vec3{0,0.499,2},
-    //         .n = Vec3{0,1,0},
-    //         .right = Vec3{0,0,1},
-    //         .size = 0.5,
-    //     };
-    //     obj.mat = light_mid;
-    //     scene.objects.push_back(std::move(obj));
-    // }
+    {
+        auto obj = Square{
+            .p = Vec3{0,0.499,2},
+            .n = Vec3{0,1,0},
+            .right = Vec3{0,0,1},
+            .size = 0.5,
+        };
+        obj.mat = light_mid;
+        scene.objects.push_back(std::move(obj));
+    }
 
     // {
     //     const int N = 5;
@@ -256,13 +256,13 @@ Scene createScene(Meshes &meshes)
     //     scene.objects.push_back(std::move(mesh_object_suzanne));
     // }
     
-    // {
-    //     auto mesh_object_cube = viewGpuTris(meshes.cube);
-    //     mesh_object_cube.mat = white;
-    //     mesh_object_cube.setPosition(Vec3{0.0, -0.7, 2});
-    //     mesh_object_cube.setScale(Vec3{0.2f,0.2f,0.2f});
-    //     scene.objects.push_back(std::move(mesh_object_cube));
-    // }
+    {
+        auto mesh_object_cube = viewGpuTris(meshes.cube);
+        mesh_object_cube.mat = white;
+        mesh_object_cube.setPosition(Vec3{0.0, -0.7, 2});
+        mesh_object_cube.setScale(Vec3{0.2f,0.2f,0.2f});
+        scene.objects.push_back(std::move(mesh_object_cube));
+    }
 
 
     #pragma GCC diagnostic pop

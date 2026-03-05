@@ -71,45 +71,48 @@ void Application::handleUiEvents()
     if (ImGui::IsMousePosValid(&mouse))
     {
         const auto io = ImGui::GetIO();
-        const auto wheel = io.MouseWheel;
-        if (wheel != 0) {
-            cameraController.handleScroll(wheel);
-            cameraController.camera.transform = cameraController.calculateTransform();
-
-            renderTimes.reset();
-            renderer->clear();
-            renderer->setCamera(cameraController.camera);
-        }
-
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+        if (!io.WantCaptureMouse)
         {
-            if (!uiHandler.mouseDown) {
-                uiHandler.mouseDown = true;
-                uiHandler.currentMouse = mouse;
-            }
-
-            if (mouse.x != uiHandler.currentMouse.x || mouse.y != uiHandler.currentMouse.y) {
-                const auto dx = mouse.x - uiHandler.currentMouse.x;
-                const auto dy = mouse.y - uiHandler.currentMouse.y;
-                uiHandler.currentMouse = mouse;
-
-                const auto pixelOffset = Vec2f{dx, dy};
-                
-                if (io.KeyShift) {
-                    cameraController.handleDrag(pixelOffset / render_scale);
-                } else {
-                    cameraController.handleRotate(pixelOffset);
-                }
+            const auto wheel = io.MouseWheel;
+            if (wheel != 0) {
+                cameraController.handleScroll(wheel);
                 cameraController.camera.transform = cameraController.calculateTransform();
-
+    
                 renderTimes.reset();
                 renderer->clear();
                 renderer->setCamera(cameraController.camera);
             }
-        }
-        else
-        {
-            uiHandler.mouseDown = false;
+    
+            if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+            {
+                if (!uiHandler.mouseDown) {
+                    uiHandler.mouseDown = true;
+                    uiHandler.currentMouse = mouse;
+                }
+    
+                if (mouse.x != uiHandler.currentMouse.x || mouse.y != uiHandler.currentMouse.y) {
+                    const auto dx = mouse.x - uiHandler.currentMouse.x;
+                    const auto dy = mouse.y - uiHandler.currentMouse.y;
+                    uiHandler.currentMouse = mouse;
+    
+                    const auto pixelOffset = Vec2f{dx, dy};
+                    
+                    if (io.KeyShift) {
+                        cameraController.handleDrag(pixelOffset / render_scale);
+                    } else {
+                        cameraController.handleRotate(pixelOffset);
+                    }
+                    cameraController.camera.transform = cameraController.calculateTransform();
+    
+                    renderTimes.reset();
+                    renderer->clear();
+                    renderer->setCamera(cameraController.camera);
+                }
+            }
+            else
+            {
+                uiHandler.mouseDown = false;
+            }
         }
     }
 }
