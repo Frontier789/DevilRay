@@ -19,6 +19,7 @@ namespace {
     Camera createCamera(Size2i resolution, const float focal_length, const float physical_pixel_size)
     {
         Camera cam{
+            .transform = Matrix4x4f::identity(),
             .intrinsics = Intrinsics{
                 .focal_length = focal_length,
                 .center = Vec2{
@@ -233,9 +234,9 @@ TEST(RendererTest, DebugRenderSquare) {
                 EXPECT_FLOAT_EQ(b, 0.0f);
             }
             else {
-                EXPECT_GE(r, 0.65f);
-                EXPECT_GE(g, 0.6f);
-                EXPECT_GE(b, 0.5f);
+                ASSERT_GE(r, 0.65f);
+                ASSERT_GE(g, 0.6f);
+                ASSERT_GE(b, 0.5f);
             }
         }
     }
