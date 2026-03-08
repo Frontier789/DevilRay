@@ -35,16 +35,8 @@ void Application::handleUiEvents()
     }
 
     ImGui::Text("Render pass: %.1fms", asyncData.averageRenderTime.load(std::memory_order::relaxed));
+    ImGui::Text("Rays per pixel: %s", counterToString(renderer->getTotalCasts() / resolution.width / resolution.height).c_str());
 
-    // {
-    //     std::scoped_lock guard{renderingMutex};
-
-    //     auto &buffers = renderer->getBuffers();
-    //     buffers.casts.updateHostData();
-    
-    //     ImGui::Text("Rays per pixel: %s", counterToString(buffers.totalCasts() / resolution.width / resolution.height).c_str());
-    // }
-    
     if (ImGui::Button("Capture snapshot"))
     {
         const auto imageFolder = std::filesystem::path{"captures"};

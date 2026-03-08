@@ -42,6 +42,7 @@ struct AsyncData
     std::atomic<bool> renderingNeedsReset;
     std::atomic<bool> renderingShouldStop;
     std::atomic<float> averageRenderTime;
+    std::atomic<uint64_t> totalRayCasts;
 };
 
 struct Application

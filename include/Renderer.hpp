@@ -22,6 +22,7 @@
 class Renderer
 {
     Buffers buffers;
+    uint64_t totalCasts;
 
     Camera camera;
     DebugOptions debug;
@@ -46,6 +47,7 @@ public:
 
     const Buffers &getBuffers() const { return buffers; }
     float getMeanRenderTimes() const { return renderTimes.mean(); }
+    uint64_t getTotalCasts() const { return totalCasts; }
 
     void setDebug(DebugOptions dbg);
     void setCamera(Camera cam);

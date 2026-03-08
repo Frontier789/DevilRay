@@ -37,6 +37,7 @@ uint64_t Buffers::totalCasts() const
 
 Renderer::Renderer(Size2i resolution)
     : buffers(resolution)
+    , totalCasts(0)
     , pixel_sampling(PixelSampling::UniformRandom)
     , pixels(resolution.area())
     , displayPixels(resolution.area(), 0)
@@ -91,9 +92,9 @@ void Renderer::createPixels()
 
 void Renderer::saveImage(const std::filesystem::path &path)
 {
-    createPixels();
+    std::scoped_lock guard{displayMutex};
 
-    savePNG(path.string(), pixels, resolution);
+    savePNG(path.string(), displayPixels, resolution);
 }
 
 const uint32_t *Renderer::getPixels()
@@ -244,4 +245,8 @@ void Renderer::render()
     }
     const auto elapsed_ms = t.elapsed_seconds() * 1000;
     renderTimes.add(elapsed_ms);
+
+
+    buffers.casts.updateHostData();
+    totalCasts = buffers.totalCasts();
 }

@@ -7,5 +7,6 @@ void Application::renderWorker()
         renderer->render();
 
         asyncData.averageRenderTime.store(renderer->getMeanRenderTimes());
+        asyncData.totalRayCasts.store(renderer->getTotalCasts());
     }
 }
