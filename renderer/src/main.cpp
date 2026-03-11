@@ -47,6 +47,8 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
     int framesSinceLastPrint = 0;
     std::string fpsString = "? fps";
 
+    glfwSwapInterval(1);
+
     while (!glfwWindowShouldClose(app.window)) {
         glfwPollEvents();
 
@@ -72,7 +74,7 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
         {
             fpsString = std::to_string(framesSinceLastPrint) + " fps";
             framesSinceLastPrint = 0;
-            lastFpsPrint += 1s;
+            lastFpsPrint = t;
         }
     }
 }
