@@ -52,6 +52,7 @@ TrisCollection viewGpuTris(GpuTris &tris)
     obj.triangles = tris.triangles.devicePtr();
 
     obj.p = Vec3{};
+    obj.s = Vec3{1,1,1};
     obj.tris_count = tris.triangles.size();
     obj.surface_area = totalSurfaceArea(tris);
 
