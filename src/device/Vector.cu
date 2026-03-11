@@ -34,8 +34,10 @@ void DeviceMemoryManager::allocate(size_t bytes)
 
 void DeviceMemoryManager::free()
 {
-    cudaFree(m_devicePtr);
-    m_devicePtr = nullptr;
+    if (m_devicePtr) {
+        cudaFree(m_devicePtr);
+        m_devicePtr = nullptr;
+    }
 }
 
 void DeviceMemoryManager::memcpy(const void *src, size_t bytes)

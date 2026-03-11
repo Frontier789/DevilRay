@@ -73,8 +73,10 @@ void DeviceArray<T>::updateHostData()
 template<typename T>
 void DeviceArray<T>::deleteDeviceMemory()
 {
-    cudaFree(m_device);
-    m_device = nullptr;
+    if (m_device) {
+        cudaFree(m_device);
+        m_device = nullptr;
+    }
 }
 
 template struct DeviceArray<Vec4>;

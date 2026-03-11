@@ -27,6 +27,12 @@ This contains a rendering tool that can run on the GPU and create realistic imag
 4. cmake --build --preset conan-debug
 5. gdb build/Debug/renderer/devil_ray_renderer
 
+## Running tests
+
+Test can be simply run using CTest:
+
+ctest --preset conan-release --output-on-failure
+
 ## Disclaimer
 
 I use AI tools for multiple purposes throughout this project:

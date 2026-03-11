@@ -13,7 +13,6 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(googletest)
 
-enable_testing()
 include(GoogleTest)
 
 function(add_test_dr TEST_NAME)
@@ -26,7 +25,7 @@ function(add_test_dr TEST_NAME)
     GTest::gtest_main
     devil_ray_lib
   )
-  gtest_discover_tests(${TEST_NAME})
+  gtest_discover_tests(${TEST_NAME} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 
 add_test_dr(test_alias)
