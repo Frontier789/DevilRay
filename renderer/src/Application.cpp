@@ -120,6 +120,45 @@ void Application::loadMeshes()
 
     meshes.suzanne = loadMeshAndPrint("models/suzanne.obj");
     meshes.cube = loadMeshAndPrint("models/cube.obj");
+
+    // Create light panel mesh: NxN grid of quads (each as 2 triangles)
+    {
+        const int N = 3;
+        const float totalSize = 0.5f;
+        const float padding = 0.0005f;
+        const float tileSize = (totalSize - (N - 1) * padding) / N;
+
+        Mesh mesh;
+        mesh.name = "lightPanel";
+        mesh.normals.push_back(Vec3{0, -1, 0});
+
+        for (int x = 0; x < N; ++x) {
+            for (int y = 0; y < N; ++y) {
+                const float cx = totalSize * -0.5f + (tileSize + padding) * x + tileSize * 0.5f;
+                const float cy = totalSize * -0.5f + (tileSize + padding) * y + tileSize * 0.5f;
+                const float half = tileSize * 0.5f;
+
+                const auto baseIndex = static_cast<uint32_t>(mesh.points.size());
+                mesh.points.push_back(Vec3{cx - half, 0, cy - half});
+                mesh.points.push_back(Vec3{cx + half, 0, cy - half});
+                mesh.points.push_back(Vec3{cx + half, 0, cy + half});
+                mesh.points.push_back(Vec3{cx - half, 0, cy + half});
+
+                mesh.triangles.push_back(Triangle{
+                    Vertex{baseIndex + 0, 0}, Vertex{baseIndex + 1, 0}, Vertex{baseIndex + 2, 0}
+                });
+                mesh.triangles.push_back(Triangle{
+                    Vertex{baseIndex + 0, 0}, Vertex{baseIndex + 2, 0}, Vertex{baseIndex + 3, 0}
+                });
+            }
+        }
+
+        std::cout << "Created mesh '" << mesh.name << "' with " << mesh.points.size() << " points" << std::endl;
+        std::cout << "Created mesh '" << mesh.name << "' with " << mesh.normals.size() << " normals" << std::endl;
+        std::cout << "Created mesh '" << mesh.name << "' with " << mesh.triangles.size() << " tris" << std::endl;
+
+        meshes.lightPanel = convertMeshToTris(mesh);
+    }
 }
 
 GLuint createTexture(Size2i resolution)

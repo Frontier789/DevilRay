@@ -146,6 +146,14 @@ struct Vec3
     }
 };
 
+inline constexpr float triangleArea(const Vec3 &A, const Vec3 &B, const Vec3 &C)
+{
+    const auto u = A - B;
+    const auto v = A - C;
+
+    return u.cross(v).length() / 2;
+}
+
 inline constexpr float luminance(const Vec4 &linear_rgb)
 {
     return 0.2126f * linear_rgb.x + 0.7152f * linear_rgb.y + 0.0722f * linear_rgb.z;

@@ -144,16 +144,15 @@ void Renderer::calculateLightWeights()
     {
         weights[i] /= weightSum;
         
-        std::cout << "Object #" << i << ": " << weights[i] << std::endl;
+        std::cout << "  Object #" << i << ": " << weights[i] << std::endl;
     }
 
     light_sampler = generateAliasTable(weights);
     light_sampler.entries.ensureDeviceAllocation();
-    light_sampler.entries.updateDeviceData();
 
     for (const auto e : std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()})
     {
-        std::cout << "A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << std::endl;
+        std::cout << "  A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << " pdf_A=" << e.pdf_A << " pdf_B=" << e.pdf_B << std::endl;
     }
 }
 

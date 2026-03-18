@@ -172,16 +172,16 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(obj));
     }
 
-    {
-        auto obj = Square{
-            .p = Vec3{0,0.499,2},
-            .n = Vec3{0,1,0},
-            .right = Vec3{0,0,1},
-            .size = 0.5,
-        };
-        obj.mat = light_mid;
-        scene.objects.push_back(std::move(obj));
-    }
+    // {
+    //     auto obj = Square{
+    //         .p = Vec3{0,0.499,2},
+    //         .n = Vec3{0,1,0},
+    //         .right = Vec3{0,0,1},
+    //         .size = 0.5,
+    //     };
+    //     obj.mat = light_mid;
+    //     scene.objects.push_back(std::move(obj));
+    // }
 
     // {
     //     auto obj = Square{
@@ -194,29 +194,12 @@ Scene createScene(Meshes &meshes)
     //     scene.objects.push_back(std::move(obj));
     // }
 
-    // {
-    //     const int N = 5;
-    //     const float totalSize = 0.5;
-    //     const float padding = 0.05;
-    //     const float individualSize = (0.5 - (N-1)*padding) / N;
-        
-    //     for (int x=0;x<N;++x) {
-    //         for (int y=0;y<N;++y) {
-    //             auto obj = Square{
-    //                 .p = Vec3{
-    //                     totalSize * -0.5f + (individualSize + padding) * x + individualSize * 0.5f,
-    //                     0.499f,
-    //                     2 + totalSize * -0.5f + (individualSize + padding) * y + individualSize * 0.5f
-    //                 },
-    //                 .n = Vec3{0,1,0},
-    //                 .right = Vec3{0,0,1},
-    //                 .size = individualSize,
-    //             };
-    //             obj.mat = light_mid;
-    //             scene.objects.push_back(std::move(obj));
-    //         }
-    //     }
-    // }
+    {
+        auto lightPanel = viewGpuTris(meshes.lightPanel);
+        lightPanel.mat = light_mid;
+        lightPanel.setPosition(Vec3{0, 0.499f, 2});
+        scene.objects.push_back(std::move(lightPanel));
+    }
 
     // {
     //     auto obj = Sphere{

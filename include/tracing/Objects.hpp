@@ -2,6 +2,7 @@
 
 #include "Utils.hpp"
 #include "models/Mesh.hpp"
+#include "tracing/DistributionSamplers.hpp"
 
 #include <optional>
 #include <variant>
@@ -35,6 +36,8 @@ struct TrisCollection : ObjectBase
     Vec3 p;
     int tris_count;
     float surface_area;
+
+    AliasEntry *tris_sampler;
 
     void setPosition(const Vec3 &pos);
     void setScale(const Vec3 &scale);

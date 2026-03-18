@@ -10,11 +10,14 @@ namespace
     AliasTable generateUniformAliasTable(int n)
     {
         DeviceArray<AliasEntry> table(n, AliasEntry{});
+        const float uniformPdf = (n > 0) ? 1.0f / n : 0.0f;
 
         for (int i=0; i<n; ++i)
         {
             table.hostPtr()[i] = AliasEntry{
                 .p_A = 1,
+                .pdf_A = uniformPdf,
+                .pdf_B = 0,
                 .A = i,
                 .B = UNINITIALIZED 
             };
@@ -28,6 +31,7 @@ namespace
         if (entry.p_A < 0.5f) {
             entry.p_A = 1 - entry.p_A;
             std::swap(entry.A, entry.B);
+            std::swap(entry.pdf_A, entry.pdf_B);
         }
     }
 }
@@ -66,6 +70,8 @@ AliasTable generateAliasTable(std::span<const float> importances)
 
         const auto e = AliasEntry{
             .p_A = n*p,
+            .pdf_A = 0,
+            .pdf_B = 0,
             .A = i,
             .B = UNINITIALIZED,
         };
@@ -124,6 +130,19 @@ AliasTable generateAliasTable(std::span<const float> importances)
         e.p_A = 1;
 
         *entriesPtr++ = std::move(e);
+    }
+
+    std::vector<float> pdfs(n);
+    for (size_t i = 0; i < n; ++i)
+        pdfs[i] = filteredImportances[i] / totalImportance;
+
+    auto *entries = table.entries.hostPtr();
+    for (size_t i = 0; i < n; ++i) {
+        entries[i].pdf_A = pdfs[entries[i].A];
+        if (entries[i].B >= 0 && entries[i].B < n)
+            entries[i].pdf_B = pdfs[entries[i].B];
+        else
+            entries[i].pdf_B = 0.0f;
     }
     
     return table;

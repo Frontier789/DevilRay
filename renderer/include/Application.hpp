@@ -15,6 +15,7 @@ struct Meshes
 {
     GpuTris suzanne;
     GpuTris cube;
+    GpuTris lightPanel;
 };
 
 struct OGLObjects

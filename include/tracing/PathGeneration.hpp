@@ -243,7 +243,7 @@ HD LightSample samplePointOnLights(
     std::span<const AliasEntry> light_table,
     Rng &rng)
 {
-    const auto index = sample(light_table, rng);
+    const auto [index, object_pdf] = sample(light_table, rng);
     const auto &object = objects[index];
     const auto mat = getMaterial(object);
 
@@ -258,7 +258,7 @@ HD LightSample samplePointOnLights(
                 .p = p,
                 .n = n,
                 .mat = mat,
-                .pdf = 1.0f / (4.0f * pi * s.radius * s.radius),
+                .pdf = object_pdf / (4.0f * pi * s.radius * s.radius),
             };
         },
         [&](const Square &s){
@@ -273,15 +273,30 @@ HD LightSample samplePointOnLights(
                 .p = p,
                 .n = s.n,
                 .mat = mat,
-                .pdf = 1.0f / (s.size * s.size),
+                .pdf = object_pdf / (s.size * s.size),
             };
         },
         [&](const TrisCollection &tris){
+            const auto tris_table = std::span{tris.tris_sampler, static_cast<size_t>(tris.tris_count)};
+            const auto [i, triangle_pdf] = sample(tris_table, rng);
+
+            const auto triangle = tris.triangles[i];
+            const auto A = tris.points[triangle.a.pi];
+            const auto B = tris.points[triangle.b.pi];
+            const auto C = tris.points[triangle.c.pi];
+
+            const auto p = uniformTriangleSample(A, B, C, rng);
+
+            const auto perp = (A-B).cross(A-C);
+            const auto perp_length = perp.length();
+            const auto n = perp / perp_length;
+            const auto triangle_area = perp_length / 2.0f;
+
             return LightSample{
-                .p = Vec3{},
-                .n = Vec3{},
+                .p = p * tris.s + tris.p,
+                .n = n,
                 .mat = mat,
-                .pdf = 0.0f,
+                .pdf = object_pdf * triangle_pdf / triangle_area,
             };
         }
     }, object);
