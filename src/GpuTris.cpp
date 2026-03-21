@@ -51,9 +51,9 @@ namespace
     }
 }
 
-TrisCollection viewGpuTris(GpuTris &tris)
+TriangleMesh viewGpuTris(GpuTris &tris)
 {
-    TrisCollection obj;
+    TriangleMesh obj;
 
     tris.points.ensureDeviceAllocation();
     obj.points = tris.points.devicePtr();
@@ -73,4 +73,26 @@ TrisCollection viewGpuTris(GpuTris &tris)
     obj.surface_area = totalSurfaceArea(tris);
 
     return obj;
+}
+
+GpuTris createQuadMesh(Vec3 center, Vec3 normal, Vec3 right, float size)
+{
+    const auto up = right.cross(normal);
+    const auto half = size / 2.0f;
+
+    Mesh mesh;
+    mesh.name = "quad";
+    mesh.points = {
+        center + right * (-half) + up * (-half),
+        center + right * ( half) + up * (-half),
+        center + right * ( half) + up * ( half),
+        center + right * (-half) + up * ( half),
+    };
+    mesh.normals = { normal };
+    mesh.triangles = {
+        Triangle{.a = {0, 0}, .b = {2, 0}, .c = {1, 0}},
+        Triangle{.a = {0, 0}, .b = {3, 0}, .c = {2, 0}},
+    };
+
+    return convertMeshToTris(mesh);
 }

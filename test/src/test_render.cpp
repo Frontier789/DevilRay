@@ -86,26 +86,20 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     // 3. Add Objects
     // Receiver: A large white square in front of the camera (z = 1.0)
     {
-        auto receiver = Square{
-            .p = Vec3{0, 0, 1.0},
-            .n = Vec3{0, 0, -1}, // Facing the camera
-            .right = Vec3{1, 0, 0},
-            .size = 1000.0, // Large size to simulate infinite plane
-        };
-        receiver.mat = white_mat_idx;
+        scene.mesh_storage.push_back(createQuadMesh(
+            Vec3{0, 0, 1.0}, Vec3{0, 0, -1}, Vec3{1, 0, 0}, 1000.0));
+        auto receiver = viewGpuTris(scene.mesh_storage.back());
+        receiver.material = white_mat_idx;
         scene.objects.push_back(std::move(receiver));
     }
 
     // Source: A large emissive square behind the camera (z = -1.0)
     // This will illuminate the 'receiver' square
     {
-        auto source = Square{
-            .p = Vec3{0, 0, -1.0},
-            .n = Vec3{0, 0, 1}, // Facing the receiver
-            .right = Vec3{1, 0, 0},
-            .size = 1000.0,
-        };
-        source.mat = light_mat_idx;
+        scene.mesh_storage.push_back(createQuadMesh(
+            Vec3{0, 0, -1.0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 1000.0));
+        auto source = viewGpuTris(scene.mesh_storage.back());
+        source.material = light_mat_idx;
         scene.objects.push_back(std::move(source));
     }
 
@@ -197,13 +191,10 @@ TEST(RendererTest, DebugRenderSquare) {
 
     // 3. Add Object
     {
-        auto obj = Square{
-            .p = Vec3{0, 0, 1.0},
-            .n = Vec3{0, 0, -1}, // Facing the camera
-            .right = Vec3{1, 0, 0},
-            .size = 1.0,
-        };
-        obj.mat = white_mat_idx;
+        scene.mesh_storage.push_back(createQuadMesh(
+            Vec3{0, 0, 1.0}, Vec3{0, 0, -1}, Vec3{1, 0, 0}, 1.0));
+        auto obj = viewGpuTris(scene.mesh_storage.back());
+        obj.material = white_mat_idx;
         scene.objects.push_back(std::move(obj));
     }
 
@@ -320,7 +311,7 @@ TEST(RendererTest, TriangleSceneRender) {
 
         trisStorage.push_back(convertMeshToTris(mesh));
         auto obj = viewGpuTris(trisStorage.back());
-        obj.mat = mat_idx;
+        obj.material = mat_idx;
         scene.objects.push_back(std::move(obj));
     };
 

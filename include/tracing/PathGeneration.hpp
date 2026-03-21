@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Utils.hpp"
-#include "tracing/Objects.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "tracing/Intersection.hpp"
+#include "tracing/Scene.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "tracing/CameraRay.hpp"
 #include "tracing/DistributionSamplers.hpp"
@@ -19,7 +20,11 @@ struct ColorSample
     int casts;
 };
 
-HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects);
+HD std::optional<Intersection> cast(
+    const Ray &ray,
+    const std::span<const TriangleMesh> objects,
+    const ObjectsInfo &info
+);
 
 HD Vec4 checkerPattern(
     const Vec2f &uv, 
@@ -85,11 +90,6 @@ inline HD float schlick(const float dotp, const float n1, const float n2)
     return R0 + (1.0 - R0) * cosT1_5;
 }
 
-HD inline int getMaterial(const Object &object)
-{
-    return std::visit([](const auto &o){return o.mat;}, object);
-}
-
 struct SampleStats
 {
     int ray_casts;
@@ -98,18 +98,19 @@ struct SampleStats
 struct PathSampler
 {
     Vec4 transmission{1,1,1,0};
-    Stack<const Object *, 3> obj_stack;
+    Stack<const TriangleMesh *, 3> obj_stack;
     Ray ray;
 };
 
 inline HD std::optional<Intersection> nextVertex(
     PathSampler &sampler,
-    const std::span<const Object> objects,
+    const std::span<const TriangleMesh> objects,
+    const ObjectsInfo &info,
     SampleStats &stats
 ){
-    auto &[transmission, obj_stack, ray] = sampler;
+    auto &ray = sampler.ray;
 
-    const auto intersection = cast(ray, objects);
+    const auto intersection = cast(ray, objects, info);
     ++stats.ray_casts;
 
     return intersection;
@@ -154,7 +155,7 @@ HD void generateNewRay(
             if (obj_stack.empty()) {
                 n2 = 1;
             } else {
-                const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                const auto &topMat = materials[obj_stack.top()->material];
                 n2 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
             }
 
@@ -165,7 +166,7 @@ HD void generateNewRay(
             if (obj_stack.empty()) {
                 n1 = 1;
             } else {
-                const auto &topMat = materials[getMaterial(*obj_stack.top())];
+                const auto &topMat = materials[obj_stack.top()->material];
                 n1 = std::get_if<TransparentMaterial>(&topMat)->inside_medium.ior;
             }
         }
@@ -215,14 +216,14 @@ HD void generateNewRay(
     sampler.ray.p = sampler.ray.p + normal * 1e-5;
 }
 
-inline HD bool visible(Vec3 p0, Vec3 p1, std::span<const Object> objects)
+inline HD bool visible(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects, const ObjectsInfo &info)
 {
     const auto distance = (p1 - p0).length();
     const auto v = (p1 - p0) / distance;
 
     Ray ray{.p = p0 + v * 1e-5, .v = v};
 
-    const auto hit = cast(ray, objects);
+    const auto hit = cast(ray, objects, info);
     if (!hit.has_value()) return true;
 
     return hit->t > distance - 1e-5 * 2;
@@ -239,67 +240,37 @@ struct LightSample
 #pragma nv_exec_check_disable
 template<typename Rng>
 HD LightSample samplePointOnLights(
-    std::span<const Object> objects,
+    std::span<const TriangleMesh> objects,
     std::span<const AliasEntry> light_table,
     Rng &rng)
 {
     const auto [index, object_pdf] = sample(light_table, rng);
     const auto &object = objects[index];
-    const auto mat = getMaterial(object);
+    const auto mat = object.material;
 
     // printf("Rolled %d\n", index);
 
-    return std::visit(Overloaded{
-        [&](const Sphere &s){
-            const auto n = uniformSphereSample(rng);
-            const auto p = n * s.radius + s.center;
+    const auto tris_table = std::span{object.tris_sampler, static_cast<size_t>(object.tris_count)};
+    const auto [i, triangle_pdf] = sample(tris_table, rng);
 
-            return LightSample{
-                .p = p,
-                .n = n,
-                .mat = mat,
-                .pdf = object_pdf / (4.0f * pi * s.radius * s.radius),
-            };
-        },
-        [&](const Square &s){
-            const auto up = s.right.cross(s.n);
+    const auto triangle = object.triangles[i];
+    const auto A = object.points[triangle.a.pi];
+    const auto B = object.points[triangle.b.pi];
+    const auto C = object.points[triangle.c.pi];
 
-            const auto r = s.right * (rng.rnd() - 0.5f) * s.size;
-            const auto u = up * (rng.rnd() - 0.5f) * s.size;
+    const auto p = uniformTriangleSample(A, B, C, rng);
 
-            const auto p = r + u + s.p;
-            
-            return LightSample{
-                .p = p,
-                .n = s.n,
-                .mat = mat,
-                .pdf = object_pdf / (s.size * s.size),
-            };
-        },
-        [&](const TrisCollection &tris){
-            const auto tris_table = std::span{tris.tris_sampler, static_cast<size_t>(tris.tris_count)};
-            const auto [i, triangle_pdf] = sample(tris_table, rng);
+    const auto perp = (A-B).cross(A-C);
+    const auto perp_length = perp.length();
+    const auto n = perp / perp_length;
+    const auto triangle_area = perp_length / 2.0f;
 
-            const auto triangle = tris.triangles[i];
-            const auto A = tris.points[triangle.a.pi];
-            const auto B = tris.points[triangle.b.pi];
-            const auto C = tris.points[triangle.c.pi];
-
-            const auto p = uniformTriangleSample(A, B, C, rng);
-
-            const auto perp = (A-B).cross(A-C);
-            const auto perp_length = perp.length();
-            const auto n = perp / perp_length;
-            const auto triangle_area = perp_length / 2.0f;
-
-            return LightSample{
-                .p = p * tris.s + tris.p,
-                .n = n,
-                .mat = mat,
-                .pdf = object_pdf * triangle_pdf / triangle_area,
-            };
-        }
-    }, object);
+    return LightSample{
+        .p = p * object.s + object.p,
+        .n = n,
+        .mat = mat,
+        .pdf = object_pdf * triangle_pdf / triangle_area,
+    };
 }
 
 template<typename Rng>
@@ -309,14 +280,15 @@ HD void sampleColorDebug(
     SampleStats &stats,
     Camera camera,
     PixelSampling pixel_sampling,
-    std::span<const Object> objects,
+    std::span<const TriangleMesh> objects,
+    const ObjectsInfo &info,
     std::span<const Material> materials,
     Rng &rng)
 {
     PathSampler sampler;
     sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
 
-    const auto intersection = nextVertex(sampler, objects, stats);
+    const auto intersection = nextVertex(sampler, objects, info, stats);
     if (!intersection.has_value()) return;
 
     const auto mat = intersection->mat;
@@ -335,16 +307,17 @@ HD void sampleColor(
     SampleStats &stats,
     Camera camera,
     PixelSampling pixel_sampling,
-    std::span<const Object> objects,
+    std::span<const TriangleMesh> objects,
+    const ObjectsInfo &info,
     std::span<const Material> materials,
     std::span<const AliasEntry> light_table, 
     DebugOptions debug,
     Rng &rng)
 {
     if (debug == DebugOptions::UVChecker)
-        return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, materials, rng);
+        return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, info, materials, rng);
 
-    constexpr int max_depth = 10;
+    constexpr int max_depth = 5;
     constexpr auto iterations = 1;
 
     std::array<PathEntry, max_depth> entries;
@@ -357,10 +330,9 @@ HD void sampleColor(
             PathSampler sampler;
             sampler.ray = cameraRay(camera, sensorPos, pixel_sampling, pixel.w, rng);
 
-            
             if (debug != DebugOptions::Off)
             {
-                const auto intersection = nextVertex(sampler, objects, stats);
+                const auto intersection = nextVertex(sampler, objects, info, stats);
 
                 Vec4 color{0,0,0,0};
                 if (intersection.has_value())
@@ -398,7 +370,7 @@ HD void sampleColor(
 
             for (int depth=0; depth<max_depth; ++depth)
             {
-                const auto intersection = nextVertex(sampler, objects, stats);
+                const auto intersection = nextVertex(sampler, objects, info, stats);
                 if (!intersection.has_value()) break;
 
                 *pathEnd = PathEntry {
@@ -436,9 +408,21 @@ HD void sampleColor(
                 if (ray_constrained) {
                     color = color + diffuse_material->emission * pit->total_transmission;
                 }
-                
+
+                // if (pit+1 != pathEnd)
                 {
-                    if (visible(pit->p, light_sample.p, objects)) {
+                    // const auto bsdf_pdf = [](Vec3 v, Vec3 next_v, Vec3 n) -> float {
+                    //     const auto dir = (next_v - v).normalized();
+                    //     const auto cos_phi = dot(dir, n);
+                    //     return cos_phi / pi;
+                    // };
+
+                    // const auto pdf_bsdf_1 = bsdf_pdf(pit->p, (pit+1)->p, pit->n);
+                    // const auto pdf_bsdf_2 = bsdf_pdf(pit->p, light_sample.p, pit->n);
+
+                    // color = color + diffuse_material->emission * next_vertex->total_transmission;
+
+                    if (visible(pit->p, light_sample.p, objects, info)) {
                         const auto distance = (light_sample.p - pit->p).length();
                         const auto v = (light_sample.p - pit->p) / distance;
 

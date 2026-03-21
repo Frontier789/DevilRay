@@ -2,7 +2,7 @@
 
 #include "tracing/DistributionSamplers.hpp"
 #include "tracing/Material.hpp"
-#include "tracing/Objects.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "device/Vector.hpp"
 #include "models/Mesh.hpp"
 
@@ -18,4 +18,5 @@ struct GpuTris
 };
 
 GpuTris convertMeshToTris(const Mesh &mesh);
-TrisCollection viewGpuTris(GpuTris &tris);
+GpuTris createQuadMesh(Vec3 center, Vec3 normal, Vec3 right, float size);
+TriangleMesh viewGpuTris(GpuTris &tris);

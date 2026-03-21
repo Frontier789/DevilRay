@@ -2,7 +2,10 @@
 
 #include "Utils.hpp"
 #include "tracing/Material.hpp"
-#include "tracing/Objects.hpp"
+
+#include <optional>
+
+struct TriangleMesh;
 
 struct TriangleIntersection
 {
@@ -32,8 +35,8 @@ struct Intersection
     Vec2f uv;
     Vec3 n;
     int mat;
-    const Object *object;
-    std::optional<TriangleHitData> triangle; 
+    const TriangleMesh *object;
+    std::optional<TriangleHitData> triangle;
 };
 
 struct PathEntry
@@ -45,4 +48,4 @@ struct PathEntry
     Vec4 total_transmission;
 };
 
-HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object);
+HD std::optional<Intersection> testIntersection(const Ray &ray, const TriangleMesh &mesh);

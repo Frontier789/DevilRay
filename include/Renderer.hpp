@@ -7,7 +7,7 @@
 #include "tracing/PixelSampling.hpp"
 #include "tracing/Intersection.hpp"
 #include "tracing/Camera.hpp"
-#include "tracing/Objects.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "tracing/Scene.hpp"
 
 #include "Buffers.hpp"

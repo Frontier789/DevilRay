@@ -4,41 +4,31 @@
 #include "device/DevUtils.hpp"
 
 #include "tracing/Camera.hpp"
-#include "tracing/Objects.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "tracing/PathGeneration.hpp"
 #include "tracing/LightSampling.hpp"
 
 #include "IntersectionTestsImpl.hpp"
 #include "RendererImpl.hpp"
 
-HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Object> objects)
+HD std::optional<Intersection> cast(const Ray &ray, const std::span<const TriangleMesh> objects, const ObjectsInfo &info)
 {
     std::optional<Intersection> best = std::nullopt;
 
-    for (const auto &obj : objects)
+    for (const auto &mesh : objects)
     {
-        const auto intersection = testIntersection(ray, obj);
+        auto intersection = getIntersection(ray, mesh);
 
         if (!intersection.has_value()) continue;
 
         if (!best.has_value() || best->t > intersection->t)
         {
+            intersection->object = &mesh;
             best = intersection;
         }
     }
 
     return best;
-}
-
-HD std::optional<Intersection> testIntersection(const Ray &ray, const Object &object)
-{
-    return std::visit([&](auto&& o) {
-        auto i = getIntersection(ray, o);
-        if (i.has_value()) {
-            i->object = &object;
-        }
-        return i;
-    }, object);
 }
 
 HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle)
@@ -102,26 +92,9 @@ HD Vec4 checkerPattern(
 }
 
 
-HD float surfaceAreaImpl(const Square &square)
+HD float surfaceArea(const TriangleMesh &mesh)
 {
-    return square.size * square.size;
-}
-
-HD float surfaceAreaImpl(const Sphere &sphere)
-{
-    const auto r = sphere.radius;
-
-    return 4*pi * r*r;
-}
-
-HD float surfaceAreaImpl(const TrisCollection &tris)
-{
-    return tris.surface_area;
-}
-
-HD float surfaceArea(const Object &object)
-{
-    return std::visit([](auto &&o){return surfaceAreaImpl(o);}, object);
+    return mesh.surface_area;
 }
 
 HD Vec4 radiantExitanceImpl(const TransparentMaterial &mat)
@@ -139,12 +112,12 @@ HD Vec4 radiantExitance(const Material &mat)
     return std::visit([](auto &&o){return radiantExitanceImpl(o);}, mat);
 }
 
-void TrisCollection::setPosition(const Vec3 &pos)
+void TriangleMesh::setPosition(const Vec3 &pos)
 {
     this->p = pos;
 }
 
-void TrisCollection::setScale(const Vec3 &scale)
+void TriangleMesh::setScale(const Vec3 &scale)
 {
     this->s = scale;
 

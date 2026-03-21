@@ -7,7 +7,7 @@
 #include "device/DevUtils.hpp"
 
 #include "tracing/Camera.hpp"
-#include "tracing/Objects.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 void cudaCheckLAstError(const char *file, int line, bool abort)
 {

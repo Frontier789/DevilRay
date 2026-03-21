@@ -25,7 +25,8 @@ __global__ void cuda_render(
     uint32_t *casts,
     Camera camera,
     PixelSampling pixel_sampling,
-    std::span<const Object> objects,
+    std::span<const TriangleMesh> objects,
+    const ObjectsInfo info,
     std::span<const Material> materials,
     std::span<const AliasEntry> light_table,
     DebugOptions debug,
@@ -40,7 +41,7 @@ __global__ void cuda_render(
     auto random = CudaRandom{randStates + idx};
 
     SampleStats stats{.ray_casts = 0};
-    sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, materials, light_table, debug, random);
+    sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, info, materials, light_table, debug, random);
 
     casts[idx] += stats.ray_casts; 
 }
@@ -86,6 +87,7 @@ void Renderer::schedule_device_render()
         localCamera,
         localPixelSampling,
         objects,
+        scene.info,
         materials,
         light_table,
         localDebug,

@@ -130,7 +130,7 @@ void Renderer::calculateLightWeights()
 
     for (size_t i=0;i<N;++i)
     {
-        const auto matIndex = getMaterial(objects[i]);
+        const auto matIndex = objects[i].material;
 
         const auto A = surfaceArea(objects[i]);
         const auto M = radiantExitance(materials[matIndex]);
@@ -197,28 +197,7 @@ void Renderer::setOutputOptions(OutputOptions options)
 
 void Renderer::schedule_cpu_render()
 {
-    const auto objects = std::span{scene.objects.hostPtr(), scene.objects.size()};
-    const auto materials = std::span{scene.materials.hostPtr(), scene.materials.size()};
-    const auto light_table = std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()};
-
-    parallel_for(resolution.height, [&](int y){
-
-        Random random = RandomPool::singleton().borrowRandom();
-        //std::cout << "Got random id " << random.get_id() << std::endl;
-
-        for (int x=0;x<resolution.width;++x)
-        {
-            const auto idx = x + y*resolution.width;
-            auto &pix = buffers.color.hostPtr()[idx];
-
-            SampleStats stats{.ray_casts = 0};
-            sampleColor(Vec2{x, y}, pix, stats, camera, pixel_sampling, objects, materials, light_table, debug, random);
-
-            buffers.casts.hostPtr()[idx] += stats.ray_casts;
-        }
-        RandomPool::singleton().returnRandom(std::move(random));
-
-    });
+    throw std::runtime_error("unimplemented");
 }
 
 void Renderer::render()
