@@ -10,6 +10,8 @@
 #include <limits>
 #include <random>
 #include <vector>
+#include <filesystem>
+#include <tracing/DistributionSamplers.hpp>
 
 namespace
 {
@@ -102,7 +104,127 @@ __global__ void traceKernel(
     outHitFlag[idx] = hit;
 }
 
+struct Box
+{
+    Vec3 min;
+    Vec3 max;
+
+    constexpr Box extend(const Vec3 &p) const {
+        return Box {
+            .min = Vec3{std::min(min.x, p.x), std::min(min.y, p.y), std::min(min.z, p.z)},
+            .max = Vec3{std::max(max.x, p.x), std::max(max.y, p.y), std::max(max.z, p.z)},
+        };
+    }
+
+    constexpr Vec3 center() const {
+        return (min + max) * 0.5f;
+    }
+
+    static constexpr Box empty() {
+        constexpr auto inf = std::numeric_limits<float>::infinity();
+        return Box{
+            .min = Vec3{inf, inf, inf},
+            .max = Vec3{-inf, -inf, -inf},
+        };
+    }
+
+    constexpr float diagonal() const {
+        return (max - min).length();
+    }
+};
+
+#pragma nv_exec_check_disable
+template<typename Rng>
+HD Vec3 uniformBoxSample(const Box &box, Rng &r)
+{
+    const auto x = r.rnd();
+    const auto y = r.rnd();
+    const auto z = r.rnd();
+
+    return Vec3{
+        box.min.x * (1 - x) + box.max.x * x,
+        box.min.y * (1 - y) + box.max.y * y,
+        box.min.z * (1 - z) + box.max.z * z,
+    };
+}
+
 } // namespace
+
+
+class Benchmark
+{
+    GpuTris gpuTris;
+    TrisCollection tris;
+    Box entire_bbox;
+
+    void calculateBBox(const Mesh &mesh)
+    {
+        entire_bbox = Box::empty();
+
+        for (const Vec3 &p : mesh.points)
+        {
+            entire_bbox = entire_bbox.extend(p);
+        }
+    }
+
+public:
+    Benchmark(const std::filesystem::path &objectPath)
+    {
+        if (!std::filesystem::exists(objectPath)) {
+            throw std::runtime_error("Object file not found: " + objectPath.string());
+        }
+
+        std::cout << "Loading mesh: " << objectPath << std::endl;
+
+        const Mesh mesh = loadMesh(objectPath);
+        gpuTris = convertMeshToTris(mesh);
+        tris = viewGpuTris(gpuTris);
+
+        std::cout << "Triangles: " << tris.tris_count << std::endl;
+
+        calculateBBox(mesh);
+    }
+
+    const TrisCollection &getTris() const { return tris; }
+    const Box &getBBox() const { return entire_bbox; }
+};
+
+struct Rng
+{
+    std::mt19937 rng{42};
+    std::uniform_real_distribution<float> u01{0, 1};
+
+    float rnd()
+    {
+        return u01(rng);
+    }
+};
+
+std::vector<Ray> generateRays(const Box &bounds, int rayCount)
+{
+    std::cout << "Generating " << rayCount << " random rays..." << std::endl;
+
+    const Vec3 center = bounds.center();
+    const float radius = bounds.diagonal() * 1.5f + 1.0f;
+
+    std::vector<Ray> rays;
+    rays.reserve(rayCount);
+
+    Rng rng;
+
+    for (int i = 0; i < rayCount; ++i)
+    {
+        const Vec3 dir = uniformSphereSample(rng);
+        const Vec3 origin = center + dir * radius;
+
+        const Vec3 target = uniformBoxSample(bounds, rng);
+
+        const Vec3 v = (target - origin).normalized();
+        rays.push_back(Ray{origin, v});
+    }
+
+    return rays;
+}
 
 int main(int argc, char **argv)
 {
@@ -111,59 +233,11 @@ int main(int argc, char **argv)
 
     printCudaDeviceInfo();
 
-    std::cout << "Loading mesh: " << meshPath << std::endl;
-    const Mesh mesh = loadMesh(meshPath);
-    std::cout << "Triangles: " << mesh.triangles.size()
-              << ", points: "  << mesh.points.size() << std::endl;
+    Benchmark benchmark(meshPath);
 
-    GpuTris gpuTris = convertMeshToTris(mesh);
-    TrisCollection tris = viewGpuTris(gpuTris);
+    const auto &tris = benchmark.getTris();
+    const auto hostRays = generateRays(benchmark.getBBox(), rayCount);
 
-    // Bounding box (host-side) for ray generation
-    Vec3 bbMin{ std::numeric_limits<float>::infinity(),
-                std::numeric_limits<float>::infinity(),
-                std::numeric_limits<float>::infinity()};
-    Vec3 bbMax{-std::numeric_limits<float>::infinity(),
-               -std::numeric_limits<float>::infinity(),
-               -std::numeric_limits<float>::infinity()};
-    for (const Vec3 &p : mesh.points)
-    {
-        bbMin = Vec3{std::min(bbMin.x, p.x), std::min(bbMin.y, p.y), std::min(bbMin.z, p.z)};
-        bbMax = Vec3{std::max(bbMax.x, p.x), std::max(bbMax.y, p.y), std::max(bbMax.z, p.z)};
-    }
-    const Vec3 center = (bbMin + bbMax) * 0.5f;
-    const float radius = (bbMax - bbMin).length() * 1.5f + 1.0f;
-
-    // Generate rays on host: origins on a sphere around the mesh, aimed at a
-    // random point inside the bbox. This yields a healthy mix of hits/misses.
-    std::cout << "Generating " << rayCount << " random rays..." << std::endl;
-
-    std::vector<Ray> hostRays;
-    hostRays.reserve(rayCount);
-
-    std::mt19937 rng(0xC0FFEEu);
-    std::uniform_real_distribution<float> u01(0.0f, 1.0f);
-
-    for (int i = 0; i < rayCount; ++i)
-    {
-        const float z = 1.0f - 2.0f * u01(rng);
-        const float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
-        const float phi = 2.0f * pi * u01(rng);
-        const Vec3 dir{r * std::cos(phi), r * std::sin(phi), z};
-
-        const Vec3 origin = center + dir * radius;
-
-        const Vec3 target = Vec3{
-            bbMin.x + (bbMax.x - bbMin.x) * u01(rng),
-            bbMin.y + (bbMax.y - bbMin.y) * u01(rng),
-            bbMin.z + (bbMax.z - bbMin.z) * u01(rng),
-        } * 1.0f;
-
-        const Vec3 v = (target - origin).normalized();
-        hostRays.push_back(Ray{origin, v});
-    }
-
-    // Upload rays + allocate result buffers
     Ray *dRays = nullptr;
     float *dT = nullptr;
     int *dHit = nullptr;
@@ -209,7 +283,6 @@ int main(int argc, char **argv)
     float ms = 0.0f;
     cudaEventElapsedTime(&ms, start, stop);
 
-    // Pull back results to compute hit stats
     std::vector<int> hostHit(rayCount);
     std::vector<float> hostT(rayCount);
     cudaMemcpy(hostHit.data(), dHit, sizeof(int) * rayCount,   cudaMemcpyDeviceToHost);
@@ -217,13 +290,11 @@ int main(int argc, char **argv)
     CUDA_ERROR_CHECK();
 
     long long hitCount = 0;
-    double accumT = 0.0;
     for (int i = 0; i < rayCount; ++i)
     {
         if (hostHit[i])
         {
             ++hitCount;
-            accumT += hostT[i];
         }
     }
 
@@ -237,13 +308,9 @@ int main(int argc, char **argv)
     std::cout << "Intersection tests:   " << isectTests << "\n";
     std::cout << "Hits:                 " << hitCount
               << "  (" << (100.0 * hitCount / rayCount) << "%)\n";
-    std::cout << "Avg hit t:            "
-              << (hitCount > 0 ? accumT / hitCount : 0.0) << "\n";
     std::cout << "GPU kernel time:      " << ms << " ms\n";
     std::cout << "Rays / second:        " << (rayCount / seconds) << "\n";
     std::cout << "Tri tests / second:   " << (isectTests / seconds) << "\n";
-    std::cout << "ns / ray:             " << (seconds * 1e9 / rayCount) << "\n";
-    std::cout << "ns / tri test:        " << (seconds * 1e9 / isectTests) << "\n";
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
