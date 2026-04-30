@@ -65,7 +65,9 @@ template<typename Rng>
 HD AliasSample sample(std::span<const AliasEntry> table, Rng &rng)
 {
     const float r = rng.rnd();
-    const float findex = r * table.size();
+    float findex = r * table.size();
+    if (findex == table.size()) findex = table.size()-1;
+
     const int index = static_cast<int>(findex);
     
     const float p = rng.rnd();
