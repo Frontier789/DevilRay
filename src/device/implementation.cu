@@ -91,27 +91,6 @@ HD Vec4 checkerPattern(
     return bright * checker + dark * (1-checker);
 }
 
-
-HD float surfaceArea(const TriangleMesh &mesh)
-{
-    return mesh.surface_area;
-}
-
-HD Vec4 radiantExitanceImpl(const TransparentMaterial &mat)
-{
-    return Vec4{0,0,0,0};
-}
-
-HD Vec4 radiantExitanceImpl(const DiffuseMaterial &mat)
-{
-    return mat.emission * pi;
-}
-
-HD Vec4 radiantExitance(const Material &mat)
-{
-    return std::visit([](auto &&o){return radiantExitanceImpl(o);}, mat);
-}
-
 void TriangleMesh::setPosition(const Vec3 &pos)
 {
     this->p = pos;

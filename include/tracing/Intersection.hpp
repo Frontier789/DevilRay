@@ -25,6 +25,7 @@ HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, 
 struct TriangleHitData
 {
     Vec3 bari;
+    float area;
     bool ccw;
 };
 
@@ -36,7 +37,7 @@ struct Intersection
     Vec3 n;
     int mat;
     const TriangleMesh *object;
-    std::optional<TriangleHitData> triangle;
+    TriangleHitData triangle;
 };
 
 struct PathEntry
@@ -45,7 +46,7 @@ struct PathEntry
     Vec2f uv;
     Vec3 n;
     int mat;
-    Vec4 total_transmission;
-};
+    Vec4 total_throughput;
 
-HD std::optional<Intersection> testIntersection(const Ray &ray, const TriangleMesh &mesh);
+    float triangle_area;
+};

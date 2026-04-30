@@ -42,6 +42,7 @@ HD std::optional<Intersection> getIntersection(const Ray &ray, const TriangleMes
                 .mat = tris.material,
                 .triangle = TriangleHitData{
                     .bari = intersection->bari,
+                    .area = triangleArea(triangle.a, triangle.b, triangle.c),
                     .ccw = is_ccw,
                 },
             };

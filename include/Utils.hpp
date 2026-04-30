@@ -146,19 +146,6 @@ struct Vec3
     }
 };
 
-inline constexpr float triangleArea(const Vec3 &A, const Vec3 &B, const Vec3 &C)
-{
-    const auto u = A - B;
-    const auto v = A - C;
-
-    return u.cross(v).length() / 2;
-}
-
-inline constexpr float luminance(const Vec4 &linear_rgb)
-{
-    return 0.2126f * linear_rgb.x + 0.7152f * linear_rgb.y + 0.0722f * linear_rgb.z;
-}
-
 template<typename T>
 struct Vec2
 {
@@ -235,3 +222,42 @@ std::ostream &operator<<(std::ostream &os, const Vec2<T> &vec) {
 
 template<class... Ts> struct Overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> Overloaded(Ts...) -> Overloaded<Ts...>;
+
+
+inline constexpr float triangleArea(const Vec3 &A, const Vec3 &B, const Vec3 &C)
+{
+    const auto u = A - B;
+    const auto v = A - C;
+
+    return u.cross(v).length() / 2;
+}
+
+inline constexpr float luminance(const Vec4 &linear_rgb)
+{
+    return 0.2126f * linear_rgb.x + 0.7152f * linear_rgb.y + 0.0722f * linear_rgb.z;
+}
+
+inline constexpr float powerHeuristic(const float pdf_0, const float pdf_1)
+{
+    return pdf_0*pdf_0 / (pdf_0*pdf_0 + pdf_1*pdf_1);
+}
+
+inline constexpr float areaToSolidAngle(Vec3 from, Vec3 to, Vec3 to_n)
+{
+    const auto diff = to - from;
+    const auto distance_squared = diff.dot(diff);
+
+    const auto dir = diff.normalized();
+
+    const auto cos_theta = std::abs(dot(dir, to_n));
+    if (cos_theta < 1e-6f) return 0.0f;
+
+    return distance_squared / cos_theta;
+};
+
+inline constexpr float cosineWeightedHemispherePdf(Vec3 current_vertex_position, Vec3 next_vertex_position, Vec3 normal)
+{
+    const auto dir = (next_vertex_position - current_vertex_position).normalized();
+    const auto cos_phi = dot(dir, normal);
+    return cos_phi > 0 ? cos_phi / pi : 0.0f;
+}

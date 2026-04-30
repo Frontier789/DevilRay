@@ -109,15 +109,6 @@ const Vec4 *Renderer::getRawPixels()
     return buffers.color.hostPtr();
 }
 
-
-namespace
-{
-    inline HD float rgbLuminance(const Vec4 &rgb)
-    {
-        return 0.2126 * rgb.x + 0.7152 * rgb.y + 0.0722 * rgb.z;
-    }
-}
-
 void Renderer::calculateLightWeights()
 {
     const auto materials = scene.materials.hostPtr();
@@ -126,29 +117,32 @@ void Renderer::calculateLightWeights()
 
     std::vector<float> weights(N, 0);
     
-    float weightSum = 0.0f;
+    float total_radiant_power = 0.0f;
 
     for (size_t i=0;i<N;++i)
     {
         const auto matIndex = objects[i].material;
 
-        const auto A = surfaceArea(objects[i]);
+        const auto A = objects[i].surface_area;
         const auto M = radiantExitance(materials[matIndex]);
 
-        weights[i] = A*rgbLuminance(M);
-        weightSum += weights[i];
+        weights[i] = A*luminance(M);
+        total_radiant_power += weights[i];
     }
 
     std::cout << "Generating AliasTable from weights:\n";
     for (size_t i=0;i<N;++i)
     {
-        weights[i] /= weightSum;
+        weights[i] /= total_radiant_power;
         
         std::cout << "  Object #" << i << ": " << weights[i] << std::endl;
     }
 
     light_sampler = generateAliasTable(weights);
     light_sampler.entries.ensureDeviceAllocation();
+
+    scene.info.total_radiant_power = total_radiant_power;
+    std::cout << "Total radiant power: " << total_radiant_power << std::endl;
 
     for (const auto e : std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()})
     {

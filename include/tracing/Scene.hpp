@@ -9,7 +9,7 @@
 
 struct ObjectsInfo
 {
-    float total_surface_area;
+    float total_radiant_power;
 };
 
 struct Scene

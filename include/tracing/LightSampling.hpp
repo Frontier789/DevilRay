@@ -4,6 +4,17 @@
 #include "tracing/TriangleMesh.hpp"
 #include "tracing/Material.hpp"
 
-HD float surfaceArea(const TriangleMesh &mesh);
+inline HD Vec4 radiantExitanceImpl(const TransparentMaterial &mat)
+{
+    return Vec4{0,0,0,0};
+}
 
-HD Vec4 radiantExitance(const Material &mat);
+inline HD Vec4 radiantExitanceImpl(const DiffuseMaterial &mat)
+{
+    return mat.emission * pi;
+}
+
+inline HD Vec4 radiantExitance(const Material &mat)
+{
+    return std::visit([](auto &&o){return radiantExitanceImpl(o);}, mat);
+}

@@ -80,7 +80,7 @@ Scene createScene(Meshes &meshes)
     const int  glass = scene.materials.size();
     {
         auto material = TransparentMaterial{
-            .inside_medium = Medium{.ior = 1.5595f},
+            .inside_medium = Medium{.ior = 1},
         };
         material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
         scene.materials.push_back(material);
@@ -102,11 +102,11 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(view));
     };
 
-    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 0.6, white);
-    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 0.6, red);
-    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 0.6, green);
-    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 0.6, white);
-    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 0.6, white);
+    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
+    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
+    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
+    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
+    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
 
     {
         auto lightPanel = viewGpuTris(meshes.lightPanel);
@@ -115,11 +115,27 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(lightPanel));
     }
 
+    // {
+    //     auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
+    //     mesh_object_monkey.material = blue;
+    //     mesh_object_monkey.setPosition(Vec3{0.0, -0.3, 2});
+    //     mesh_object_monkey.setScale(Vec3{0.15f,0.15f,0.15f});
+    //     scene.objects.push_back(std::move(mesh_object_monkey));
+    // }
+
     {
         auto mesh_object_cube = viewGpuTris(meshes.cube);
         mesh_object_cube.material = white;
-        mesh_object_cube.setPosition(Vec3{0.0, -0.7, 2});
-        mesh_object_cube.setScale(Vec3{0.2f,0.2f,0.2f});
+        mesh_object_cube.setPosition(Vec3{0.0, 0.0, 2});
+        mesh_object_cube.setScale(Vec3{0.05f,0.05f,0.05f});
+        scene.objects.push_back(std::move(mesh_object_cube));
+    }
+
+    {
+        auto mesh_object_cube = viewGpuTris(meshes.cube);
+        mesh_object_cube.material = white;
+        mesh_object_cube.setPosition(Vec3{0.0, -0.5, 2.0});
+        mesh_object_cube.setScale(Vec3{0.1f,0.1f,0.1f});
         scene.objects.push_back(std::move(mesh_object_cube));
     }
 

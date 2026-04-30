@@ -6,6 +6,7 @@
 #include "tracing/Scene.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "tracing/CameraRay.hpp"
+#include "tracing/LightSampling.hpp"
 #include "tracing/DistributionSamplers.hpp"
 
 #include "Buffers.hpp"
@@ -97,7 +98,7 @@ struct SampleStats
 
 struct PathSampler
 {
-    Vec4 transmission{1,1,1,0};
+    Vec4 throughput{1,1,1,0};
     Stack<const TriangleMesh *, 3> obj_stack;
     Ray ray;
 };
@@ -123,20 +124,20 @@ HD void generateNewRay(
     const std::span<const Material> materials,
     Rng &rng
 ){
-    auto &[transmission, obj_stack, ray] = sampler;
+    auto &[throughput, obj_stack, ray] = sampler;
 
     auto normal = intersection.n;
 
     const auto &material = materials[intersection.mat];
 
     if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
-        const auto new_v = cosineWeightedHemisphereSample(normal, rng);
+        const auto w_out = cosineWeightedHemisphereSample(normal, rng);
 
-        sampler.transmission = sampler.transmission * diffuse_material->diffuse_reflectance;
+        sampler.throughput = sampler.throughput * diffuse_material->diffuse_reflectance;
 
         sampler.ray = Ray{
             .p = intersection.p,
-            .v = new_v,
+            .v = w_out,
         };
     }
 
@@ -317,14 +318,14 @@ HD void sampleColor(
     if (debug == DebugOptions::UVChecker)
         return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, info, materials, rng);
 
-    constexpr int max_depth = 5;
+    constexpr int max_depth = 10;
     constexpr auto iterations = 1;
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
     
     for (int i=0;i<iterations;++i) {
-        auto pathEnd = path;
+        auto path_end = path;
 
         {
             PathSampler sampler;
@@ -342,18 +343,18 @@ HD void sampleColor(
 
                     switch (debug) {
                         case DebugOptions::BariCoords:
-                            if (intersection->triangle.has_value()) {
-                                const auto bari = intersection->triangle->bari;
-                                color = Vec4{bari.x, bari.y, bari.z, 0};
-                            }
+                        {
+                            const auto bari = intersection->triangle.bari;
+                            color = Vec4{bari.x, bari.y, bari.z, 0};
                             break;
+                        }
                         case DebugOptions::WindingOrder:
-                            if (intersection->triangle.has_value()) {
-                                constexpr auto clockWiseColor = Vec4{0.53, 0.82, 1.0, 0.0};
-                                constexpr auto counterClockWiseColor = Vec4{1.0, 0.73, 0.47, 0.0};
-                                color = intersection->triangle->ccw ? counterClockWiseColor : clockWiseColor;
-                            }
+                        {
+                            constexpr auto clockWiseColor = Vec4{0.53, 0.82, 1.0, 0.0};
+                            constexpr auto counterClockWiseColor = Vec4{1.0, 0.73, 0.47, 0.0};
+                            color = intersection->triangle.ccw ? counterClockWiseColor : clockWiseColor;
                             break;
+                        }
                         case DebugOptions::UVChecker:
                             color = checkerPattern(intersection->uv, 7) * getDebugColor(material);
                             break;
@@ -373,14 +374,15 @@ HD void sampleColor(
                 const auto intersection = nextVertex(sampler, objects, info, stats);
                 if (!intersection.has_value()) break;
 
-                *pathEnd = PathEntry {
+                *path_end = PathEntry {
                     .p = intersection->p,
                     .uv = intersection->uv,
                     .n = intersection->n,
                     .mat = intersection->mat,
-                    .total_transmission = sampler.transmission,
+                    .total_throughput = sampler.throughput,
+                    .triangle_area = intersection->triangle.area
                 };
-                ++pathEnd;
+                ++path_end;
 
                 generateNewRay(sampler, *intersection, materials, rng);
             }
@@ -395,87 +397,77 @@ HD void sampleColor(
         // );
 
         Vec4 color{0,0,0,0};
-        bool ray_constrained = true;
+        bool prev_bounce_specular = true;
 
-        for (PathEntry *pit = path; pit!=pathEnd; ++pit)
+        float path_bsdf_pdf = 0;
+        float path_nee_pdf = 0; 
+
+        for (PathEntry *vertex = path; vertex!=path_end; ++vertex)
         {
-            const auto &material = materials[pit->mat];
+            const auto next_vertex = vertex+1;
 
+            const auto &material = materials[vertex->mat];
+
+            // BSDF sampling alone
+            // if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
+            //     color = color + diffuse_material->emission * vertex->total_throughput;
+            // }
+            // continue;
+
+            // MIS
             if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
 
-                // color = color + diffuse_material->emission * pit->total_transmission;
+                const auto Le_sruface = diffuse_material->emission;
 
-                if (ray_constrained) {
-                    color = color + diffuse_material->emission * pit->total_transmission;
+                if (prev_bounce_specular) {
+                    color = color + Le_sruface * vertex->total_throughput;
+                } else if (path_bsdf_pdf + path_nee_pdf > 0) {
+                    auto mis_weight = powerHeuristic(path_bsdf_pdf, path_nee_pdf);
+                    color = color + Le_sruface * vertex->total_throughput * mis_weight;
                 }
 
-                // if (pit+1 != pathEnd)
+                path_bsdf_pdf = 0;
+                path_nee_pdf = 0;
+
+                if (next_vertex != path_end)
                 {
-                    // const auto bsdf_pdf = [](Vec3 v, Vec3 next_v, Vec3 n) -> float {
-                    //     const auto dir = (next_v - v).normalized();
-                    //     const auto cos_phi = dot(dir, n);
-                    //     return cos_phi / pi;
-                    // };
+                    path_bsdf_pdf = cosineWeightedHemispherePdf(vertex->p, next_vertex->p, vertex->n);
 
-                    // const auto pdf_bsdf_1 = bsdf_pdf(pit->p, (pit+1)->p, pit->n);
-                    // const auto pdf_bsdf_2 = bsdf_pdf(pit->p, light_sample.p, pit->n);
+                    const auto &next_material = materials[next_vertex->mat];
+                    const auto next_radiant_exitance = luminance(radiantExitance(next_material));
+                    const auto pdf_nee_area = next_radiant_exitance / info.total_radiant_power;
+                    path_nee_pdf = pdf_nee_area * areaToSolidAngle(vertex->p, next_vertex->p, next_vertex->n);
+                }
 
-                    // color = color + diffuse_material->emission * next_vertex->total_transmission;
+                Vec4 Ld_nee{0,0,0,0};
+            
+                const auto nee_pdf_bsdf = cosineWeightedHemispherePdf(vertex->p, light_sample.p, vertex->n);
+                const auto nee_pdf_nee = light_sample.pdf * areaToSolidAngle(vertex->p, light_sample.p, light_sample.n);
 
-                    if (visible(pit->p, light_sample.p, objects, info)) {
-                        const auto distance = (light_sample.p - pit->p).length();
-                        const auto v = (light_sample.p - pit->p) / distance;
+                if (visible(vertex->p, light_sample.p, objects, info)) {
+                    const auto distance = (light_sample.p - vertex->p).length();
+                    const auto w_light = (light_sample.p - vertex->p) / distance;
 
-                        const auto brdf = diffuse_material->diffuse_reflectance / pi;
+                    const auto brdf = diffuse_material->diffuse_reflectance / pi;
 
-                        const auto cos_phi_x_i = v.dot(pit->n);
-                        const auto cos_phi_y   = v.dot(light_sample.n);
-                        
-                        if (cos_phi_x_i > 0) {
-                            const auto geometric_term = std::abs(cos_phi_x_i * cos_phi_y) / distance / distance;
-    
-                            color = color + light_material->emission * brdf * geometric_term / light_sample.pdf * pit->total_transmission;
-                        }
-
-                        // const auto l = luminance(color);
-                        // if (l > 10000.0f) {
-                        //     printf("Extreme limunance path: \n");
-                        //     printf("\tLuminance: %f\n", l);
-                        //     // printf("\tDepth: %d\n", depth);
-                            
-                        //     int d = 0;
-                        //     for (PathEntry *qit = path; qit!=pathEnd; ++qit)
-                        //     {
-                        //         printf("\tVertex %d: %f,%f,%f, t=%f\n", d, qit->p.x, qit->p.y, qit->p.z, luminance(qit->total_transmission));
-                        //         d+=1;
-                        //     }
-                        // }
+                    const auto cos_at_surface = w_light.dot(vertex->n);
+                    const auto cos_at_light   = w_light.dot(light_sample.n);
                     
+                    if (cos_at_surface > 0) {
+                        const auto geometric_term = cos_at_surface * std::abs(cos_at_light) / (distance * distance);
 
-                        // color.x = light_material->emission.x * 1000;
-
-                        // if (pit == path)
-                        // if (std::abs(pit->p.x) < 0.003)
-                        // if (std::abs(pit->p.y) < 0.003)
-                        // printf("Got: p.z=%f,%f,%f l.z=%f,%f,%f e=%f mat=%d total=%f cos_phi_y=%f v=%f,%f,%f ln=%f,%f,%f added=%f weight=%f\n", 
-                        //     pit->p.x, pit->p.y, pit->p.z, 
-                        //     light_sample.p.x, light_sample.p.y, light_sample.p.z, 
-                        //     light_material->emission.x,
-                        //     light_sample.mat,
-                        //     pit->total_transmission.x,
-                        //     cos_phi_y,
-                        //     v.x,v.y,v.z,
-                        //     light_sample.n.x,light_sample.n.y,light_sample.n.z,
-                        //     (light_material->emission * brdf * geometric_term / light_sample.pdf * pit->total_transmission).x,
-                        //     (brdf * geometric_term / light_sample.pdf).x);
-
+                        const auto Le_light = light_material->emission;
+                        Ld_nee = Le_light * brdf * geometric_term / light_sample.pdf;
                     }
                 }
 
-                ray_constrained = false;
+                if (nee_pdf_nee + nee_pdf_bsdf > 0)
+                    color = color + Ld_nee * vertex->total_throughput * powerHeuristic(nee_pdf_nee, nee_pdf_bsdf);
+ 
+                prev_bounce_specular = false;
             }
             else if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
-                ray_constrained = true;
+                prev_bounce_specular = true;
             }
         }
 
