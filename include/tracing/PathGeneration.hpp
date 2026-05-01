@@ -387,9 +387,6 @@ HD void sampleColor(
                 generateNewRay(sampler, *intersection, materials, rng);
             }
         }
-        
-        LightSample light_sample = samplePointOnLights(objects, light_table, rng);
-        const auto *light_material = std::get_if<DiffuseMaterial>(&materials[light_sample.mat]);
 
         // printf("Light sample: p=%f,%f,%f e=%f,%f,%f\n", 
         //     light_sample.p.x, light_sample.p.y, light_sample.p.z,
@@ -440,6 +437,9 @@ HD void sampleColor(
                 }
 
                 Vec4 Ld_nee{0,0,0,0};
+
+                LightSample light_sample = samplePointOnLights(objects, light_table, rng);
+                const auto *light_material = std::get_if<DiffuseMaterial>(&materials[light_sample.mat]);
             
                 const auto nee_pdf_bsdf = cosineWeightedHemispherePdf(vertex->p, light_sample.p, vertex->n);
                 const auto nee_pdf_nee = light_sample.pdf * areaToSolidAngle(vertex->p, light_sample.p, light_sample.n);
