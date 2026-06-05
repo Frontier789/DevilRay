@@ -4,6 +4,7 @@
 # Build artifacts
 build
 CMakeUserPresets.json
+cmake_test_discovery_*
 
 # Runtime artifacts
 imgui.ini

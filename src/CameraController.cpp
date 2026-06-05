@@ -51,16 +51,32 @@ Matrix4x4f CameraController::calculateTransform() const {
     };
 }
 
+Matrix4x4f CameraController::getViewMatrix() const {
+    const auto f = forward();
+    const auto r = right();
+    const auto u = up();
+    const auto p = position();
+
+    return Matrix4x4f{
+        .values = {
+            { r.x,  r.y,  r.z, -r.dot(p)},
+            { u.x,  u.y,  u.z, -u.dot(p)},
+            {-f.x, -f.y, -f.z,  f.dot(p)},
+            {   0,    0,    0,          1},
+        }
+    };
+}
+
 Camera CameraController::getCamera() const {
     camera.transform = calculateTransform();
 
     return camera;
 }
 
-void CameraController::handleRotate(Vec2f offset_in_pixels)
+void CameraController::handleRotate(Vec2f offset_in_pixels, Vec2f sensitivity)
 {
-    pitch += offset_in_pixels.y * -0.007f;
-    yaw += offset_in_pixels.x * 0.005f * (isUpsideDown() ? -1 : 1);
+    pitch += offset_in_pixels.y * -1 * sensitivity.y;
+    yaw += offset_in_pixels.x * sensitivity.x * (isUpsideDown() ? -1 : 1);
 
     if (pitch > 1.5f*pi) pitch -= 2*pi;
     if (pitch < -1.5f*pi) pitch += 2*pi;
