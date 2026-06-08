@@ -16,7 +16,6 @@ struct OGLObjects
     GLuint shader;
     GLuint vbo;
     GLuint vao;
-    GLuint ibo;
 };
 
 struct UiHandler

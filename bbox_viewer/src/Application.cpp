@@ -8,6 +8,7 @@
 #include <iostream>
 #include <chrono>
 #include <cmath>
+#include <cstddef>
 
 #include "Application.hpp"
 #include "Utils.hpp"
@@ -119,35 +120,34 @@ void Application::loadMesh()
 
 void Application::uploadMeshToGpu()
 {
-    glNamedBufferData(
-        glObjects.vbo,
-        mesh.points.size() * sizeof(Vec3),
-        mesh.points.data(),
-        GL_STATIC_DRAW
-    );
+    struct GPUVertex {
+        Vec3 position;
+        Vec3 normal;
+    };
 
-    std::vector<uint32_t> indices;
-    indices.reserve(mesh.triangles.size() * 3);
+    std::vector<GPUVertex> vertices;
+    vertices.reserve(mesh.triangles.size() * 3);
     for (const auto &tri : mesh.triangles)
     {
-        indices.push_back(tri.a.pi);
-        indices.push_back(tri.b.pi);
-        indices.push_back(tri.c.pi);
+        for (const Vertex &v : {tri.a, tri.b, tri.c})
+            vertices.push_back({mesh.points[v.pi], mesh.normals[v.ni]});
     }
 
     glNamedBufferData(
-        glObjects.ibo,
-        indices.size() * sizeof(uint32_t),
-        indices.data(),
+        glObjects.vbo,
+        vertices.size() * sizeof(GPUVertex),
+        vertices.data(),
         GL_STATIC_DRAW
     );
 
     glBindVertexArray(glObjects.vao);
     glBindBuffer(GL_ARRAY_BUFFER, glObjects.vbo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, glObjects.ibo);
 
     glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vec3), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, position));
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, normal));
 
     glBindVertexArray(0);
 }
@@ -159,7 +159,6 @@ void Application::createOpenGLObjects()
     glObjects.shader = createShaderProgram(passthroughVertexShader, passthroughFragmentShader);
     
     glCreateBuffers(1, &glObjects.vbo);
-    glCreateBuffers(1, &glObjects.ibo);
     glGenVertexArrays(1, &glObjects.vao);
 }
 
@@ -198,7 +197,7 @@ void Application::renderCurrentFrame()
     glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
 
     glBindVertexArray(glObjects.vao);
-    glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(mesh.triangles.size() * 3), GL_UNSIGNED_INT, 0);
+    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mesh.triangles.size() * 3));
     glBindVertexArray(0);
 }
 
@@ -262,7 +261,6 @@ Application::~Application()
     glDeleteProgram(glObjects.shader);
     glDeleteVertexArrays(1, &glObjects.vao);
     glDeleteBuffers(1, &glObjects.vbo);
-    glDeleteBuffers(1, &glObjects.ibo);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
