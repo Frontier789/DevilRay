@@ -44,12 +44,18 @@ void runEventLoop(Application &app, DrawCallback drawCallback)
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
+        ImGui::SetNextWindowSize(ImVec2(300, 400), ImGuiCond_FirstUseEver);
+        ImGui::Begin("Controls");
+
         if (ImGui::IsKeyPressed(ImGuiKey_Q) && !ImGui::GetIO().WantTextInput)
             glfwSetWindowShouldClose(app.window, true);
+
 
         ImGui::Text("%s", fpsString.c_str());
 
         drawCallback();
+
+        ImGui::End();
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
