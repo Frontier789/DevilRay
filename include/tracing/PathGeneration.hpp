@@ -261,16 +261,20 @@ HD LightSample samplePointOnLights(
 
     const auto p = uniformTriangleSample(A, B, C, rng);
 
-    const auto perp = (A-B).cross(A-C);
+    const auto Aw = A * object.s;
+    const auto Bw = B * object.s;
+    const auto Cw = C * object.s;
+
+    const auto perp = (Aw - Bw).cross(Aw - Cw);
     const auto perp_length = perp.length();
     const auto n = perp / perp_length;
-    const auto triangle_area = perp_length / 2.0f;
+    const auto world_triangle_area = perp_length / 2.0f;
 
     return LightSample{
         .p = p * object.s + object.p,
         .n = n,
         .mat = mat,
-        .pdf = object_pdf * triangle_pdf / triangle_area,
+        .pdf = object_pdf * triangle_pdf / world_triangle_area,
     };
 }
 
@@ -299,6 +303,68 @@ HD void sampleColorDebug(
     
     const auto &material = materials[mat];
     pixel = pixel + checkerPattern(uv, 7) * getDebugColor(material);
+}
+
+struct MisPdfs {
+    float bsdf_pdf;
+    float nee_pdf;
+};
+
+inline HD Vec4 misWeightedEmission(
+    const Vec4 &emission,
+    const Vec4 &throughput,
+    bool prev_bounce_specular,
+    MisPdfs path_pdfs)
+{
+    if (prev_bounce_specular) {
+        return emission * throughput;
+    } else if (path_pdfs.bsdf_pdf + path_pdfs.nee_pdf > 0) {
+        return emission * throughput * powerHeuristic(path_pdfs.bsdf_pdf, path_pdfs.nee_pdf);
+    }
+    return Vec4{0,0,0,0};
+}
+
+inline HD MisPdfs computeNextBounceMisPdfs(
+    const PathEntry &vertex,
+    const PathEntry &next_vertex,
+    std::span<const Material> materials,
+    const ObjectsInfo &info)
+{
+    const float bsdf_pdf = cosineWeightedHemispherePdf(vertex.p, next_vertex.p, vertex.n);
+
+    const auto &next_material = materials[next_vertex.mat];
+    const auto next_radiant_exitance = luminance(radiantExitance(next_material));
+    const auto pdf_nee_area = next_radiant_exitance / info.total_radiant_power;
+    const float nee_pdf = pdf_nee_area * areaToSolidAngle(vertex.p, next_vertex.p, next_vertex.n);
+
+    return {bsdf_pdf, nee_pdf};
+}
+
+inline HD Vec4 evaluateDirectLighting(
+    const Vec3 &surface_pos,
+    const Vec3 &surface_normal,
+    const Vec4 &diffuse_reflectance,
+    const LightSample &light_sample,
+    const Vec4 &light_emission,
+    std::span<const TriangleMesh> objects,
+    const ObjectsInfo &info)
+{
+    if (!visible(surface_pos, light_sample.p, objects, info))
+        return Vec4{0,0,0,0};
+
+    const auto distance = (light_sample.p - surface_pos).length();
+    const auto w_light = (light_sample.p - surface_pos) / distance;
+
+    const auto brdf = diffuse_reflectance / pi;
+
+    const auto cos_at_surface = w_light.dot(surface_normal);
+    const auto cos_at_light   = w_light.dot(light_sample.n);
+
+    if (cos_at_surface <= 0)
+        return Vec4{0,0,0,0};
+
+    const auto geometric_term = cos_at_surface * std::abs(cos_at_light) / (distance * distance);
+    return light_emission * brdf * geometric_term / light_sample.pdf;
 }
 
 template<typename Rng>
@@ -396,8 +462,10 @@ HD void sampleColor(
         Vec4 color{0,0,0,0};
         bool prev_bounce_specular = true;
 
-        float path_bsdf_pdf = 0;
-        float path_nee_pdf = 0; 
+        auto path_pdfs = MisPdfs{
+            .bsdf_pdf = 0,
+            .nee_pdf = 0,
+        };
 
         for (PathEntry *vertex = path; vertex!=path_end; ++vertex)
         {
@@ -414,56 +482,33 @@ HD void sampleColor(
             // MIS
             if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material)) {
 
-                const auto Le_sruface = diffuse_material->emission;
+                color = color + misWeightedEmission(
+                    diffuse_material->emission, vertex->total_throughput,
+                    prev_bounce_specular, path_pdfs
+                );
 
-                if (prev_bounce_specular) {
-                    color = color + Le_sruface * vertex->total_throughput;
-                } else if (path_bsdf_pdf + path_nee_pdf > 0) {
-                    auto mis_weight = powerHeuristic(path_bsdf_pdf, path_nee_pdf);
-                    color = color + Le_sruface * vertex->total_throughput * mis_weight;
+                path_pdfs = MisPdfs{
+                    .bsdf_pdf = 0,
+                    .nee_pdf = 0,
+                };
+
+                if (next_vertex != path_end) {
+                    path_pdfs = computeNextBounceMisPdfs(*vertex, *next_vertex, materials, info);
                 }
-
-                path_bsdf_pdf = 0;
-                path_nee_pdf = 0;
-
-                if (next_vertex != path_end)
-                {
-                    path_bsdf_pdf = cosineWeightedHemispherePdf(vertex->p, next_vertex->p, vertex->n);
-
-                    const auto &next_material = materials[next_vertex->mat];
-                    const auto next_radiant_exitance = luminance(radiantExitance(next_material));
-                    const auto pdf_nee_area = next_radiant_exitance / info.total_radiant_power;
-                    path_nee_pdf = pdf_nee_area * areaToSolidAngle(vertex->p, next_vertex->p, next_vertex->n);
-                }
-
-                Vec4 Ld_nee{0,0,0,0};
 
                 LightSample light_sample = samplePointOnLights(objects, light_table, rng);
                 const auto *light_material = std::get_if<DiffuseMaterial>(&materials[light_sample.mat]);
-            
+
                 const auto nee_pdf_bsdf = cosineWeightedHemispherePdf(vertex->p, light_sample.p, vertex->n);
                 const auto nee_pdf_nee = light_sample.pdf * areaToSolidAngle(vertex->p, light_sample.p, light_sample.n);
 
-                if (visible(vertex->p, light_sample.p, objects, info)) {
-                    const auto distance = (light_sample.p - vertex->p).length();
-                    const auto w_light = (light_sample.p - vertex->p) / distance;
-
-                    const auto brdf = diffuse_material->diffuse_reflectance / pi;
-
-                    const auto cos_at_surface = w_light.dot(vertex->n);
-                    const auto cos_at_light   = w_light.dot(light_sample.n);
-                    
-                    if (cos_at_surface > 0) {
-                        const auto geometric_term = cos_at_surface * std::abs(cos_at_light) / (distance * distance);
-
-                        const auto Le_light = light_material->emission;
-                        Ld_nee = Le_light * brdf * geometric_term / light_sample.pdf;
-                    }
-                }
+                const auto Ld_nee = evaluateDirectLighting(
+                    vertex->p, vertex->n, diffuse_material->diffuse_reflectance,
+                    light_sample, light_material->emission, objects, info);
 
                 if (nee_pdf_nee + nee_pdf_bsdf > 0)
                     color = color + Ld_nee * vertex->total_throughput * powerHeuristic(nee_pdf_nee, nee_pdf_bsdf);
- 
+
                 prev_bounce_specular = false;
             }
             else if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {

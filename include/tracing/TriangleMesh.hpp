@@ -17,6 +17,7 @@ struct TriangleMesh
     
     AliasEntry *tris_sampler;
     float surface_area;
+    float base_surface_area;
 
     void setPosition(const Vec3 &pos);
     void setScale(const Vec3 &scale);

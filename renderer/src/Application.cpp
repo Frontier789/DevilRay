@@ -125,7 +125,7 @@ void Application::loadMeshes()
     {
         const int N = 3;
         const float totalSize = 0.5f;
-        const float padding = 0.0005f;
+        const float padding = totalSize / (N - 1) - 0.1f;
         const float tileSize = (totalSize - (N - 1) * padding) / N;
 
         Mesh mesh;

@@ -100,5 +100,7 @@ void TriangleMesh::setScale(const Vec3 &scale)
 {
     this->s = scale;
 
-    // TODO: scale surface area
+    const float vol = scale.x * scale.y * scale.z;
+    const float area_factor = std::cbrt(vol * vol);
+    this->surface_area = this->base_surface_area * area_factor;
 }

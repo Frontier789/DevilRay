@@ -70,7 +70,8 @@ TriangleMesh viewGpuTris(GpuTris &tris)
     obj.p = Vec3{};
     obj.s = Vec3{1,1,1};
     obj.tris_count = tris.triangles.size();
-    obj.surface_area = totalSurfaceArea(tris);
+    obj.base_surface_area = totalSurfaceArea(tris);
+    obj.surface_area = obj.base_surface_area;
 
     return obj;
 }
