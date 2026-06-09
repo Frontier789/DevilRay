@@ -181,18 +181,19 @@ static void appendBboxLineVerts(const AABB &bbox, std::vector<Vec3> &vertices)
 
 void Application::updateBoundingBoxMesh()
 {
-    AABB bbox = AABB::empty();
+    std::vector<Vec3> lineVerts;
 
     for (const auto &tri : mesh.triangles)
     {
+        AABB bbox = AABB::empty();
         for (const Vertex &v : {tri.a, tri.b, tri.c})
             bbox = bbox.extend(mesh.points[v.pi]);
+        appendBboxLineVerts(bbox, lineVerts);
     }
 
-    std::vector<Vec3> lineVerts;
-    appendBboxLineVerts(bbox, lineVerts);
-
     glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
+    std::cout << "INFO: bounding box mesh has " << glObjects.bboxVertexCount << " vertices" << std::endl;
+
     glNamedBufferData(glObjects.bboxVbo, lineVerts.size() * sizeof(Vec3), lineVerts.data(), GL_STATIC_DRAW);
 
     glBindVertexArray(glObjects.bboxVao);
