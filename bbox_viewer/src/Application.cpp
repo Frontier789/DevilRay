@@ -134,14 +134,14 @@ void Application::uploadMeshToGpu()
     }
 
     glNamedBufferData(
-        glObjects.vbo,
+        glObjects.meshVbo,
         vertices.size() * sizeof(GPUVertex),
         vertices.data(),
         GL_STATIC_DRAW
     );
 
-    glBindVertexArray(glObjects.vao);
-    glBindBuffer(GL_ARRAY_BUFFER, glObjects.vbo);
+    glBindVertexArray(glObjects.meshVao);
+    glBindBuffer(GL_ARRAY_BUFFER, glObjects.meshVbo);
 
     glEnableVertexAttribArray(0);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, position));
@@ -152,14 +152,67 @@ void Application::uploadMeshToGpu()
     glBindVertexArray(0);
 }
 
+static void appendBboxLineVerts(const AABB &bbox, std::vector<Vec3> &vertices)
+{
+    const Vec3 &lo = bbox.min;
+    const Vec3 &hi = bbox.max;
+
+    const Vec3 corners[8] = {
+        {lo.x, lo.y, lo.z}, {hi.x, lo.y, lo.z},
+        {hi.x, hi.y, lo.z}, {lo.x, hi.y, lo.z},
+        {lo.x, lo.y, hi.z}, {hi.x, lo.y, hi.z},
+        {hi.x, hi.y, hi.z}, {lo.x, hi.y, hi.z},
+    };
+
+    const Vec3 edges[24] = {
+        // bottom face
+        corners[0], corners[1],  corners[1], corners[2],
+        corners[2], corners[3],  corners[3], corners[0],
+        // top face
+        corners[4], corners[5],  corners[5], corners[6],
+        corners[6], corners[7],  corners[7], corners[4],
+        // vertical edges
+        corners[0], corners[4],  corners[1], corners[5],
+        corners[2], corners[6],  corners[3], corners[7],
+    };
+
+    vertices.insert(vertices.end(), std::begin(edges), std::end(edges));
+}
+
+void Application::updateBoundingBoxMesh()
+{
+    AABB bbox = AABB::empty();
+
+    for (const auto &tri : mesh.triangles)
+    {
+        for (const Vertex &v : {tri.a, tri.b, tri.c})
+            bbox = bbox.extend(mesh.points[v.pi]);
+    }
+
+    std::vector<Vec3> lineVerts;
+    appendBboxLineVerts(bbox, lineVerts);
+
+    glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
+    glNamedBufferData(glObjects.bboxVbo, lineVerts.size() * sizeof(Vec3), lineVerts.data(), GL_STATIC_DRAW);
+
+    glBindVertexArray(glObjects.bboxVao);
+    glBindBuffer(GL_ARRAY_BUFFER, glObjects.bboxVbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vec3), (void*)0);
+    glBindVertexArray(0);
+}
+
 void Application::createOpenGLObjects()
 {
     std::cout << "TRACE: createOpenGLObjects" << std::endl;
 
-    glObjects.shader = createShaderProgram(passthroughVertexShader, passthroughFragmentShader);
-    
-    glCreateBuffers(1, &glObjects.vbo);
-    glGenVertexArrays(1, &glObjects.vao);
+    glObjects.meshShader = createShaderProgram(passthroughVertexShader, passthroughFragmentShader);
+    glCreateBuffers(1, &glObjects.meshVbo);
+    glGenVertexArrays(1, &glObjects.meshVao);
+
+    glObjects.bboxShader = createShaderProgram(solidColorVertexShader, solidColorFragmentShader);
+    glCreateBuffers(1, &glObjects.bboxVbo);
+    glGenVertexArrays(1, &glObjects.bboxVao);
 }
 
 Matrix4x4f Application::perspectiveMatrix(float fovDeg, float aspect, float near, float far)
@@ -193,11 +246,17 @@ void Application::renderCurrentFrame()
 
     const Matrix4x4f mvp = proj * cameraController.getViewMatrix();
 
-    glUseProgram(glObjects.shader);
+    glUseProgram(glObjects.meshShader);
     glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
-
-    glBindVertexArray(glObjects.vao);
+    glBindVertexArray(glObjects.meshVao);
     glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mesh.triangles.size() * 3));
+    glBindVertexArray(0);
+
+    glUseProgram(glObjects.bboxShader);
+    glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
+    glUniform4f(1, 1.0f, 0.75f, 0.2f, 1.0f);
+    glBindVertexArray(glObjects.bboxVao);
+    glDrawArrays(GL_LINES, 0, glObjects.bboxVertexCount);
     glBindVertexArray(0);
 }
 
@@ -254,13 +313,18 @@ Application::Application()
     initUiHandler();
     loadMesh();
     uploadMeshToGpu();
+    updateBoundingBoxMesh();
 }
 
 Application::~Application()
 {
-    glDeleteProgram(glObjects.shader);
-    glDeleteVertexArrays(1, &glObjects.vao);
-    glDeleteBuffers(1, &glObjects.vbo);
+    glDeleteProgram(glObjects.meshShader);
+    glDeleteVertexArrays(1, &glObjects.meshVao);
+    glDeleteBuffers(1, &glObjects.meshVbo);
+
+    glDeleteProgram(glObjects.bboxShader);
+    glDeleteVertexArrays(1, &glObjects.bboxVao);
+    glDeleteBuffers(1, &glObjects.bboxVbo);
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();

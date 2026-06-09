@@ -13,9 +13,14 @@
 
 struct OGLObjects
 {
-    GLuint shader;
-    GLuint vbo;
-    GLuint vao;
+    GLuint meshShader;
+    GLuint meshVbo;
+    GLuint meshVao;
+
+    GLuint bboxShader;
+    GLuint bboxVbo;
+    GLuint bboxVao;
+    GLsizei bboxVertexCount = 0;
 };
 
 struct UiHandler
@@ -56,6 +61,7 @@ private:
     void createOpenGLObjects();
     void initCameraController();
     void initUiHandler();
+    void updateBoundingBoxMesh();
 
     void handleCameraControl();
 

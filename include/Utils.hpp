@@ -185,6 +185,38 @@ struct Size2
 using Size2i = Size2<int>;
 using Size2f = Size2<float>;
 
+#ifdef min
+#undef min
+#endif
+
+#ifdef max
+#undef max
+#endif
+struct AABB
+{
+    Vec3 min;
+    Vec3 max;
+
+    static constexpr AABB empty() {
+        const auto float_max = std::numeric_limits<float>::max();
+        return AABB{.min=Vec3{float_max, float_max, float_max}, .max=Vec3{-float_max, -float_max, -float_max}};
+    }
+
+    constexpr AABB extend(const Vec3 &p) const {
+        AABB box = *this;
+
+        box.min.x = std::min(box.min.x, p.x);
+        box.min.y = std::min(box.min.y, p.y);
+        box.min.z = std::min(box.min.z, p.z);
+
+        box.max.x = std::max(box.max.x, p.x);
+        box.max.y = std::max(box.max.y, p.y);
+        box.max.z = std::max(box.max.z, p.z);
+
+        return box;
+    }
+};
+
 inline constexpr float dot(const Vec3 &a, const Vec3 &b)
 {
     return a.x * b.x + a.y * b.y + a.z * b.z;
