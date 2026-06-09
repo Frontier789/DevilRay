@@ -31,7 +31,7 @@ struct UiHandler
 
 struct Application
 {
-    static constexpr Size2i resolution{640, 640};
+    static constexpr Size2i resolution{1024, 768};
 
     static constexpr float focalLengthMm     = 50.0f;
     static constexpr float physicalPixelSize = 100e-6f;
