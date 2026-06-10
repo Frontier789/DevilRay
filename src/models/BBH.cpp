@@ -1,0 +1,104 @@
+#include "models/BBH.hpp"
+
+#include <span>
+#include <iostream>
+
+namespace 
+{
+    AABB findBoundingBox(const std::span<const Triangle> triangles, const Mesh &mesh)
+    {
+        AABB bbox = AABB::empty();
+    
+        for (const auto &tri : triangles)
+        {
+            for (const Vertex &v : {tri.a, tri.b, tri.c})
+                bbox = bbox.extend(mesh.points[v.pi]);
+        }
+    
+        return bbox;
+    }
+
+    float maxExtentAlong(const Triangle &tri, const Vec3 &direction, const Mesh &mesh)
+    {
+        const auto A = mesh.points[tri.a.pi];
+        const auto B = mesh.points[tri.b.pi];
+        const auto C = mesh.points[tri.c.pi];
+
+        const auto A_extent = A.dot(direction);
+        const auto B_extent = B.dot(direction);
+        const auto C_extent = C.dot(direction);
+
+        return std::max(A_extent, std::max(B_extent, C_extent));
+    }
+
+    int generateBBHLayer(std::vector<BBHNode> &nodes,
+                         std::vector<Triangle> &triangles,
+                         int tris_begin, int tris_end,
+                         int depth,
+                         const Mesh &mesh)
+    {
+        if (tris_end - tris_begin < 1) return -1;
+
+        const auto parent_bbox = findBoundingBox(std::span{triangles}.subspan(tris_begin, tris_end - tris_begin), mesh);
+        const auto parent_index = static_cast<int>(nodes.size());
+
+        nodes.push_back(BBHNode{
+            .box = parent_bbox,
+            .left_child = -1,
+            .right_child = -1,
+        });
+
+        const auto direction = Vec3(depth%3 == 0, depth%3 == 1, depth%3 == 2);
+
+        std::sort(triangles.begin() + tris_begin, triangles.begin() + tris_end, [direction, &mesh](const Triangle &tri1, const Triangle &tri2){
+            return maxExtentAlong(tri1, direction, mesh) < maxExtentAlong(tri2, direction, mesh);
+        });
+
+        const auto tris_mid = (tris_begin + tris_end) / 2;
+
+        if (tris_mid - tris_begin > 1) {
+            const auto left_child_index = generateBBHLayer(nodes, triangles, tris_begin, tris_mid, depth+1, mesh);
+            nodes[parent_index].left_child = left_child_index;
+        }
+
+        if (tris_end - tris_mid > 1) {
+            const auto right_child_index = generateBBHLayer(nodes, triangles, tris_mid, tris_end, depth+1, mesh);
+            nodes[parent_index].right_child = right_child_index;
+        }
+
+        return parent_index;
+    }
+
+    int findBBHDepth(const BBHNode &node, const std::vector<BBHNode> &all_nodes)
+    {
+        int depth = 1;
+
+        if (node.left_child != -1) {
+            depth = std::max(depth,
+                1+findBBHDepth(all_nodes[node.left_child], all_nodes)
+            );
+        }
+
+        if (node.right_child != -1) {
+            depth = std::max(depth,
+                1+findBBHDepth(all_nodes[node.right_child], all_nodes)
+            );
+        }
+
+        return depth;
+    }
+}
+
+BBH generateSimpleBBH(const Mesh &mesh)
+{
+    std::vector<BBHNode> nodes;
+
+    auto sorted_triangles = mesh.triangles;
+
+    generateBBHLayer(nodes, sorted_triangles, 0, sorted_triangles.size(), 0, mesh);
+
+    return BBH{
+        .depth = findBBHDepth(nodes[0], nodes),
+        .nodes = nodes,
+    };
+}

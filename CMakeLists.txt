@@ -48,6 +48,7 @@ add_library(${PROJECT_NAME}
             src/Scene.cpp
             src/GpuTris.cpp
             src/models/Mesh.cpp
+            src/models/BBH.cpp
             src/device/implementation.cu
             src/device/DevUtils.cu
             src/device/Array.cu

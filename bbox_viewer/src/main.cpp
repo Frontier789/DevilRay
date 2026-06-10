@@ -78,6 +78,7 @@ int main() {
 
     try {
         runEventLoop(app, [&]{
+            app.drawUiElements();
             app.handleUiEvents();
             
             app.renderCurrentFrame();

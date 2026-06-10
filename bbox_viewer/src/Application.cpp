@@ -13,6 +13,7 @@
 #include "Application.hpp"
 #include "Utils.hpp"
 #include "Shaders.hpp"
+#include <models/BBH.hpp>
 
 void glfwErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;
@@ -112,19 +113,22 @@ void Application::loadMesh()
     const std::string mesh_file = "models/suzanne.obj";
 
     this->mesh = ::loadMesh(mesh_file);
+    this->bbh = generateSimpleBBH(this->mesh);
     
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
 }
 
-void Application::uploadMeshToGpu()
-{
+namespace {
     struct GPUVertex {
         Vec3 position;
         Vec3 normal;
     };
+}
 
+void Application::uploadMeshToGpu()
+{
     std::vector<GPUVertex> vertices;
     vertices.reserve(mesh.triangles.size() * 3);
     for (const auto &tri : mesh.triangles)
@@ -139,17 +143,6 @@ void Application::uploadMeshToGpu()
         vertices.data(),
         GL_STATIC_DRAW
     );
-
-    glBindVertexArray(glObjects.meshVao);
-    glBindBuffer(GL_ARRAY_BUFFER, glObjects.meshVbo);
-
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, position));
-
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, normal));
-
-    glBindVertexArray(0);
 }
 
 static void appendBboxLineVerts(const AABB &bbox, std::vector<Vec3> &vertices)
@@ -179,28 +172,45 @@ static void appendBboxLineVerts(const AABB &bbox, std::vector<Vec3> &vertices)
     vertices.insert(vertices.end(), std::begin(edges), std::end(edges));
 }
 
+namespace
+{
+    void extractBoxes(std::vector<AABB> &boxes, const BBH &bbh, int current_index, int depth)
+    {
+        const auto &node = bbh.nodes[current_index];
+
+        if (depth == 0)
+        {
+            boxes.push_back(node.box);
+            return;
+        }
+
+        if (node.left_child  != -1) extractBoxes(boxes, bbh, node.left_child,  depth-1);
+        if (node.right_child != -1) extractBoxes(boxes, bbh, node.right_child, depth-1);
+    }
+
+    std::vector<AABB> getBoxesOnDepth(const BBH &bbh, int depth)
+    {
+        std::vector<AABB> boxes;
+
+        extractBoxes(boxes, bbh, 0, depth);
+
+        return boxes;
+    }
+}
+
 void Application::updateBoundingBoxMesh()
 {
     std::vector<Vec3> lineVerts;
 
-    for (const auto &tri : mesh.triangles)
+    for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth))
     {
-        AABB bbox = AABB::empty();
-        for (const Vertex &v : {tri.a, tri.b, tri.c})
-            bbox = bbox.extend(mesh.points[v.pi]);
-        appendBboxLineVerts(bbox, lineVerts);
+        appendBboxLineVerts(box, lineVerts);
     }
 
     glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
     std::cout << "INFO: bounding box mesh has " << glObjects.bboxVertexCount << " vertices" << std::endl;
 
     glNamedBufferData(glObjects.bboxVbo, lineVerts.size() * sizeof(Vec3), lineVerts.data(), GL_STATIC_DRAW);
-
-    glBindVertexArray(glObjects.bboxVao);
-    glBindBuffer(GL_ARRAY_BUFFER, glObjects.bboxVbo);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vec3), (void*)0);
-    glBindVertexArray(0);
 }
 
 void Application::createOpenGLObjects()
@@ -211,9 +221,23 @@ void Application::createOpenGLObjects()
     glCreateBuffers(1, &glObjects.meshVbo);
     glGenVertexArrays(1, &glObjects.meshVao);
 
+    glBindVertexArray(glObjects.meshVao);
+    glBindBuffer(GL_ARRAY_BUFFER, glObjects.meshVbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, position));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(GPUVertex), (void*)offsetof(GPUVertex, normal));
+    glBindVertexArray(0);
+
     glObjects.bboxShader = createShaderProgram(solidColorVertexShader, solidColorFragmentShader);
     glCreateBuffers(1, &glObjects.bboxVbo);
     glGenVertexArrays(1, &glObjects.bboxVao);
+
+    glBindVertexArray(glObjects.bboxVao);
+    glBindBuffer(GL_ARRAY_BUFFER, glObjects.bboxVbo);
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vec3), (void*)0);
+    glBindVertexArray(0);
 }
 
 Matrix4x4f Application::perspectiveMatrix(float fovDeg, float aspect, float near, float far)

@@ -1,5 +1,24 @@
 #include "Application.hpp"
 
+void Application::drawUiElements()
+{
+    const float btnW = ImGui::GetFrameHeight();
+    const float spacing = ImGui::GetStyle().ItemSpacing.x;
+    if (ImGui::Button("-##bbh", ImVec2(btnW, 0)))
+    {
+        if (bbhShowDepth > 0) { bbhShowDepth--; updateBoundingBoxMesh(); }
+    }
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(-(btnW + spacing));
+    if (ImGui::SliderInt("##bbh_depth", &bbhShowDepth, 0, this->bbh.depth, "BBH depth: %d"))
+        updateBoundingBoxMesh();
+    ImGui::SameLine();
+    if (ImGui::Button("+##bbh", ImVec2(btnW, 0)))
+    {
+        if (bbhShowDepth < this->bbh.depth) { bbhShowDepth++; updateBoundingBoxMesh(); }
+    }
+}
+
 void Application::handleUiEvents()
 {
     handleCameraControl();

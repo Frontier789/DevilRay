@@ -2,6 +2,7 @@
 #include "tracing/GpuTris.hpp"
 #include "DebugOptions.hpp"
 #include "tracing/PixelSampling.hpp"
+#include "models/BBH.hpp"
 #include "Renderer.hpp"
 #include "RunningAverage.hpp"
 #include "CameraController.hpp"
@@ -43,14 +44,18 @@ struct Application
     GLFWwindow *window;
 
     Mesh mesh;
+    BBH bbh;
 
     CameraController cameraController;
     UiHandler uiHandler;
     OGLObjects glObjects;
 
+    int bbhShowDepth = 0;
+
     Application();
     ~Application();
 
+    void drawUiElements();
     void handleUiEvents();
     void renderCurrentFrame();
 
