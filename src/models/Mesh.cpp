@@ -134,7 +134,8 @@ Mesh loadMesh(const std::string &fileName)
         std::string tag;
         ss >> tag;
 
-        if (tag == "#") continue;
+        if (tag == "") continue;
+        if (tag[0] == '#') continue;
         if (tag == "mtllib") continue;
         if (tag == "s") continue;
         if (tag == "v") {
@@ -182,4 +183,27 @@ Mesh loadMesh(const std::string &fileName)
     fixVertexIndices(mesh);
 
     return mesh;
+}
+
+void generateCoarseNormals(Mesh &mesh)
+{
+    std::vector<Vec3> new_normals;
+
+    for (auto &tri : mesh.triangles)
+    {
+        const auto A = mesh.points[tri.a.pi];
+        const auto B = mesh.points[tri.b.pi];
+        const auto C = mesh.points[tri.c.pi];
+
+        const auto normal = (A-B).cross(A-C).normalized();
+
+        const auto normal_index = new_normals.size();
+        new_normals.push_back(normal);
+
+        tri.a.ni = normal_index;
+        tri.b.ni = normal_index;
+        tri.c.ni = normal_index;
+    }
+
+    mesh.normals = std::move(new_normals);
 }

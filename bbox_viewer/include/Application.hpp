@@ -22,12 +22,14 @@ struct OGLObjects
     GLuint bboxVbo;
     GLuint bboxVao;
     GLsizei bboxVertexCount = 0;
+    GLsizei bboxUpperVertexCount = 0;
 };
 
 struct UiHandler
 {
     ImVec2 currentMouse = ImVec2(-FLT_MAX,-FLT_MAX);
     bool mouseDown = false;
+    bool showParentBbox = false;
 };
 
 struct Application
@@ -36,7 +38,7 @@ struct Application
 
     static constexpr float focalLengthMm     = 50.0f;
     static constexpr float physicalPixelSize = 100e-6f;
-    static constexpr float initialDistance   = 4.0f;
+    static constexpr float initialDistance   = 2.0f;
 
     static constexpr float nearPlane = 0.1f;
     static constexpr float farPlane  = 100.0f;

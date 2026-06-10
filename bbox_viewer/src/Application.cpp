@@ -106,13 +106,46 @@ void Application::createWindow()
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 }
 
+namespace
+{
+    void normalizeMeshSize(Mesh &mesh)
+    {
+        Vec3 sum{};
+        for (const auto &p : mesh.points) {
+            sum += p;
+        }
+
+        const auto center = sum / static_cast<float>(mesh.points.size());
+
+        Vec3 corner;
+        float object_size = 0;
+
+        for (const auto &p : mesh.points) {
+            const auto distance = (p - center).length();
+
+            if (distance > object_size) {
+                corner = p;
+                object_size = distance;
+            }
+        }
+
+        for (auto &p : mesh.points) {
+            p = (p - center) / object_size;
+        }
+    }
+}
+
 void Application::loadMesh()
 {
     std::cout << "TRACE: loadMesh" << std::endl;
 
-    const std::string mesh_file = "models/suzanne.obj";
+    const std::string mesh_file = "models/bunny.obj";
 
     this->mesh = ::loadMesh(mesh_file);
+
+    generateCoarseNormals(this->mesh);
+    normalizeMeshSize(this->mesh);
+
     this->bbh = generateSimpleBBH(this->mesh);
     
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
@@ -202,13 +235,17 @@ void Application::updateBoundingBoxMesh()
 {
     std::vector<Vec3> lineVerts;
 
-    for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth))
+    if (bbhShowDepth > 0)
     {
-        appendBboxLineVerts(box, lineVerts);
+        for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth - 1))
+            appendBboxLineVerts(box, lineVerts);
     }
+    glObjects.bboxUpperVertexCount = static_cast<GLsizei>(lineVerts.size());
+
+    for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth))
+        appendBboxLineVerts(box, lineVerts);
 
     glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
-    std::cout << "INFO: bounding box mesh has " << glObjects.bboxVertexCount << " vertices" << std::endl;
 
     glNamedBufferData(glObjects.bboxVbo, lineVerts.size() * sizeof(Vec3), lineVerts.data(), GL_STATIC_DRAW);
 }
@@ -279,9 +316,25 @@ void Application::renderCurrentFrame()
 
     glUseProgram(glObjects.bboxShader);
     glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
-    glUniform4f(1, 1.0f, 0.75f, 0.2f, 1.0f);
     glBindVertexArray(glObjects.bboxVao);
-    glDrawArrays(GL_LINES, 0, glObjects.bboxVertexCount);
+
+    if (glObjects.bboxUpperVertexCount > 0 && uiHandler.showParentBbox)
+    {
+        glDepthMask(GL_FALSE);
+
+        glUniform4f(1, 0.3f, 0.3f, 0.3f, 1.0f);
+        glDrawArrays(GL_LINES, 0, glObjects.bboxUpperVertexCount);
+
+        glDepthMask(GL_TRUE);
+    }
+
+    const GLsizei currentCount = glObjects.bboxVertexCount - glObjects.bboxUpperVertexCount;
+    if (currentCount > 0)
+    {
+        glUniform4f(1, 1.0f, 0.75f, 0.2f, 1.0f);
+        glDrawArrays(GL_LINES, glObjects.bboxUpperVertexCount, currentCount);
+    }
+
     glBindVertexArray(0);
 }
 

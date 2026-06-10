@@ -17,6 +17,8 @@ void Application::drawUiElements()
     {
         if (bbhShowDepth < this->bbh.depth) { bbhShowDepth++; updateBoundingBoxMesh(); }
     }
+
+    ImGui::Checkbox("Show parent bbox", &uiHandler.showParentBbox);
 }
 
 void Application::handleUiEvents()

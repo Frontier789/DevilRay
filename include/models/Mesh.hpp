@@ -27,3 +27,4 @@ struct Mesh
 };
 
 Mesh loadMesh(const std::string &fileName);
+void generateCoarseNormals(Mesh &mesh);
