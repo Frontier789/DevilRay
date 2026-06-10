@@ -14,9 +14,7 @@ add_executable(${PROJECT_NAME}
                src/SceneSetup.cpp
                src/Shaders.cpp
                src/UiLayout.cpp
-               src/main.cpp
-               imgui_backend/imgui_impl_glfw.cpp
-               imgui_backend/imgui_impl_opengl3.cpp)
+               src/main.cpp)
 
 target_link_libraries(${PROJECT_NAME}
     glfw
@@ -24,6 +22,7 @@ target_link_libraries(${PROJECT_NAME}
     GLEW::GLEW
     OpenGL
     devil_ray_lib
+    imgui_backends
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)

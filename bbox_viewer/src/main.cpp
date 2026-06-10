@@ -22,7 +22,6 @@
 #include "CameraController.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
-#include "tracing/Objects.hpp"
 #include "tracing/LightSampling.hpp"
 #include "tracing/GpuTris.hpp"
 #include "models/Mesh.hpp"

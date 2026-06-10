@@ -14,6 +14,30 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
 
 find_package(stb REQUIRED)
 
+option(BUILD_RENDERER    "Build the renderer application"    ON)
+option(BUILD_BBOX_VIEWER "Build the bbox viewer application" ON)
+
+if(BUILD_RENDERER OR BUILD_BBOX_VIEWER)
+    find_package(glfw3 REQUIRED)
+    find_package(imgui REQUIRED)
+    find_package(glew REQUIRED)
+
+    # Build the imgui GLFW+OpenGL3 backends once, from the conan package sources.
+    # Both renderer and bbox_viewer link against this instead of keeping local copies.
+    string(TOUPPER "${CMAKE_BUILD_TYPE}" _IMGUI_BUILD_TYPE)
+    if(NOT _IMGUI_BUILD_TYPE)
+        set(_IMGUI_BUILD_TYPE "RELEASE")
+    endif()
+    set(IMGUI_BACKENDS_DIR "${imgui_PACKAGE_FOLDER_${_IMGUI_BUILD_TYPE}}/res/bindings")
+
+    add_library(imgui_backends OBJECT
+        ${IMGUI_BACKENDS_DIR}/imgui_impl_glfw.cpp
+        ${IMGUI_BACKENDS_DIR}/imgui_impl_opengl3.cpp)
+
+    target_include_directories(imgui_backends PUBLIC ${IMGUI_BACKENDS_DIR})
+    target_link_libraries(imgui_backends PUBLIC imgui::imgui glfw GLEW::GLEW OpenGL)
+endif()
+
 add_library(${PROJECT_NAME}
             src/CameraController.cpp
             src/DistributionSamplers.cpp
@@ -39,5 +63,9 @@ target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 enable_testing()
 add_subdirectory(test)
-add_subdirectory(renderer)
-add_subdirectory(bbox_viewer)
+if(BUILD_RENDERER)
+    add_subdirectory(renderer)
+endif()
+if(BUILD_BBOX_VIEWER)
+    add_subdirectory(bbox_viewer)
+endif()
