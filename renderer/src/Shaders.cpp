@@ -44,6 +44,7 @@ GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
 
         std::vector<char> infoLogArr(infoLogLength);
+        
         glGetProgramInfoLog(program, infoLogLength, nullptr, infoLogArr.data());
         std::string infoLog = infoLogArr.data();
         

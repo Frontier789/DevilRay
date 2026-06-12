@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-GpuTris convertMeshToTris(const Mesh &mesh)
+GpuTris convertMeshToTris(const Mesh &mesh, bool generateTriangleSampler)
 {
     std::vector<float> triangleAreas;
     for (const auto &[a,b,c] : mesh.triangles)
@@ -14,12 +14,16 @@ GpuTris convertMeshToTris(const Mesh &mesh)
         triangleAreas.push_back(triangleArea(A, B, C));
     }
 
-    auto triangleSampler = generateAliasTable(triangleAreas);
+    AliasTable triangleSampler;
     
-    std::cout << "Generated alias table for '" << mesh.name << "'" << std::endl;
-    for (const auto e : std::span{triangleSampler.entries.hostPtr(), triangleSampler.entries.size()})
-    {
-        std::cout << "  A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << " pdf_A=" << e.pdf_A << " pdf_B=" << e.pdf_B << std::endl;
+    if (generateTriangleSampler) {
+        triangleSampler = generateAliasTable(triangleAreas);
+        
+        std::cout << "Generated alias table for '" << mesh.name << "'" << std::endl;
+        // for (const auto e : std::span{triangleSampler.entries.hostPtr(), triangleSampler.entries.size()})
+        // {
+        //     std::cout << "  A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << " pdf_A=" << e.pdf_A << " pdf_B=" << e.pdf_B << std::endl;
+        // }
     }
 
     return GpuTris{

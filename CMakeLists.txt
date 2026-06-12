@@ -52,7 +52,8 @@ add_library(${PROJECT_NAME}
             src/device/implementation.cu
             src/device/DevUtils.cu
             src/device/Array.cu
-            src/device/Vector.cu)
+            src/device/Vector.cu
+            src/tracing/TriangleMesh.cpp)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES 89)
 

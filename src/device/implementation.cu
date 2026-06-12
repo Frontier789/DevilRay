@@ -7,75 +7,9 @@
 #include "tracing/TriangleMesh.hpp"
 #include "tracing/PathGeneration.hpp"
 #include "tracing/LightSampling.hpp"
+#include "tracing/IntersectionTestsImpl.hpp"
 
-#include "IntersectionTestsImpl.hpp"
 #include "RendererImpl.hpp"
-
-HD std::optional<Intersection> cast(const Ray &ray, const std::span<const TriangleMesh> objects, const ObjectsInfo &info)
-{
-    std::optional<Intersection> best = std::nullopt;
-
-    for (const auto &mesh : objects)
-    {
-        auto intersection = getIntersection(ray, mesh);
-
-        if (!intersection.has_value()) continue;
-
-        if (!best.has_value() || best->t > intersection->t)
-        {
-            intersection->object = &mesh;
-            best = intersection;
-        }
-    }
-
-    return best;
-}
-
-HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle)
-{
-    if (ray.p.anyNan() || ray.v.anyNan()) return std::nullopt;
-
-    const auto A = triangle.a;
-    const auto B = triangle.b;
-    const auto C = triangle.c;
-
-    const auto n_f = (A - B).cross(A - C);
-    const auto sgn_area2 = n_f.dot(n_f);
-
-    if (sgn_area2 < 1e-14f) return std::nullopt;
-
-    auto n = n_f.normalized();
-
-    auto dp = dot(ray.p - A, n);
-
-    if (dp < 0) {
-        n = n * -1;
-        dp = -dp;
-    }
-
-    // (ray.p - o) . n + ray.v . n * t = 0
-
-    const auto d = -dot(ray.v, n);
-    if (d < 1e-7f) return std::nullopt;
-
-    const float t = dp / d;
-
-    const Vec3 p = ray.p + ray.v * t;
-
-    const auto n_1 = (p - A).cross(C - A);
-    const auto n_2 = (B - A).cross(p - A);
-
-    const auto w_B = n_f.dot(n_1) / sgn_area2;
-    const auto w_C = n_f.dot(n_2) / sgn_area2;
-    const auto w_A = 1 - w_B - w_C;
-
-    if (w_A < 0 || w_B < 0 || w_C < 0) return std::nullopt;
-
-    return TriangleIntersection{
-        .t = t,
-        .bari = Vec3{w_A, w_B, w_C},
-    };
-}
 
 HD Vec4 checkerPattern(
     const Vec2f &uv, 
@@ -89,18 +23,4 @@ HD Vec4 checkerPattern(
     const float checker = checker_x ^ checker_y;
 
     return bright * checker + dark * (1-checker);
-}
-
-void TriangleMesh::setPosition(const Vec3 &pos)
-{
-    this->p = pos;
-}
-
-void TriangleMesh::setScale(const Vec3 &scale)
-{
-    this->s = scale;
-
-    const float vol = scale.x * scale.y * scale.z;
-    const float area_factor = std::cbrt(vol * vol);
-    this->surface_area = this->base_surface_area * area_factor;
 }

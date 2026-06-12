@@ -38,6 +38,8 @@ struct DeviceVector
         if (m_deviceNeedsUpdate) {
             m_device.allocate(sizeof(T) * size());
             updateDeviceData();
+
+            m_deviceNeedsUpdate = false;
         }
     }
 

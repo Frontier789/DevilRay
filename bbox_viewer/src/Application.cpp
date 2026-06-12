@@ -28,7 +28,8 @@ oglErrorCallback(GLenum source,
                  const GLchar* message,
                  const void* userParam )
 {
-    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
+    if (severity == GL_DEBUG_SEVERITY_NOTIFICATION ||
+        type == GL_DEBUG_TYPE_PERFORMANCE)
     {
         return;
     }
@@ -110,24 +111,7 @@ namespace
 {
     void normalizeMeshSize(Mesh &mesh)
     {
-        Vec3 sum{};
-        for (const auto &p : mesh.points) {
-            sum += p;
-        }
-
-        const auto center = sum / static_cast<float>(mesh.points.size());
-
-        Vec3 corner;
-        float object_size = 0;
-
-        for (const auto &p : mesh.points) {
-            const auto distance = (p - center).length();
-
-            if (distance > object_size) {
-                corner = p;
-                object_size = distance;
-            }
-        }
+        const auto [center, object_size] = calculateMeshBounds(mesh);
 
         for (auto &p : mesh.points) {
             p = (p - center) / object_size;
@@ -142,6 +126,12 @@ void Application::loadMesh()
     const std::string mesh_file = "models/bunny.obj";
 
     this->mesh = ::loadMesh(mesh_file);
+
+    bench = BenchmarkGenerator::create(100, mesh);
+    bench.step();
+
+    std::cout << "Ran " << bench.ray_count << " rays, used "
+              << bench.aggregateResults().triangle_tests << " triangle hit tests" << std::endl; 
 
     generateCoarseNormals(this->mesh);
     normalizeMeshSize(this->mesh);

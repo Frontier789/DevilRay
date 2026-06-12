@@ -26,5 +26,12 @@ struct Mesh
     std::string name;
 };
 
+struct MeshBounds
+{
+    Vec3 center;
+    float extent;
+};
+
 Mesh loadMesh(const std::string &fileName);
 void generateCoarseNormals(Mesh &mesh);
+MeshBounds calculateMeshBounds(const Mesh &mesh);

@@ -19,6 +19,9 @@ class MyCudaGuiProjectConan(ConanFile):
         "glew/*:shared": False
     }
 
+    def configure(self):
+        self.settings.compiler.cppstd = "20"
+
     def layout(self):
         cmake_layout(self)
 

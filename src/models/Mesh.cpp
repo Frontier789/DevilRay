@@ -207,3 +207,30 @@ void generateCoarseNormals(Mesh &mesh)
 
     mesh.normals = std::move(new_normals);
 }
+
+MeshBounds calculateMeshBounds(const Mesh &mesh)
+{
+    Vec3 sum{};
+    for (const auto &p : mesh.points) {
+        sum += p;
+    }
+
+    const auto center = sum / static_cast<float>(mesh.points.size());
+
+    Vec3 corner;
+    float object_size = 0;
+
+    for (const auto &p : mesh.points) {
+        const auto distance = (p - center).length();
+
+        if (distance > object_size) {
+            corner = p;
+            object_size = distance;
+        }
+    }
+
+    return MeshBounds{
+        .center = center,
+        .extent = object_size,
+    };
+}

@@ -17,6 +17,6 @@ struct GpuTris
     AliasTable triangleSampler;
 };
 
-GpuTris convertMeshToTris(const Mesh &mesh);
+GpuTris convertMeshToTris(const Mesh &mesh, bool generateTriangleSampler = true);
 GpuTris createQuadMesh(Vec3 center, Vec3 normal, Vec3 right, float size);
 TriangleMesh viewGpuTris(GpuTris &tris);

@@ -2,6 +2,7 @@
 
 #include "Utils.hpp"
 #include "tracing/Material.hpp"
+#include "tracing/Benchmark.hpp"
 
 #include <optional>
 
@@ -19,8 +20,6 @@ struct TriangleVertices
     Vec3 b;
     Vec3 c;
 };
-
-HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle);
 
 struct TriangleHitData
 {
@@ -50,3 +49,8 @@ struct PathEntry
 
     float triangle_area;
 };
+
+HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle);
+
+HD std::optional<Intersection> getIntersection(const Ray &ray, const TriangleMesh &tris);
+HD std::optional<Intersection> getIntersectionBenchmark(const Ray &ray, const TriangleMesh &tris, benchmark::HitTests &benchmark);
