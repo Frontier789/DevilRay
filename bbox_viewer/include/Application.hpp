@@ -74,6 +74,8 @@ private:
 
     void handleCameraControl();
 
+    void addBbhDepth(int delta);
+
     static Matrix4x4f perspectiveMatrix(float fovDeg, float aspect, float near, float far);
 };
 

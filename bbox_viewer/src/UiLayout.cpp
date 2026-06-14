@@ -6,7 +6,7 @@ void Application::drawUiElements()
     const float spacing = ImGui::GetStyle().ItemSpacing.x;
     if (ImGui::Button("-##bbh", ImVec2(btnW, 0)))
     {
-        if (bbhShowDepth > 0) { bbhShowDepth--; updateBoundingBoxMesh(); }
+        addBbhDepth(-1);
     }
     ImGui::SameLine();
     ImGui::SetNextItemWidth(-(btnW + spacing));
@@ -15,7 +15,7 @@ void Application::drawUiElements()
     ImGui::SameLine();
     if (ImGui::Button("+##bbh", ImVec2(btnW, 0)))
     {
-        if (bbhShowDepth < this->bbh.depth) { bbhShowDepth++; updateBoundingBoxMesh(); }
+        addBbhDepth(+1);
     }
 
     ImGui::Checkbox("Show parent bbox", &uiHandler.showParentBbox);
@@ -24,6 +24,19 @@ void Application::drawUiElements()
 void Application::handleUiEvents()
 {
     handleCameraControl();
+}
+
+void Application::addBbhDepth(int delta)
+{
+    int newDepth = bbhShowDepth + delta;
+    if (newDepth < 0) newDepth = 0;
+    if (newDepth > this->bbh.depth) newDepth = this->bbh.depth;
+
+    if (bbhShowDepth != newDepth)
+    {
+        bbhShowDepth = newDepth;
+        updateBoundingBoxMesh();
+    }
 }
 
 void Application::handleCameraControl()
@@ -63,5 +76,15 @@ void Application::handleCameraControl()
     else
     {
         uiHandler.mouseDown = false;
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_KeypadAdd, false))
+    {
+        addBbhDepth(+1);
+    }
+
+    if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_KeypadSubtract, false))
+    {
+        addBbhDepth(-1);
     }
 }

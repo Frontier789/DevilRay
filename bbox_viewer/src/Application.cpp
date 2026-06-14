@@ -128,17 +128,18 @@ void Application::loadMesh()
     this->mesh = ::loadMesh(mesh_file);
 
     std::cout << "== Benchmark Started ==" << std::endl;
+    Timer timer;
 
-    bench = BenchmarkGenerator::create(100, mesh);
+    bench = BenchmarkGenerator::create(500000, mesh);
     bench.step();
 
     const auto benchResults = bench.aggregateResults();
     const auto ray_casts = bench.ray_count;
 
-    std::cout << "== Benchmark Finished ==" << std::endl;
+    std::cout << "== Benchmark Finished in " << timer.elapsed_seconds() << "s ==" << std::endl;
     std::cout << "Number of rays: " << ray_casts << std::endl;
-    std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<float>(ray_casts) << "/ray)" << std::endl;
-    std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<float>(ray_casts) << "/ray)" << std::endl;
+    std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
+    std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
     std::cout << "== Benchmark Reported ==" << std::endl;
 
     generateCoarseNormals(this->mesh);
