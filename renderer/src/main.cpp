@@ -94,7 +94,7 @@ int main() {
     try {
         runEventLoop(app, [&]{
             app.handleUiEvents();
-            
+
             app.presentCurrentImage();
         });
     }

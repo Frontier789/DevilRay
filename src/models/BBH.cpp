@@ -3,18 +3,18 @@
 #include <span>
 #include <iostream>
 
-namespace 
+namespace
 {
     AABB findBoundingBox(const std::span<const Triangle> triangles, const Mesh &mesh)
     {
         AABB bbox = AABB::empty();
-    
+
         for (const auto &tri : triangles)
         {
             for (const Vertex &v : {tri.a, tri.b, tri.c})
                 bbox = bbox.extend(mesh.points[v.pi]);
         }
-    
+
         return bbox;
     }
 

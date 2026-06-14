@@ -29,7 +29,7 @@ template <typename F>
 void parallel_for(int range, const F &func) {
     auto num_threads = std::thread::hardware_concurrency();
     if (num_threads == 0) num_threads = 1;
-    
+
     int chunk_size = (range + num_threads - 1) / num_threads;
 
     std::vector<std::jthread> threads;
@@ -37,7 +37,7 @@ void parallel_for(int range, const F &func) {
     for (int t = 0; t < num_threads; ++t) {
         int start = t * chunk_size;
         int end = std::min(start + chunk_size, range);
-        
+
         threads.emplace_back([start, end, &func]{
             for (int i = start; i < end; ++i) {
                 func(i);
@@ -64,7 +64,7 @@ private:
     int id;
     std::mt19937 generator;
     std::uniform_real_distribution<float> distribution_0_1;
-    
+
     static int id_counter;
 };
 
@@ -151,7 +151,7 @@ struct Vec2
 {
     T x;
     T y;
-    
+
     constexpr Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
     constexpr Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
     constexpr Vec2 operator/(const Vec2 &v) const {return Vec2{x/v.x, y/v.y};}

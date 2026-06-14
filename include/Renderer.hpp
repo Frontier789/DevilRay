@@ -36,7 +36,7 @@ class Renderer
     std::vector<uint32_t> displayPixels;
 
     Scene scene;
-    
+
     CudaRandomStates cuda_randoms;
     RunningAverage renderTimes;
 

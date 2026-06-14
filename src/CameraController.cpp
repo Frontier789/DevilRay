@@ -16,7 +16,7 @@ bool CameraController::isUpsideDown() const
 Vec3 CameraController::right() const {
     const auto f = forward();
     const auto worldUp = Vec3{0.0f, 1.0f, 0.0f};
-    
+
     const auto r = worldUp.cross(f).normalized();
 
     return isUpsideDown() ? r * -1 : r;
@@ -25,7 +25,7 @@ Vec3 CameraController::right() const {
 Vec3 CameraController::up() const {
     const auto f = forward();
     const auto r = right();
-    
+
     const auto u = f.cross(r);
 
     return u;
@@ -92,7 +92,7 @@ void CameraController::handleDrag(Vec2f offset_in_pixels)
 
     const auto offset_on_sensor = offset_in_pixels * px;
     const auto offset_on_target_plane = offset_on_sensor * (d / f);
-    
+
     const auto right = forward().cross(u);
 
     const auto offset_in_space = u * offset_on_target_plane.y + right * offset_on_target_plane.x;

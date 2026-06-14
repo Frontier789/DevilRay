@@ -18,7 +18,7 @@ GLuint compileShader(const char *source, GLenum type)
         std::vector<char> infoLogArr(infoLogLength);
         glGetShaderInfoLog(shader, infoLogLength, nullptr, infoLogArr.data());
         std::string infoLog = infoLogArr.data();
-        
+
         std::cerr << "Failed to compile shader:\n" << infoLog << std::endl;
 
         throw std::runtime_error("Failed to compile shader");
@@ -44,10 +44,10 @@ GLuint createShaderProgram(const char* vertexSource, const char* fragmentSource)
         glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
 
         std::vector<char> infoLogArr(infoLogLength);
-        
+
         glGetProgramInfoLog(program, infoLogLength, nullptr, infoLogArr.data());
         std::string infoLog = infoLogArr.data();
-        
+
         std::cerr << "Failed to link shader:\n" << infoLog << std::endl;
 
         throw std::runtime_error("Failed to link shader");

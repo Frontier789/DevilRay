@@ -24,7 +24,7 @@ HD Ray cameraRay(
     const auto physicalPixelCenter = pixelCenter * cam.physical_pixel_size.toVec() - cam.intrinsics.center;
 
     const auto dir = physicalPixelCenter / cam.intrinsics.focal_length;
-    
+
     const auto v = Vec3{dir.x, dir.y, 1}.normalized();
 
     return Ray{

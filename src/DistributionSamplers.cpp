@@ -19,7 +19,7 @@ namespace
                 .pdf_A = uniformPdf,
                 .pdf_B = 0,
                 .A = i,
-                .B = UNINITIALIZED 
+                .B = UNINITIALIZED
             };
         }
 
@@ -39,7 +39,7 @@ namespace
 AliasTable generateAliasTable(std::span<const float> importances)
 {
     const auto n = importances.size();
-    
+
     std::vector<float> filteredImportances;
     filteredImportances.reserve(n);
     for (const auto &f : importances) filteredImportances.push_back(std::max(0.f, f));
@@ -58,7 +58,7 @@ AliasTable generateAliasTable(std::span<const float> importances)
 
     const auto overfullPrio  = [](const AliasEntry &a, const AliasEntry &b) {return a.p_A < b.p_A;};
     const auto underfullPrio = [](const AliasEntry &a, const AliasEntry &b) {return a.p_A < b.p_A;};
-    
+
     std::priority_queue<AliasEntry, std::vector<AliasEntry>, decltype(overfullPrio)>  overfull(overfullPrio);
     std::priority_queue<AliasEntry, std::vector<AliasEntry>, decltype(underfullPrio)> underfull(underfullPrio);
 
@@ -144,6 +144,6 @@ AliasTable generateAliasTable(std::span<const float> importances)
         else
             entries[i].pdf_B = 0.0f;
     }
-    
+
     return table;
 }

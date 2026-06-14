@@ -76,9 +76,9 @@ void initIMGUI(GLFWwindow *window)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    
+
     ImGui::StyleColorsDark();
-    
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 }
@@ -93,7 +93,7 @@ void Application::createWindow()
         glfwTerminate();
         std::exit(1);
     }
-    
+
     glfwMakeContextCurrent(window);
 
     initGLEW(window);
@@ -106,11 +106,11 @@ void Application::createWindow()
 GpuTris loadMeshAndPrint(const std::string &file)
 {
     auto mesh = loadMesh(file);
-    
+
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
-    
+
     return convertMeshToTris(mesh);
 }
 

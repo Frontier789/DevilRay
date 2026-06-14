@@ -32,10 +32,10 @@ namespace {
             .resolution = resolution,
             .physical_pixel_size = Size2f{physical_pixel_size, physical_pixel_size},
         };
-    
+
         return cam;
     }
-    
+
     std::filesystem::path ensureTestOutputFolder()
     {
         const auto path = std::filesystem::path("test_output");
@@ -51,16 +51,16 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     // 1. Setup Resolution and Camera
     const Size2i resolution{512, 512};
     Renderer renderer(resolution);
-    
+
     // focal_length and pixel_size set to keep FOV simple
-    Camera cam = createCamera(resolution, 50.0f, 0.1f); 
+    Camera cam = createCamera(resolution, 50.0f, 0.1f);
     renderer.setCamera(std::move(cam));
 
     // 2. Setup Scene
     Scene scene;
 
     const double emittance = 0.55;
-    
+
     // Define Materials
     // White Diffuse Material
     const int white_mat_idx = scene.materials.size();
@@ -117,7 +117,7 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
 
     // 5. Verification
     const Vec4* pixels = renderer.getRawPixels();
-    
+
     std::vector<float> intensities;
     intensities.reserve(resolution.area());
 
@@ -169,14 +169,14 @@ TEST(RendererTest, DebugRenderSquare) {
     // 1. Setup Resolution and Camera
     const Size2i resolution{512, 512};
     Renderer renderer(resolution);
-    
+
     // focal_length and pixel_size set to keep FOV simple
-    Camera cam = createCamera(resolution, 50.0f, 0.1f); 
+    Camera cam = createCamera(resolution, 50.0f, 0.1f);
     renderer.setCamera(std::move(cam));
 
     // 2. Setup Scene
     Scene scene;
-    
+
     // Define Materials
     // White Diffuse Material
     const int white_mat_idx = scene.materials.size();
@@ -208,7 +208,7 @@ TEST(RendererTest, DebugRenderSquare) {
 
     const auto outputPath = ensureTestOutputFolder();
     renderer.saveImage(outputPath / "debug_render_1_ray.png");
-    
+
     // 5. Verification
     const uint32_t* pixels = renderer.getPixels();
     for (int i=0;i<resolution.height;++i) {
@@ -218,7 +218,7 @@ TEST(RendererTest, DebugRenderSquare) {
             const auto r = static_cast<float>((px >>  0) & 0xff) / 255.0f;
             const auto g = static_cast<float>((px >>  8) & 0xff) / 255.0f;
             const auto b = static_cast<float>((px >> 16) & 0xff) / 255.0f;
-            
+
             const auto is_rim = i < 6 || j < 6 || i >= resolution.height - 6 || j >= resolution.width - 6;
 
             if (is_rim) {

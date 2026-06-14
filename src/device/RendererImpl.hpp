@@ -43,7 +43,7 @@ __global__ void cuda_render(
     SampleStats stats{.ray_casts = 0};
     sampleColor(Vec2{x, y}, pixels[idx], stats, camera, pixel_sampling, objects, info, materials, light_table, debug, random);
 
-    casts[idx] += stats.ray_casts; 
+    casts[idx] += stats.ray_casts;
 }
 
 void Renderer::schedule_device_render()

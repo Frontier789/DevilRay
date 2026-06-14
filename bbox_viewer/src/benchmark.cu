@@ -90,9 +90,9 @@ __global__ void runRaycasts(
 {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= ray_count) return;
-    
+
     auto rng = CudaRandom{randStates + idx};
-    
+
     const auto pn = uniformSphereSample(rng);
     const auto p = pn * radius + center;
     const auto v = uniformHemisphereSample(pn * -1, rng);

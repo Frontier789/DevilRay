@@ -14,7 +14,7 @@ struct TriangleMesh
     Vec3 s;
     Vec3 p;
     int material;
-    
+
     AliasEntry *tris_sampler;
     float surface_area;
     float base_surface_area;

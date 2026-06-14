@@ -12,9 +12,9 @@
 #include "RendererImpl.hpp"
 
 HD Vec4 checkerPattern(
-    const Vec2f &uv, 
-    const int checker_count, 
-    const Vec4 dark, 
+    const Vec2f &uv,
+    const int checker_count,
+    const Vec4 dark,
     const Vec4 bright
 ){
     const auto checker_x = int(uv.x * checker_count) % 2;

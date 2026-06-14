@@ -69,7 +69,7 @@ void Application::handleCameraControl()
 {
     const auto mouse = ImGui::GetMousePos();
     const auto io = ImGui::GetIO();
-    
+
     if (!ImGui::IsMousePosValid(&mouse)) return;
     if (io.WantCaptureMouse) return;
 
@@ -93,7 +93,7 @@ void Application::handleCameraControl()
             uiHandler.currentMouse = mouse;
 
             const auto pixelOffset = Vec2f{dx, dy};
-            
+
             if (io.KeyShift) {
                 cameraController.handleDrag(pixelOffset / render_scale);
             } else {

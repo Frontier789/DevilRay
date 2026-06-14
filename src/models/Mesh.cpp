@@ -53,7 +53,7 @@ namespace
         if (line.empty()) return;
 
         size_t i = line.size();
-        
+
         while (i > 0 && (line[i-1] == ' ' || line[i-1] == '\t' || line[i-1] == '\n' || line[i-1] == '\r'))
         {
             --i;
@@ -71,7 +71,7 @@ namespace
 
         const int pointCount = m.points.size();
         const int normalCount = m.normals.size();
-        
+
         for (int i=0; i<m.triangles.size(); ++i)
         {
             Triangle &t = m.triangles[i];
@@ -80,7 +80,7 @@ namespace
             {
                 if (v->pi < 0) v->pi = pointCount + v->pi;
                 else v->pi--;
-                
+
                 if (v->ni < 0) v->ni = normalCount + v->ni;
                 else v->ni--;
 
@@ -91,7 +91,7 @@ namespace
                         i, v->pi, pointCount
                     ));
                 }
-                
+
                 if (v->ni < 0 || v->ni >= normalCount)
                 {
                     throw std::runtime_error(std::format(
@@ -150,7 +150,7 @@ Mesh loadMesh(const std::string &fileName)
             Vec3 n;
             ss >> n.x >> n.y >> n.z;
             checkStream(ss);
-            
+
             mesh.normals.push_back(n);
             continue;
         }
@@ -165,7 +165,7 @@ Mesh loadMesh(const std::string &fileName)
 
             while (ss >> indices)
                 verts.push_back(parseVertex(std::move(indices)));
-            
+
             if (verts.size() < 3) continue;
 
             if (verts.size() > 3)

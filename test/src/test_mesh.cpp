@@ -31,10 +31,10 @@ void createObjFile(const std::filesystem::path& file, const std::string& content
 // --- Test Suite ---
 
 TEST(MeshLoaderTest, HandlesFullVertexDefinition) {
-    // Tests the f v/vt/vn format. 
+    // Tests the f v/vt/vn format.
     // Even though Mesh doesn't store vt, the parser must correctly skip it.
     const std::string filename = "full_vertex.obj";
-    const std::string content = 
+    const std::string content =
         "v 0 0 0\n"
         "v 1 0 0\n"
         "v 0 1 0\n"
@@ -58,7 +58,7 @@ TEST(MeshLoaderTest, QuadsThrowError) {
     // A quad (4 vertices) should be split into 2 triangles.
     // f 1 2 3 4 -> (1, 2, 3) and (1, 3, 4)
     const std::string filename = "quad.obj";
-    const std::string content = 
+    const std::string content =
         "v 0 0 0\n"
         "v 1 0 0\n"
         "v 1 1 0\n"
@@ -72,7 +72,7 @@ TEST(MeshLoaderTest, QuadsThrowError) {
 TEST(MeshLoaderTest, NGonsThrow) {
     // A 5-sided polygon should result in 3 triangles.
     const std::string filename = "ngon.obj";
-    const std::string content = 
+    const std::string content =
         "v 0 0 0\n"
         "v 1 0 0\n"
         "v 2 1 0\n"
@@ -89,7 +89,7 @@ TEST(MeshLoaderTest, DiscardsDegenerateFaces) {
     // A "face" with 1 vertex is a point.
     // Your loader should either skip these or handle them without crashing.
     const std::string filename = "degenerate.obj";
-    const std::string content = 
+    const std::string content =
         "v 0 0 0\n"
         "v 1 1 1\n"
         "f 1//1 2//1\n"   // Line
@@ -109,7 +109,7 @@ TEST(MeshLoaderTest, HandlesAllFaceIndexFormats) {
     // 3. v//vn               (Position and Normal, skipping Texture)
     // 4. v/vt/vn             (Position, Texture, and Normal)
     const std::string filename = "index_formats.obj";
-    const std::string content = 
+    const std::string content =
         "v 0 0 0\n"   // Index 1
         "v 1 0 0\n"   // Index 2
         "v 0 1 0\n"   // Index 3
@@ -145,16 +145,16 @@ TEST(MeshLoaderTest, ThrowsOnInvalidContent) {
     const std::vector<std::pair<std::string, std::string>> invalidCases = {
         // 1. Out of range position index (Forward reference)
         {"oob_pos.obj", "v 0 0 0\nf 1 2 3\n"},
-        
+
         // 2. Out of range normal index
         {"oob_norm.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nvn 0 0 1\nf 1//5 2//5 3//5\n"},
-        
+
         // 3. Invalid numeric data (Garbage string)
         {"bad_coords.obj", "v 0.0 apple 1.0\n"},
-        
+
         // 4. Malformed face format (Too many slashes)
         {"bad_face_syntax.obj", "v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1///1 2///1 3///1\n"},
-        
+
         // 5. Zero index (Invalid in OBJ)
         {"zero_index.obj", "v 0 0 0\nf 0 0 0\n"},
 
@@ -170,7 +170,7 @@ TEST(MeshLoaderTest, ThrowsOnInvalidContent) {
 
     for (const auto& [filename, content] : invalidCases) {
         createObjFile(output_folder / filename, content);
-        
+
         // Expecting the loader to validate bounds/syntax and throw
         EXPECT_THROW(loadMesh(output_folder / filename), std::exception)
             << "Failed to throw runtime_error for case: " << filename;

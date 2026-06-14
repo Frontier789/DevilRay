@@ -40,9 +40,9 @@ RandomPool &RandomPool::singleton()
 
 
 std::ostream &operator<<(std::ostream &os, const ColorRGBA8 &color) {
-    os << "(" << static_cast<int>(color.r) << ", " 
-       << static_cast<int>(color.g) << ", " 
-       << static_cast<int>(color.b) << ", " 
+    os << "(" << static_cast<int>(color.r) << ", "
+       << static_cast<int>(color.g) << ", "
+       << static_cast<int>(color.b) << ", "
        << static_cast<int>(color.a) << ")";
     return os;
 }

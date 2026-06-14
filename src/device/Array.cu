@@ -11,7 +11,7 @@ DeviceArray<T>::DeviceArray(int N, const T &initValue)
     , m_host(new T[std::max(N, 1)])
     , m_device(nullptr)
 {
-    
+
 }
 
 template<typename T>

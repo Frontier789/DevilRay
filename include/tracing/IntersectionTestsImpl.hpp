@@ -28,7 +28,7 @@ HD std::optional<Intersection> getIntersectionImpl(const Ray &ray, const Triangl
 
         benchmark.registerTriangleTest();
         const auto intersection = testTriangleIntersection(ray, triangle);
-        
+
         if (!intersection.has_value()) continue;
 
         if (!best.has_value() || best->t > intersection->t)

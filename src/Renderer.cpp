@@ -44,7 +44,7 @@ Renderer::Renderer(Size2i resolution)
     , output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
     , renderTimes(20)
 {
-    
+
 }
 
 void Renderer::createPixels()
@@ -116,7 +116,7 @@ void Renderer::calculateLightWeights()
     const auto N = scene.objects.size();
 
     std::vector<float> weights(N, 0);
-    
+
     float total_radiant_power = 0.0f;
 
     for (size_t i=0;i<N;++i)
@@ -134,7 +134,7 @@ void Renderer::calculateLightWeights()
     for (size_t i=0;i<N;++i)
     {
         weights[i] /= total_radiant_power;
-        
+
         std::cout << "  Object #" << i << ": " << weights[i] << std::endl;
     }
 

@@ -28,19 +28,19 @@ HD std::optional<Intersection> cast(
 );
 
 HD Vec4 checkerPattern(
-    const Vec2f &uv, 
-    const int checker_count, 
-    const Vec4 dark, 
+    const Vec2f &uv,
+    const int checker_count,
+    const Vec4 dark,
     const Vec4 bright
 );
 
 inline HD Vec4 checkerPattern(
-    const Vec2f &uv, 
+    const Vec2f &uv,
     const int checker_count
 )
 {
-    return checkerPattern(uv, checker_count, 
-        Vec4{0.5,0.5,0.5,0}, 
+    return checkerPattern(uv, checker_count,
+        Vec4{0.5,0.5,0.5,0},
         Vec4{0.8,0.8,0.8,0}
     );
 }
@@ -150,7 +150,7 @@ HD void generateNewRay(
         // leaving last object
         if (obj_stack.isTop(intersection.object)) {
             n1 = transparent_material->inside_medium.ior;
-            
+
             obj_stack.pop();
 
             if (obj_stack.empty()) {
@@ -187,7 +187,7 @@ HD void generateNewRay(
         else
         {
             const auto F = schlick(-d, n1, n2);
-            
+
             // Fresnel reflection
             if (rng.rnd() < F)
             {
@@ -202,7 +202,6 @@ HD void generateNewRay(
                 }
 
                 normal = normal * -1;
-                
                 const float dotp = -d;
                 v = normal * (std::sqrt(k) - dotp * eta) + ray.v * eta;
             }
@@ -300,7 +299,7 @@ HD void sampleColorDebug(
     const auto uv = intersection->uv;
 
     pixel.w++;
-    
+
     const auto &material = materials[mat];
     pixel = pixel + checkerPattern(uv, 7) * getDebugColor(material);
 }
@@ -377,7 +376,7 @@ HD void sampleColor(
     std::span<const TriangleMesh> objects,
     const ObjectsInfo &info,
     std::span<const Material> materials,
-    std::span<const AliasEntry> light_table, 
+    std::span<const AliasEntry> light_table,
     DebugOptions debug,
     Rng &rng)
 {
@@ -389,7 +388,7 @@ HD void sampleColor(
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();
-    
+
     for (int i=0;i<iterations;++i) {
         auto path_end = path;
 
@@ -428,7 +427,7 @@ HD void sampleColor(
                             break;
                     }
                 }
-        
+
                 pixel.w++;
                 pixel = pixel + color;
 
@@ -454,7 +453,7 @@ HD void sampleColor(
             }
         }
 
-        // printf("Light sample: p=%f,%f,%f e=%f,%f,%f\n", 
+        // printf("Light sample: p=%f,%f,%f e=%f,%f,%f\n",
         //     light_sample.p.x, light_sample.p.y, light_sample.p.z,
         //     light_material->emission.x, light_material->emission.y, light_material->emission.z
         // );

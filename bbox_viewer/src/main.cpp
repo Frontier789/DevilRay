@@ -80,7 +80,7 @@ int main() {
         runEventLoop(app, [&]{
             app.drawUiElements();
             app.handleUiEvents();
-            
+
             app.renderCurrentFrame();
         });
     }

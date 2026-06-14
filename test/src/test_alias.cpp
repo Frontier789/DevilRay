@@ -32,7 +32,7 @@ namespace {
 
         for (size_t j = 0; j < N; ++j) {
             const auto& entry = entries[j];
-            
+
             // Probability of picking this slot is 1/N
             double slot_prob = 1.0 / static_cast<double>(N);
 
@@ -49,7 +49,7 @@ namespace {
 
         // 3. Compare
         for (size_t i = 0; i < N; ++i) {
-            EXPECT_NEAR(actual_probs[i], expected_probs[i], tolerance) 
+            EXPECT_NEAR(actual_probs[i], expected_probs[i], tolerance)
                 << "Mismatch for index " << i << " with input weight " << input[i];
         }
     }
@@ -71,7 +71,7 @@ TEST(AliasTableGen, SingleElement) {
     AliasTable table = generateAliasTable(input);
 
     ASSERT_EQ(table.entries.size(), 1);
-    
+
     // With one element, p_A must be 1.0 (always pick A)
     // B is irrelevant, but p_A should ensure we never check B
     EXPECT_FLOAT_EQ(table.entries.hostPtr()[0].p_A, 1.0f);
@@ -80,7 +80,7 @@ TEST(AliasTableGen, SingleElement) {
 
 TEST(AliasTableGen, UniformDistribution) {
     // 3 elements with equal weight
-    std::vector<float> input = {10.f, 10.f, 10.f}; 
+    std::vector<float> input = {10.f, 10.f, 10.f};
     AliasTable table = generateAliasTable(input);
 
     ASSERT_EQ(table.entries.size(), 3);
@@ -91,7 +91,7 @@ TEST(AliasTableGen, UniformDistribution) {
         EXPECT_FLOAT_EQ(table.entries.hostPtr()[i].p_A, 1.0f);
         EXPECT_EQ(table.entries.hostPtr()[i].A, i);
     }
-    
+
     VerifyTableFidelity(input, table);
 }
 
@@ -119,7 +119,7 @@ TEST(AliasTableGen, ZeroImportanceSum_ReturnsUniform) {
     // Input is all zeros
     std::vector<float> input = {0.0f, 0.0f, 0.0f, 0.0f};
     AliasTable table = generateAliasTable(input);
-    
+
     ASSERT_EQ(table.entries.size(), 4);
 
     const auto* ptr = table.entries.hostPtr();
@@ -137,7 +137,7 @@ TEST(AliasTableGen, NegativeValues) {
     // If the implementation doesn't filter negatives, it produces undefined probabilities.
     // This test ensures stability (no infinite loops/crashes).
     std::vector<float> input = {-5.0f, 10.0f};
-    
+
     // Just checking it doesn't crash
     EXPECT_NO_FATAL_FAILURE(generateAliasTable(input));
 }
@@ -154,16 +154,16 @@ TEST(AliasTableGen, ManyItems) {
 }
 
 TEST(AliasTableGen, FloatingPointPrecisionStub) {
-    // Test a case that typically causes "overfull" bucket leakage 
+    // Test a case that typically causes "overfull" bucket leakage
     // if accumulation uses integers or precision is handled poorly.
     // 1/3 cannot be represented perfectly in float.
-    std::vector<float> input = {1.0f, 1.0f, 1.0f}; 
+    std::vector<float> input = {1.0f, 1.0f, 1.0f};
     // Perturb slightly
     input[0] += 0.00001f;
     input[1] -= 0.00001f;
 
     AliasTable table = generateAliasTable(input);
-    
+
     // Ensure the last residuals were forced to 1.0f to prevent
     // accessing uninitialized 'B' indices.
     const auto* ptr = table.entries.hostPtr();
@@ -180,7 +180,7 @@ TEST(AliasTableGen, FloatingPointPrecisionStub) {
 
 // Corner Case: The "Robin Hood" necessity
 // Some inputs cause a cascade where a priority queue performs better than a stack,
-// but the stack (std::vector) implementation is standard. 
+// but the stack (std::vector) implementation is standard.
 // We verify that the output is still mathematically valid regardless of internal pairing.
 TEST(AliasTableGen, AlternatingHighLow) {
     std::vector<float> input = {0.1f, 10.0f, 0.1f, 10.0f, 0.1f, 10.0f};
@@ -194,8 +194,8 @@ TEST(AliasTableGen, StressTest) {
     std::vector<float> input(N);
 
     // Use a fixed seed for reproducibility
-    std::mt19937 rng(42); 
-    
+    std::mt19937 rng(42);
+
     // Lognormal(0, 1) produces a heavy right skew.
     // Most values will be small (< 1.0), but some will be very large.
     // This effectively tests the algorithm's ability to pair many small items
@@ -208,9 +208,9 @@ TEST(AliasTableGen, StressTest) {
 
     // 2. Execution (with timing)
     auto start = std::chrono::high_resolution_clock::now();
-    
+
     AliasTable table = generateAliasTable(input);
-    
+
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms = end - start;
 
@@ -219,9 +219,9 @@ TEST(AliasTableGen, StressTest) {
     // 3. Validation
     ASSERT_EQ(table.entries.size(), N);
 
-    // Verify fidelity. 
+    // Verify fidelity.
     // Note: Lognormal distributions can have extreme dynamic range.
-    // We trust that VerifyTableFidelity uses double precision for accumulation 
+    // We trust that VerifyTableFidelity uses double precision for accumulation
     // to handle the summation of tiny and large weights correctly.
     VerifyTableFidelity(input, table, 1e-3f);
 }

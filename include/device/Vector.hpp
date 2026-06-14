@@ -52,7 +52,7 @@ struct DeviceVector
         m_host.push_back(std::move(elem));
         m_deviceNeedsUpdate = true;
     }
-    
+
     T *devicePtr() { return m_device.getPtr<T>(); }
     std::span<T> deviceSpan() { return std::span{devicePtr(), size()}; }
 

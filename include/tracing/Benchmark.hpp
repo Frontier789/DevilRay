@@ -19,7 +19,7 @@ namespace benchmark
 }
 
 template <typename T>
-concept Benchmark = requires(T b) { 
-    b.registerTriangleTest();  
+concept Benchmark = requires(T b) {
+    b.registerTriangleTest();
     b.registerBBoxTest();
 };

@@ -15,10 +15,10 @@ GpuTris convertMeshToTris(const Mesh &mesh, bool generateTriangleSampler)
     }
 
     AliasTable triangleSampler;
-    
+
     if (generateTriangleSampler) {
         triangleSampler = generateAliasTable(triangleAreas);
-        
+
         std::cout << "Generated alias table for '" << mesh.name << "'" << std::endl;
         // for (const auto e : std::span{triangleSampler.entries.hostPtr(), triangleSampler.entries.size()})
         // {
@@ -61,10 +61,10 @@ TriangleMesh viewGpuTris(GpuTris &tris)
 
     tris.points.ensureDeviceAllocation();
     obj.points = tris.points.devicePtr();
-    
+
     tris.normals.ensureDeviceAllocation();
     obj.normals = tris.normals.devicePtr();
-    
+
     tris.triangles.ensureDeviceAllocation();
     obj.triangles = tris.triangles.devicePtr();
 

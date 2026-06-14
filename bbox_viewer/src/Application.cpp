@@ -80,9 +80,9 @@ void initIMGUI(GLFWwindow *window)
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    
+
     ImGui::StyleColorsDark();
-    
+
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
 }
@@ -97,7 +97,7 @@ void Application::createWindow()
         glfwTerminate();
         std::exit(1);
     }
-    
+
     glfwMakeContextCurrent(window);
 
     initGLEW(window);
@@ -146,7 +146,7 @@ void Application::loadMesh()
     normalizeMeshSize(this->mesh);
 
     this->bbh = generateSimpleBBH(this->mesh);
-    
+
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;

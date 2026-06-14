@@ -69,7 +69,7 @@ HD AliasSample sample(std::span<const AliasEntry> table, Rng &rng)
     if (findex == table.size()) findex = table.size()-1;
 
     const int index = static_cast<int>(findex);
-    
+
     const float p = rng.rnd();
 
     const auto &entry = table[index];

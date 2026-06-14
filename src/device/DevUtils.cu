@@ -12,8 +12,8 @@
 void cudaCheckLAstError(const char *file, int line, bool abort)
 {
     const auto code = cudaPeekAtLastError();
-    
-    if (code != cudaSuccess) 
+
+    if (code != cudaSuccess)
     {
         fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
 
