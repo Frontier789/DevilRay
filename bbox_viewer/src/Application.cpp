@@ -127,11 +127,19 @@ void Application::loadMesh()
 
     this->mesh = ::loadMesh(mesh_file);
 
+    std::cout << "== Benchmark Started ==" << std::endl;
+
     bench = BenchmarkGenerator::create(100, mesh);
     bench.step();
 
-    std::cout << "Ran " << bench.ray_count << " rays, used "
-              << bench.aggregateResults().triangle_tests << " triangle hit tests" << std::endl; 
+    const auto benchResults = bench.aggregateResults();
+    const auto ray_casts = bench.ray_count;
+
+    std::cout << "== Benchmark Finished ==" << std::endl;
+    std::cout << "Number of rays: " << ray_casts << std::endl;
+    std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<float>(ray_casts) << "/ray)" << std::endl;
+    std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<float>(ray_casts) << "/ray)" << std::endl;
+    std::cout << "== Benchmark Reported ==" << std::endl;
 
     generateCoarseNormals(this->mesh);
     normalizeMeshSize(this->mesh);
@@ -199,7 +207,7 @@ namespace
 {
     void extractBoxes(std::vector<AABB> &boxes, const BBH &bbh, int current_index, int depth)
     {
-        const auto &node = bbh.nodes[current_index];
+        const auto &node = bbh.nodes.hostPtr()[current_index];
 
         if (depth == 0)
         {

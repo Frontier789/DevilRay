@@ -5,13 +5,14 @@
 #include <tracing/TriangleMesh.hpp>
 #include <tracing/GpuTris.hpp>
 #include <device/Random.hpp>
+#include <models/BBH.hpp>
 
 #include <curand.h>
 #include <curand_kernel.h>
 
 void benchmarkRayCast(
     CudaRandomStates &randStates, benchmark::HitTests *stats, int ray_count,
-    const TriangleMesh &tris, Vec3 center, float radius
+    const TriangleMesh &tris, BBH &bbh, Vec3 center, float radius
 );
 
 struct BenchmarkGenerator
@@ -32,6 +33,7 @@ struct BenchmarkGenerator
     std::unique_ptr<CudaRandomStates> randStates;
     benchmark::HitTests *stats;
 
+    BBH bbh;
     GpuTris tris;
     Vec3 center;
     float radius;

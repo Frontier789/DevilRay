@@ -99,6 +99,15 @@ BBH generateSimpleBBH(const Mesh &mesh)
 
     return BBH{
         .depth = findBBHDepth(nodes[0], nodes),
-        .nodes = nodes,
+        .nodes = DeviceVector{std::move(nodes)},
+    };
+}
+
+BBHGpuView createBBHGpuView(BBH &bbh)
+{
+    bbh.nodes.ensureDeviceAllocation();
+
+    return BBHGpuView{
+        .nodes = bbh.nodes.deviceSpan()
     };
 }

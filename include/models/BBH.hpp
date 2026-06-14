@@ -1,5 +1,7 @@
 #pragma once
 
+#include <device/Vector.hpp>
+
 #include "Utils.hpp"
 #include "Mesh.hpp"
 
@@ -13,7 +15,13 @@ struct BBHNode
 struct BBH
 {
     int depth;
-    std::vector<BBHNode> nodes;
+    DeviceVector<BBHNode> nodes;
+};
+
+struct BBHGpuView
+{
+    std::span<const BBHNode> nodes;
 };
 
 BBH generateSimpleBBH(const Mesh &mesh);
+BBHGpuView createBBHGpuView(BBH &bbh);

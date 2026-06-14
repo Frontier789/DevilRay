@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <span>
 
 struct DeviceMemoryManager
 {
@@ -53,6 +54,8 @@ struct DeviceVector
     }
     
     T *devicePtr() { return m_device.getPtr<T>(); }
+    std::span<T> deviceSpan() { return std::span{devicePtr(), size()}; }
+
     T *hostPtr() { return m_host.data(); }
     const T *hostPtr() const { return m_host.data(); }
     size_t size() const { return m_host.size(); }
