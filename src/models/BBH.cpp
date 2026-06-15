@@ -46,25 +46,34 @@ namespace
             .box = parent_bbox,
             .left_child = -1,
             .right_child = -1,
+            .skip_index = -1,
+            .tris_begin = tris_begin,
+            .tris_end = tris_end,
         });
 
-        const auto direction = Vec3(depth%3 == 0, depth%3 == 1, depth%3 == 2);
+        if (tris_end - tris_begin > 1)
+        {
+            const auto direction = Vec3(depth%3 == 0, depth%3 == 1, depth%3 == 2);
 
-        std::sort(triangles.begin() + tris_begin, triangles.begin() + tris_end, [direction, &mesh](const Triangle &tri1, const Triangle &tri2){
-            return maxExtentAlong(tri1, direction, mesh) < maxExtentAlong(tri2, direction, mesh);
-        });
+            std::sort(triangles.begin() + tris_begin, triangles.begin() + tris_end, [direction, &mesh](const Triangle &tri1, const Triangle &tri2){
+                return maxExtentAlong(tri1, direction, mesh) < maxExtentAlong(tri2, direction, mesh);
+            });
 
-        const auto tris_mid = (tris_begin + tris_end) / 2;
+            const auto tris_mid = (tris_begin + tris_end) / 2;
 
-        if (tris_mid - tris_begin > 1) {
-            const auto left_child_index = generateBBHLayer(nodes, triangles, tris_begin, tris_mid, depth+1, mesh);
-            nodes[parent_index].left_child = left_child_index;
+            if (tris_mid - tris_begin >= 1) {
+                const auto left_child_index = generateBBHLayer(nodes, triangles, tris_begin, tris_mid, depth+1, mesh);
+                nodes[parent_index].left_child = left_child_index;
+            }
+
+            if (tris_end - tris_mid >= 1) {
+                const auto right_child_index = generateBBHLayer(nodes, triangles, tris_mid, tris_end, depth+1, mesh);
+                nodes[parent_index].right_child = right_child_index;
+            }
         }
 
-        if (tris_end - tris_mid > 1) {
-            const auto right_child_index = generateBBHLayer(nodes, triangles, tris_mid, tris_end, depth+1, mesh);
-            nodes[parent_index].right_child = right_child_index;
-        }
+        const auto next_node = nodes.size();
+        nodes[parent_index].skip_index = next_node;
 
         return parent_index;
     }
@@ -91,11 +100,20 @@ namespace
 
 BBH generateSimpleBBH(const Mesh &mesh)
 {
+    std::cout << "TRACE: generateSimpleBBH for '" << mesh.name << "'" << std::endl;
+
     std::vector<BBHNode> nodes;
 
     auto sorted_triangles = mesh.triangles;
 
     generateBBHLayer(nodes, sorted_triangles, 0, sorted_triangles.size(), 0, mesh);
+
+    // std::cout << "Created " << nodes.size() << " nodes" << std::endl;
+    // for (int i=0;i<nodes.size();++i)
+    // {
+    //     std::cout << i << ": c(" << nodes[i].left_child << "," << nodes[i].right_child << "), skip:" << nodes[i].skip_index << " t(" << nodes[i].tris_begin << "--" << nodes[i].tris_end << ")" << std::endl;
+    // }
+    // std::cout << std::endl;
 
     return BBH{
         .depth = findBBHDepth(nodes[0], nodes),

@@ -10,6 +10,15 @@ struct BBHNode
     AABB box;
     int left_child;
     int right_child;
+    int skip_index;
+
+    int tris_begin;
+    int tris_end;
+
+    constexpr bool isLeaf() const
+    {
+        return left_child == -1 && right_child == -1;
+    }
 };
 
 struct BBH

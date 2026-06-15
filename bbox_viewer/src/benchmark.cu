@@ -51,31 +51,46 @@ HD std::optional<float> getIntersectionTEST(
     const TriangleMesh &tris,
     const BBHGpuView bbh, B &benchmark
 ){
-    benchmark.registerBBoxTest();
-    const auto bboxHit = testBoxIntersection(bbh.nodes[0].box, ray);
-
-    if (!bboxHit.has_value()) return std::nullopt;
-
     std::optional<float> best_t = std::nullopt;
+    int bbox_index = 0;
 
-    for (int i=0;i<tris.tris_count;++i)
+    while (bbox_index < bbh.nodes.size())
     {
-        const auto &indices = tris.triangles[i];
+        const auto &node = bbh.nodes[bbox_index];
+        benchmark.registerBBoxTest();
+        const auto bboxHit = testBoxIntersection(node.box, ray);
 
-        const auto triangle = TriangleVertices{
-            .a = tris.points[indices.a.pi] * tris.s + tris.p,
-            .b = tris.points[indices.b.pi] * tris.s + tris.p,
-            .c = tris.points[indices.c.pi] * tris.s + tris.p,
-        };
-
-        benchmark.registerTriangleTest();
-        const auto intersection = testTriangleIntersection(ray, triangle);
-
-        if (!intersection.has_value()) continue;
-
-        if (!best_t.has_value() || best_t > intersection->t)
+        if (bboxHit.has_value())
         {
-            best_t = intersection->t;
+            if (node.isLeaf())
+            {
+                for (int i=node.tris_begin;i<node.tris_end;++i)
+                {
+                    const auto &indices = tris.triangles[i];
+
+                    const auto triangle = TriangleVertices{
+                        .a = tris.points[indices.a.pi] * tris.s + tris.p,
+                        .b = tris.points[indices.b.pi] * tris.s + tris.p,
+                        .c = tris.points[indices.c.pi] * tris.s + tris.p,
+                    };
+
+                    benchmark.registerTriangleTest();
+                    const auto intersection = testTriangleIntersection(ray, triangle);
+
+                    if (!intersection.has_value()) continue;
+
+                    if (!best_t.has_value() || best_t > intersection->t)
+                    {
+                        best_t = intersection->t;
+                    }
+                }
+            }
+
+            ++bbox_index;
+        }
+        else
+        {
+            bbox_index = node.skip_index;
         }
     }
 

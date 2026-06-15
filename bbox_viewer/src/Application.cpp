@@ -127,10 +127,15 @@ void Application::loadMesh()
 
     this->mesh = ::loadMesh(mesh_file);
 
+    generateCoarseNormals(this->mesh);
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
+    std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
+
     std::cout << "== Benchmark Started ==" << std::endl;
     Timer timer;
 
-    bench = BenchmarkGenerator::create(500000, mesh);
+    bench = BenchmarkGenerator::create(10000000, mesh);
     bench.step();
 
     const auto benchResults = bench.aggregateResults();
@@ -142,14 +147,9 @@ void Application::loadMesh()
     std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
     std::cout << "== Benchmark Reported ==" << std::endl;
 
-    generateCoarseNormals(this->mesh);
     normalizeMeshSize(this->mesh);
 
     this->bbh = generateSimpleBBH(this->mesh);
-
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.points.size() << " points" << std::endl;
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
-    std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
 }
 
 namespace {
