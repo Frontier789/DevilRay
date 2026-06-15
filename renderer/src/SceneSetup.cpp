@@ -30,7 +30,7 @@ Scene createScene(Meshes &meshes)
     const int  light_mid = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{.12,.13,.11},
+            .emission = Vec4{40,40,40},
             .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
         };
         material.debug_color = Vec4{0.9, 0.3, 0.4, 0.0},
@@ -122,26 +122,26 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(view));
     };
 
-    // addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
-    // addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
-    // addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
-    // addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
+    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
+    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
+    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
+    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
     addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
 
-    // {
-    //     auto lightPanel = viewGpuTris(meshes.lightPanel);
-    //     lightPanel.material = light_mid;
-    //     lightPanel.setPosition(Vec3{0, 0.4999f, 2});
-    //     scene.objects.push_back(std::move(lightPanel));
-    // }
+    {
+        auto lightPanel = viewGpuTris(meshes.lightPanel);
+        lightPanel.material = light_mid;
+        lightPanel.setPosition(Vec3{0, 0.4999f, 2});
+        scene.objects.push_back(std::move(lightPanel));
+    }
 
-    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 100, light_mid);
+    // addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 100, light_mid);
 
     {
         auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
         mesh_object_monkey.material = blue;
-        mesh_object_monkey.setPosition(Vec3{0.0, -0.5, 2});
-        mesh_object_monkey.setScale(Vec3{0.15f,0.15f,0.15f});
+        mesh_object_monkey.setPosition(Vec3{0.0, -0.6, 2});
+        mesh_object_monkey.setScale(Vec3{2.85f,2.85f,-2.85f});
         scene.objects.push_back(std::move(mesh_object_monkey));
     }
 
@@ -155,19 +155,19 @@ Scene createScene(Meshes &meshes)
     //     scene.objects.push_back(std::move(mesh_object_cube));
     // }
 
-    {
-        std::uniform_real_distribution<float> px(-0.4f, 0.4f);
-        std::uniform_real_distribution<float> py(-0.45f, -0.3f);
-        std::uniform_real_distribution<float> pz( 1.8f, 2.2f);
+    // {
+    //     std::uniform_real_distribution<float> px(-0.4f, 0.4f);
+    //     std::uniform_real_distribution<float> py(-0.45f, -0.3f);
+    //     std::uniform_real_distribution<float> pz( 1.8f, 2.2f);
 
-        for (int i = 0; i < 10; ++i) {
-            auto cube = viewGpuTris(meshes.cube);
-            cube.material = light_low;
-            cube.setPosition(Vec3{px(rng), py(rng), pz(rng)});
-            cube.setScale(Vec3{0.01f, 0.01f, 0.01f});
-            scene.objects.push_back(std::move(cube));
-        }
-    }
+    //     for (int i = 0; i < 10; ++i) {
+    //         auto cube = viewGpuTris(meshes.cube);
+    //         cube.material = light_low;
+    //         cube.setPosition(Vec3{px(rng), py(rng), pz(rng)});
+    //         cube.setScale(Vec3{0.01f, 0.01f, 0.01f});
+    //         scene.objects.push_back(std::move(cube));
+    //     }
+    // }
 
     // {
     //     auto mesh_object_cube = viewGpuTris(meshes.cube);

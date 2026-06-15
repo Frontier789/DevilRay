@@ -12,18 +12,20 @@ HD Vec3 triangleNormal(const TriangleVertices &triangle)
 }
 
 template<Benchmark B>
-HD std::optional<Intersection> getIntersectionImpl(const Ray &ray, const TriangleMesh &tris, B &benchmark)
-{
-    std::optional<Intersection> best = std::nullopt;
-
-    for (int i=0;i<tris.tris_count;++i)
+HD std::optional<Intersection> getIntersectionTris(
+    const Ray &ray, const TriangleMesh &tris,
+    int tris_begin, int tris_end,
+    std::optional<Intersection> &best,
+    B &benchmark
+){
+    for (int i=tris_begin;i<tris_end;++i)
     {
         const auto &indices = tris.triangles[i];
 
         const auto triangle = TriangleVertices{
-            .a = tris.points[indices.a.pi] * tris.s + tris.p,
-            .b = tris.points[indices.b.pi] * tris.s + tris.p,
-            .c = tris.points[indices.c.pi] * tris.s + tris.p,
+            .a = tris.points[indices.a.pi],
+            .b = tris.points[indices.b.pi],
+            .c = tris.points[indices.c.pi],
         };
 
         benchmark.registerTriangleTest();
@@ -33,24 +35,115 @@ HD std::optional<Intersection> getIntersectionImpl(const Ray &ray, const Triangl
 
         if (!best.has_value() || best->t > intersection->t)
         {
+            // The tests above run in object space (the ray was pre-transformed by
+            // the inverse of tris.s/tris.p). Convert the recorded hit back to world
+            // space here so the rest of the pipeline sees world-space data.
+            const auto inv_s = Vec3{1.0f / tris.s.x, 1.0f / tris.s.y, 1.0f / tris.s.z};
+
+            const auto world_triangle = TriangleVertices{
+                .a = triangle.a * tris.s + tris.p,
+                .b = triangle.b * tris.s + tris.p,
+                .c = triangle.c * tris.s + tris.p,
+            };
+
             const auto norm = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
             const bool is_ccw = norm.dot(ray.v) > 0;
 
+            // Object-space normal, oriented against the (object-space) ray, then
+            // mapped to world space via the inverse-transpose of the scale.
             auto n = triangleNormal(triangle);
             if (dot(n, ray.v) > 0) n = n * -1;
+            n = (n * inv_s).normalized();
 
             best = Intersection{
                 .t = intersection->t,
-                .p = ray.p + ray.v * intersection->t,
+                .p = (ray.p + ray.v * intersection->t) * tris.s + tris.p,
                 .uv = Vec2f{0,0},
                 .n = n,
                 .mat = tris.material,
                 .triangle = TriangleHitData{
                     .bari = intersection->bari,
-                    .area = triangleArea(triangle.a, triangle.b, triangle.c),
+                    .area = triangleArea(world_triangle.a, world_triangle.b, world_triangle.c),
                     .ccw = is_ccw,
                 },
             };
+        }
+    }
+
+    return best;
+}
+
+struct BoxInterval
+{
+    float enter_time;
+    float exit_time;
+};
+
+HD BoxInterval findBoxInterval(const float min, const float max, const float p, const float v)
+{
+    const auto t_min = (min - p) / v;
+    const auto t_max = (max - p) / v;
+
+    return BoxInterval{
+        .enter_time = std::min(t_min, t_max),
+        .exit_time = std::max(t_min, t_max),
+    };
+}
+
+HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
+{
+    const auto interval_x = findBoxInterval(box.min.x, box.max.x, ray.p.x, ray.v.x);
+    const auto interval_y = findBoxInterval(box.min.y, box.max.y, ray.p.y, ray.v.y);
+    const auto interval_z = findBoxInterval(box.min.z, box.max.z, ray.p.z, ray.v.z);
+
+    const auto enter_time = std::max(std::max(interval_x.enter_time, interval_y.enter_time), interval_z.enter_time);
+    const auto exit_time = std::min(std::min(interval_x.exit_time, interval_y.exit_time), interval_z.exit_time);
+
+    if (exit_time < 0 || enter_time > exit_time) {
+        return std::nullopt;
+    }
+
+    return std::max(enter_time, 0.0f);
+}
+
+template<Benchmark B>
+HD std::optional<Intersection> getIntersectionImpl(
+    const Ray &ray_original,
+    const TriangleMesh &tris,
+    B &benchmark
+){
+    std::optional<Intersection> best = std::nullopt;
+    
+    const auto &bbh = tris.bbh;
+    
+    const auto inv_s = Vec3{1.0f / tris.s.x, 1.0f / tris.s.y, 1.0f / tris.s.z};
+    const auto ray = Ray{
+        .p = (ray_original.p - tris.p) * inv_s,
+        .v = ray_original.v * inv_s,
+    };
+
+    // getIntersectionTris(ray, tris, 0, tris.tris_count, best, benchmark);
+    // return best;
+    
+    int bbox_index = 0;
+    while (bbox_index < bbh.nodes.size())
+    {
+        const auto &node = bbh.nodes[bbox_index];
+        benchmark.registerBBoxTest();
+        const auto bboxHit = testBoxIntersection(node.box, ray);
+
+        if (bboxHit.has_value())
+        {
+            if (node.isLeaf())
+            {
+                getIntersectionTris(ray, tris, node.tris_begin, node.tris_end, best, benchmark);
+            }
+
+            ++bbox_index;
+        }
+        else
+        {
+            bbox_index = node.skip_index;
         }
     }
 

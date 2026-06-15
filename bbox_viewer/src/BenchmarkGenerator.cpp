@@ -1,6 +1,6 @@
 #include "benchmark.hpp"
 
-BenchmarkGenerator BenchmarkGenerator::create(int ray_count, const Mesh &mesh)
+BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
 {
     BenchmarkGenerator gen;
 

@@ -1,8 +1,9 @@
 #pragma once
 
-#include "Utils.hpp"
-#include "models/Mesh.hpp"
-#include "tracing/DistributionSamplers.hpp"
+#include <Utils.hpp>
+#include <models/Mesh.hpp>
+#include <tracing/DistributionSamplers.hpp>
+#include <models/BBH.hpp>
 
 struct TriangleMesh
 {
@@ -18,6 +19,8 @@ struct TriangleMesh
     AliasEntry *tris_sampler;
     float surface_area;
     float base_surface_area;
+
+    BBHGpuView bbh;
 
     void setPosition(const Vec3 &pos);
     void setScale(const Vec3 &scale);

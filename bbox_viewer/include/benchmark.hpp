@@ -17,7 +17,7 @@ void benchmarkRayCast(
 
 struct BenchmarkGenerator
 {
-    static BenchmarkGenerator create(int ray_count, const Mesh &mesh);
+    static BenchmarkGenerator create(int ray_count, Mesh &mesh);
 
     BenchmarkGenerator() = default;
 

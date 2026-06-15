@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-GpuTris convertMeshToTris(const Mesh &mesh, bool generateTriangleSampler)
+GpuTris convertMeshToTris(Mesh &mesh, bool generateTriangleSampler)
 {
     std::vector<float> triangleAreas;
     for (const auto &[a,b,c] : mesh.triangles)
@@ -26,11 +26,14 @@ GpuTris convertMeshToTris(const Mesh &mesh, bool generateTriangleSampler)
         // }
     }
 
+    BBH bbh = generateSimpleBBH(mesh);
+
     return GpuTris{
         .points = DeviceVector(mesh.points),
         .normals = DeviceVector(mesh.normals),
         .triangles = DeviceVector(mesh.triangles),
         .triangleSampler = std::move(triangleSampler),
+        .bbh = std::move(bbh),
     };
 }
 
@@ -70,6 +73,9 @@ TriangleMesh viewGpuTris(GpuTris &tris)
 
     tris.triangleSampler.entries.ensureDeviceAllocation();
     obj.tris_sampler = tris.triangleSampler.entries.devicePtr();
+
+    tris.bbh.nodes.ensureDeviceAllocation();
+    obj.bbh = createBBHGpuView(tris.bbh);
 
     obj.p = Vec3{};
     obj.s = Vec3{1,1,1};

@@ -15,6 +15,10 @@ namespace
                 bbox = bbox.extend(mesh.points[v.pi]);
         }
 
+        // const auto eps = std::numeric_limits<float>::epsilon();
+        // bbox.min = bbox.min - Vec3(eps, eps, eps);
+        // bbox.max = bbox.max + Vec3(eps, eps, eps);
+
         return bbox;
     }
 
@@ -98,13 +102,13 @@ namespace
     }
 }
 
-BBH generateSimpleBBH(const Mesh &mesh)
+BBH generateSimpleBBH(Mesh &mesh)
 {
     std::cout << "TRACE: generateSimpleBBH for '" << mesh.name << "'" << std::endl;
 
     std::vector<BBHNode> nodes;
 
-    auto sorted_triangles = mesh.triangles;
+    auto &sorted_triangles = mesh.triangles;
 
     generateBBHLayer(nodes, sorted_triangles, 0, sorted_triangles.size(), 0, mesh);
 

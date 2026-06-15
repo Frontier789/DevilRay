@@ -30,7 +30,9 @@ struct BBH
 struct BBHGpuView
 {
     std::span<const BBHNode> nodes;
+
+    constexpr bool isEmpty() const { return nodes.size() == 0; }
 };
 
-BBH generateSimpleBBH(const Mesh &mesh);
+BBH generateSimpleBBH(Mesh &mesh);
 BBHGpuView createBBHGpuView(BBH &bbh);
