@@ -77,8 +77,6 @@ TriangleMesh viewGpuTris(GpuTris &tris)
     tris.bbh.nodes.ensureDeviceAllocation();
     obj.bbh = createBBHGpuView(tris.bbh);
 
-    obj.p = Vec3{};
-    obj.s = Vec3{1,1,1};
     obj.tris_count = tris.triangles.size();
     obj.base_surface_area = totalSurfaceArea(tris);
     obj.surface_area = obj.base_surface_area;

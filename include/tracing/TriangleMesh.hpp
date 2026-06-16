@@ -4,6 +4,7 @@
 #include <models/Mesh.hpp>
 #include <tracing/DistributionSamplers.hpp>
 #include <models/BBH.hpp>
+#include <Transform.hpp>
 
 struct TriangleMesh
 {
@@ -12,8 +13,7 @@ struct TriangleMesh
     Triangle *triangles;
     int tris_count;
 
-    Vec3 s;
-    Vec3 p;
+    Transform modelToWorld;
     int material;
 
     AliasEntry *tris_sampler;

@@ -12,7 +12,7 @@
 
 void benchmarkRayCast(
     CudaRandomStates &randStates, benchmark::HitTests *stats, int ray_count,
-    const TriangleMesh &tris, BBH &bbh, Vec3 center, float radius
+    const TriangleMesh &tris, Vec3 center, float radius
 );
 
 struct BenchmarkGenerator
@@ -33,8 +33,9 @@ struct BenchmarkGenerator
     std::unique_ptr<CudaRandomStates> randStates;
     benchmark::HitTests *stats;
 
-    BBH bbh;
     GpuTris tris;
+    TriangleMesh gpu_tris;
+
     Vec3 center;
     float radius;
     int ray_count;

@@ -2,12 +2,12 @@
 
 void TriangleMesh::setPosition(const Vec3 &pos)
 {
-    this->p = pos;
+    modelToWorld.p = pos;
 }
 
 void TriangleMesh::setScale(const Vec3 &scale)
 {
-    this->s = scale;
+    modelToWorld.s = scale;
 
     const float vol = scale.x * scale.y * scale.z;
     const float area_factor = std::cbrt(vol * vol);

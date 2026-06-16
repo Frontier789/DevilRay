@@ -144,6 +144,10 @@ struct Vec3
     constexpr bool anyNan() const {
         return std::isnan(x) || std::isnan(y) || std::isnan(z);
     }
+
+    constexpr Vec3 inv() const {
+        return Vec3{1/x, 1/y, 1/z};
+    }
 };
 
 template<typename T>

@@ -35,29 +35,26 @@ HD std::optional<Intersection> getIntersectionTris(
 
         if (!best.has_value() || best->t > intersection->t)
         {
-            // The tests above run in object space (the ray was pre-transformed by
-            // the inverse of tris.s/tris.p). Convert the recorded hit back to world
-            // space here so the rest of the pipeline sees world-space data.
-            const auto inv_s = Vec3{1.0f / tris.s.x, 1.0f / tris.s.y, 1.0f / tris.s.z};
-
             const auto world_triangle = TriangleVertices{
-                .a = triangle.a * tris.s + tris.p,
-                .b = triangle.b * tris.s + tris.p,
-                .c = triangle.c * tris.s + tris.p,
+                .a = tris.modelToWorld.applyToPoint(triangle.a),
+                .b = tris.modelToWorld.applyToPoint(triangle.b),
+                .c = tris.modelToWorld.applyToPoint(triangle.c),
             };
 
             const auto norm = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
             const bool is_ccw = norm.dot(ray.v) > 0;
 
-            // Object-space normal, oriented against the (object-space) ray, then
-            // mapped to world space via the inverse-transpose of the scale.
             auto n = triangleNormal(triangle);
             if (dot(n, ray.v) > 0) n = n * -1;
+
+            const auto inv_s = tris.modelToWorld.s.inv();
             n = (n * inv_s).normalized();
+
+            const auto p_in_model = ray.p + ray.v * intersection->t;
 
             best = Intersection{
                 .t = intersection->t,
-                .p = (ray.p + ray.v * intersection->t) * tris.s + tris.p,
+                .p = tris.modelToWorld.applyToPoint(p_in_model),
                 .uv = Vec2f{0,0},
                 .n = n,
                 .mat = tris.material,
@@ -108,19 +105,14 @@ HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
 
 template<Benchmark B>
 HD std::optional<Intersection> getIntersectionImpl(
-    const Ray &ray_original,
+    const Ray &ray_in_world,
     const TriangleMesh &tris,
     B &benchmark
 ){
     std::optional<Intersection> best = std::nullopt;
     
     const auto &bbh = tris.bbh;
-    
-    const auto inv_s = Vec3{1.0f / tris.s.x, 1.0f / tris.s.y, 1.0f / tris.s.z};
-    const auto ray = Ray{
-        .p = (ray_original.p - tris.p) * inv_s,
-        .v = ray_original.v * inv_s,
-    };
+    const auto ray = tris.modelToWorld.applyInverse(ray_in_world);
 
     // getIntersectionTris(ray, tris, 0, tris.tris_count, best, benchmark);
     // return best;

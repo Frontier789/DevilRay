@@ -260,9 +260,9 @@ HD LightSample samplePointOnLights(
 
     const auto p = uniformTriangleSample(A, B, C, rng);
 
-    const auto Aw = A * object.s;
-    const auto Bw = B * object.s;
-    const auto Cw = C * object.s;
+    const auto Aw = A * object.modelToWorld.s;
+    const auto Bw = B * object.modelToWorld.s;
+    const auto Cw = C * object.modelToWorld.s;
 
     const auto perp = (Aw - Bw).cross(Aw - Cw);
     const auto perp_length = perp.length();
@@ -270,7 +270,7 @@ HD LightSample samplePointOnLights(
     const auto world_triangle_area = perp_length / 2.0f;
 
     return LightSample{
-        .p = p * object.s + object.p,
+        .p = object.modelToWorld.applyToPoint(p),
         .n = n,
         .mat = mat,
         .pdf = object_pdf * triangle_pdf / world_triangle_area,
