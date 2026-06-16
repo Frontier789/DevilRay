@@ -35,3 +35,4 @@ struct MeshBounds
 Mesh loadMesh(const std::string &fileName);
 void generateCoarseNormals(Mesh &mesh);
 MeshBounds calculateMeshBounds(const Mesh &mesh);
+void normalizeMeshSize(Mesh &mesh);

@@ -185,6 +185,15 @@ Mesh loadMesh(const std::string &fileName)
     return mesh;
 }
 
+void normalizeMeshSize(Mesh &mesh)
+{
+    const auto [center, object_size] = calculateMeshBounds(mesh);
+
+    for (auto &p : mesh.points) {
+        p = (p - center) / object_size;
+    }
+}
+
 void generateCoarseNormals(Mesh &mesh)
 {
     std::vector<Vec3> new_normals;

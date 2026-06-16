@@ -384,7 +384,7 @@ HD void sampleColor(
         return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, info, materials, rng);
 
     constexpr int max_depth = 10;
-    constexpr auto iterations = 3;
+    constexpr auto iterations = 1;
 
     std::array<PathEntry, max_depth> entries;
     PathEntry *path = entries.data();

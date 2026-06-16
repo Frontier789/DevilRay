@@ -107,18 +107,6 @@ void Application::createWindow()
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 }
 
-namespace
-{
-    void normalizeMeshSize(Mesh &mesh)
-    {
-        const auto [center, object_size] = calculateMeshBounds(mesh);
-
-        for (auto &p : mesh.points) {
-            p = (p - center) / object_size;
-        }
-    }
-}
-
 void Application::loadMesh()
 {
     std::cout << "TRACE: loadMesh" << std::endl;
