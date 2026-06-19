@@ -1,24 +1,44 @@
 #include "Application.hpp"
 
+namespace
+{
+    template<typename F>
+    void sliderIntWithPlusMinus(int currentValue, int maxValue, const std::string &label, F f)
+    {
+        int newValue = currentValue;
+
+        const float btnW = ImGui::GetFrameHeight();
+        const float spacing = ImGui::GetStyle().ItemSpacing.x;
+        if (ImGui::Button(("-##" + label).c_str(), ImVec2(btnW, 0)))
+        {
+            newValue -= 1;
+            f(newValue);
+        }
+        ImGui::SameLine();
+        ImGui::SetNextItemWidth(-(btnW + spacing));
+        if (ImGui::SliderInt(("##" + label).c_str(), &newValue, 0, maxValue-1, (label + ": %d").c_str()))
+        {
+            f(newValue);
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(("+##" + label).c_str(), ImVec2(btnW, 0)))
+        {
+            newValue += 1;
+            f(newValue);
+        }
+    }
+}
+
 void Application::drawUiElements()
 {
-    const float btnW = ImGui::GetFrameHeight();
-    const float spacing = ImGui::GetStyle().ItemSpacing.x;
-    if (ImGui::Button("-##bbh", ImVec2(btnW, 0)))
-    {
-        addBbhDepth(-1);
-    }
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(-(btnW + spacing));
-    if (ImGui::SliderInt("##bbh_depth", &bbhShowDepth, 0, this->bbh.depth, "BBH depth: %d"))
-        updateBoundingBoxMesh();
-    ImGui::SameLine();
-    if (ImGui::Button("+##bbh", ImVec2(btnW, 0)))
-    {
-        addBbhDepth(+1);
-    }
+    sliderIntWithPlusMinus(bbhShowDepth, this->bbh.depth, "BBH depth", [this](int newDepth){updateBbhDepth(newDepth);});
+    sliderIntWithPlusMinus(boxShown, boxCountOnDepth, "Box to show", [this](int newBoxId){
+        if (newBoxId < -1) newBoxId = -1;
+        boxShown = newBoxId;
+        updateTrisShownBox();
+    });
 
-    ImGui::Checkbox("Show parent bbox", &uiHandler.showParentBbox);
+    ImGui::Checkbox("Show bounding boxes", &showBbh);
 }
 
 void Application::handleUiEvents()
@@ -26,17 +46,38 @@ void Application::handleUiEvents()
     handleCameraControl();
 }
 
-void Application::addBbhDepth(int delta)
+void Application::updateBbhDepth(int newDepth)
 {
-    int newDepth = bbhShowDepth + delta;
     if (newDepth < 0) newDepth = 0;
     if (newDepth > this->bbh.depth) newDepth = this->bbh.depth;
 
-    if (bbhShowDepth != newDepth)
-    {
-        bbhShowDepth = newDepth;
-        updateBoundingBoxMesh();
+    if (bbhShowDepth == newDepth) return;
+
+    bbhShowDepth = newDepth;
+    boxCountOnDepth = getBoxesOnDepth(bbh, bbhShowDepth).size();
+
+    if (boxShown >= boxCountOnDepth) {
+        boxShown = boxCountOnDepth - 1;
     }
+
+    updateBoundingBoxMesh();
+    updateTrisShownBox();
+}
+
+void Application::updateTrisShownBox()
+{
+    if (boxShown >= boxCountOnDepth) boxShown = boxCountOnDepth - 1;
+    if (boxShown < 0) {
+        glObjects.meshTrisBegin = 0;
+        glObjects.meshTrisEnd = mesh.triangles.size();
+        return;
+    }
+
+    const auto nodesOnDepth = getBoxesOnDepth(bbh, bbhShowDepth);
+    const auto box = nodesOnDepth[boxShown];
+
+    glObjects.meshTrisBegin = box.tris_begin;
+    glObjects.meshTrisEnd = box.tris_end;
 }
 
 void Application::handleCameraControl()
@@ -80,11 +121,11 @@ void Application::handleCameraControl()
 
     if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_KeypadAdd, false))
     {
-        addBbhDepth(+1);
+        updateBbhDepth(bbhShowDepth+1);
     }
 
     if (ImGui::IsKeyPressed(ImGuiKey::ImGuiKey_KeypadSubtract, false))
     {
-        addBbhDepth(-1);
+        updateBbhDepth(bbhShowDepth-1);
     }
 }

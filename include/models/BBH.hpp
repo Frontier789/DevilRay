@@ -8,9 +8,9 @@
 struct BBHNode
 {
     AABB box;
-    int left_child;
-    int right_child;
-    int skip_index;
+    int left_child = -1;
+    int right_child = -1;
+    int skip_index = -1;
 
     int tris_begin;
     int tris_end;
@@ -36,3 +36,4 @@ struct BBHGpuView
 
 BBH generateSimpleBBH(Mesh &mesh);
 BBHGpuView createBBHGpuView(BBH &bbh);
+std::vector<BBHNode> getBoxesOnDepth(const BBH &bbh, int depth);

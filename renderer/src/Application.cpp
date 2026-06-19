@@ -119,7 +119,7 @@ void Application::loadMeshes()
 {
     std::cout << "TRACE: loadMeshes" << std::endl;
 
-    meshes.suzanne = loadMeshAndPrint("models/suzanne.obj");
+    meshes.suzanne = loadMeshAndPrint("models/bunny.obj");
     meshes.cube = loadMeshAndPrint("models/cube.obj");
 
     // Create light panel mesh: NxN grid of quads (each as 2 triangles)

@@ -50,6 +50,7 @@ void setGLVersion()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_SAMPLES, 16);
 }
 
 void initGLFW()
@@ -120,24 +121,25 @@ void Application::loadMesh()
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
 
-    std::cout << "== Benchmark Started ==" << std::endl;
-    Timer timer;
+    // std::cout << "== Benchmark Started ==" << std::endl;
+    // Timer timer;
 
-    bench = BenchmarkGenerator::create(10000000, mesh);
-    bench.step();
+    // bench = BenchmarkGenerator::create(10000000, mesh);
+    // bench.step();
 
-    const auto benchResults = bench.aggregateResults();
-    const auto ray_casts = bench.ray_count;
+    // const auto benchResults = bench.aggregateResults();
+    // const auto ray_casts = bench.ray_count;
 
-    std::cout << "== Benchmark Finished in " << timer.elapsed_seconds() << "s ==" << std::endl;
-    std::cout << "Number of rays: " << ray_casts << std::endl;
-    std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
-    std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
-    std::cout << "== Benchmark Reported ==" << std::endl;
+    // std::cout << "== Benchmark Finished in " << timer.elapsed_seconds() << "s ==" << std::endl;
+    // std::cout << "Number of rays: " << ray_casts << std::endl;
+    // std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
+    // std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
+    // std::cout << "== Benchmark Reported ==" << std::endl;
 
     normalizeMeshSize(this->mesh);
 
     this->bbh = generateSimpleBBH(this->mesh);
+    updateTrisShownBox();
 }
 
 namespace {
@@ -192,45 +194,12 @@ static void appendBboxLineVerts(const AABB &bbox, std::vector<Vec3> &vertices)
     vertices.insert(vertices.end(), std::begin(edges), std::end(edges));
 }
 
-namespace
-{
-    void extractBoxes(std::vector<AABB> &boxes, const BBH &bbh, int current_index, int depth)
-    {
-        const auto &node = bbh.nodes.hostPtr()[current_index];
-
-        if (depth == 0)
-        {
-            boxes.push_back(node.box);
-            return;
-        }
-
-        if (node.left_child  != -1) extractBoxes(boxes, bbh, node.left_child,  depth-1);
-        if (node.right_child != -1) extractBoxes(boxes, bbh, node.right_child, depth-1);
-    }
-
-    std::vector<AABB> getBoxesOnDepth(const BBH &bbh, int depth)
-    {
-        std::vector<AABB> boxes;
-
-        extractBoxes(boxes, bbh, 0, depth);
-
-        return boxes;
-    }
-}
-
 void Application::updateBoundingBoxMesh()
 {
     std::vector<Vec3> lineVerts;
 
-    if (bbhShowDepth > 0)
-    {
-        for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth - 1))
-            appendBboxLineVerts(box, lineVerts);
-    }
-    glObjects.bboxUpperVertexCount = static_cast<GLsizei>(lineVerts.size());
-
-    for (const auto &box : getBoxesOnDepth(bbh, bbhShowDepth))
-        appendBboxLineVerts(box, lineVerts);
+    for (const auto &node : getBoxesOnDepth(bbh, bbhShowDepth))
+        appendBboxLineVerts(node.box, lineVerts);
 
     glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
 
@@ -283,6 +252,7 @@ void Application::renderCurrentFrame()
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
 
     const float aspect = float(resolution.width) / float(resolution.height);
 
@@ -295,32 +265,49 @@ void Application::renderCurrentFrame()
 
     const Matrix4x4f mvp = proj * cameraController.getViewMatrix();
 
-    glUseProgram(glObjects.meshShader);
-    glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
-    glBindVertexArray(glObjects.meshVao);
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(mesh.triangles.size() * 3));
-    glBindVertexArray(0);
+    glLineWidth(2);
 
+if (showBbh) {
     glUseProgram(glObjects.bboxShader);
     glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
     glBindVertexArray(glObjects.bboxVao);
 
-    if (glObjects.bboxUpperVertexCount > 0 && uiHandler.showParentBbox)
+    if (glObjects.bboxVertexCount > 0)
     {
         glDepthMask(GL_FALSE);
 
         glUniform4f(1, 0.3f, 0.3f, 0.3f, 1.0f);
-        glDrawArrays(GL_LINES, 0, glObjects.bboxUpperVertexCount);
+        glDrawArrays(GL_LINES, 0, glObjects.bboxVertexCount);
 
         glDepthMask(GL_TRUE);
     }
+}
 
-    const GLsizei currentCount = glObjects.bboxVertexCount - glObjects.bboxUpperVertexCount;
-    if (currentCount > 0)
+{
+    glUseProgram(glObjects.meshShader);
+    glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
+    glBindVertexArray(glObjects.meshVao);
+    const auto numberOfTrianglesToDraw = glObjects.meshTrisEnd - glObjects.meshTrisBegin;
+    glDrawArrays(GL_TRIANGLES, glObjects.meshTrisBegin * 3, numberOfTrianglesToDraw * 3);
+    glBindVertexArray(0);
+}
+
+if (showBbh) {
+    glUseProgram(glObjects.bboxShader);
+    glUniformMatrix4fv(0, 1, GL_TRUE, &mvp.values[0][0]);
+    glBindVertexArray(glObjects.bboxVao);
+
+    if (glObjects.bboxVertexCount > 0)
     {
         glUniform4f(1, 1.0f, 0.75f, 0.2f, 1.0f);
-        glDrawArrays(GL_LINES, glObjects.bboxUpperVertexCount, currentCount);
+        if (boxShown < 0) {
+            glDrawArrays(GL_LINES, 0, glObjects.bboxVertexCount);
+        } else {
+            const auto vertexPerBox = 12 * 2;
+            glDrawArrays(GL_LINES, boxShown * vertexPerBox, vertexPerBox);
+        }
     }
+}
 
     glBindVertexArray(0);
 }

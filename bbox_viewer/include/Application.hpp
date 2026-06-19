@@ -18,19 +18,19 @@ struct OGLObjects
     GLuint meshShader;
     GLuint meshVbo;
     GLuint meshVao;
+    GLsizei meshTrisBegin;
+    GLsizei meshTrisEnd;
 
     GLuint bboxShader;
     GLuint bboxVbo;
     GLuint bboxVao;
     GLsizei bboxVertexCount = 0;
-    GLsizei bboxUpperVertexCount = 0;
 };
 
 struct UiHandler
 {
     ImVec2 currentMouse = ImVec2(-FLT_MAX,-FLT_MAX);
     bool mouseDown = false;
-    bool showParentBbox = false;
 };
 
 struct Application
@@ -55,6 +55,9 @@ struct Application
     BenchmarkGenerator bench;
 
     int bbhShowDepth = 0;
+    int boxCountOnDepth = 1;
+    int boxShown = 0;
+    bool showBbh = true;
 
     Application();
     ~Application();
@@ -74,7 +77,8 @@ private:
 
     void handleCameraControl();
 
-    void addBbhDepth(int delta);
+    void updateBbhDepth(int newDepth);
+    void updateTrisShownBox();
 
     static Matrix4x4f perspectiveMatrix(float fovDeg, float aspect, float near, float far);
 };

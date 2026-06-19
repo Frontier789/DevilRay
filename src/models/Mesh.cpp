@@ -113,8 +113,8 @@ namespace
 } // namespace
 
 
-Mesh loadMesh(const std::string &fileName)
-{
+
+Mesh loadMesh(const std::string &fileName) {
     if (!std::filesystem::exists(fileName)) {
         throw std::runtime_error("File " + fileName + " does not exist");
     }

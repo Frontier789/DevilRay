@@ -79,9 +79,9 @@ out vec4 frag_color;
 
 void main() {
     vec3 n = normalize(va_normal);
-    float d0 = max(dot(n, normalize(vec3( 1.0,  1.0,  0.5))), 0.0);
-    float d1 = max(dot(n, normalize(vec3(-1.0,  0.3,  1.0))), 0.0);
-    float d2 = max(dot(n, normalize(vec3( 0.0, -1.0, -0.3))), 0.0);
+    float d0 = max(dot(n, normalize(vec3( 1.0, -1.0,  0.5))), 0.0);
+    float d1 = max(dot(n, normalize(vec3(-1.0, -0.3,  1.0))), 0.0);
+    float d2 = max(dot(n, normalize(vec3( 0.0,  1.0, -0.3))), 0.0);
     vec3 color = vec3(0.42, 0.38, 0.32) * d0 * 0.55
                + vec3(0.28, 0.32, 0.40) * d1 * 0.35
                + vec3(0.30, 0.28, 0.26) * d2 * 0.20

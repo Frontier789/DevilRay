@@ -43,14 +43,12 @@ namespace
     {
         if (tris_end - tris_begin < 1) return -1;
 
-        const auto parent_bbox = findBoundingBox(std::span{triangles}.subspan(tris_begin, tris_end - tris_begin), mesh);
+        const auto trianglesInBox = std::span{triangles}.subspan(tris_begin, tris_end - tris_begin);
+        const auto parent_bbox = findBoundingBox(trianglesInBox, mesh);
         const auto parent_index = static_cast<int>(nodes.size());
 
         nodes.push_back(BBHNode{
             .box = parent_bbox,
-            .left_child = -1,
-            .right_child = -1,
-            .skip_index = -1,
             .tris_begin = tris_begin,
             .tris_end = tris_end,
         });
@@ -132,4 +130,30 @@ BBHGpuView createBBHGpuView(BBH &bbh)
     return BBHGpuView{
         .nodes = bbh.nodes.deviceSpan()
     };
+}
+
+namespace
+{
+    void extractBoxes(std::vector<BBHNode> &nodes, const BBH &bbh, int current_index, int depth)
+    {
+        const auto &node = bbh.nodes.hostPtr()[current_index];
+
+        if (depth == 0)
+        {
+            nodes.push_back(node);
+            return;
+        }
+
+        if (node.left_child  != -1) extractBoxes(nodes, bbh, node.left_child,  depth-1);
+        if (node.right_child != -1) extractBoxes(nodes, bbh, node.right_child, depth-1);
+    }
+}
+
+std::vector<BBHNode> getBoxesOnDepth(const BBH &bbh, int depth)
+{
+    std::vector<BBHNode> nodes;
+
+    extractBoxes(nodes, bbh, 0, depth);
+
+    return nodes;
 }
