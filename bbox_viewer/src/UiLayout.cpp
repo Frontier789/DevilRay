@@ -31,7 +31,7 @@ namespace
 
 void Application::drawUiElements()
 {
-    sliderIntWithPlusMinus(bbhShowDepth, this->bbh.depth, "BBH depth", [this](int newDepth){updateBbhDepth(newDepth);});
+    sliderIntWithPlusMinus(bbhShowDepth, this->bbh->depth, "BBH depth", [this](int newDepth){updateBbhDepth(newDepth);});
     sliderIntWithPlusMinus(boxShown, boxCountOnDepth, "Box to show", [this](int newBoxId){
         if (newBoxId < -1) newBoxId = -1;
         boxShown = newBoxId;
@@ -49,12 +49,12 @@ void Application::handleUiEvents()
 void Application::updateBbhDepth(int newDepth)
 {
     if (newDepth < 0) newDepth = 0;
-    if (newDepth > this->bbh.depth) newDepth = this->bbh.depth;
+    if (newDepth > this->bbh->depth) newDepth = this->bbh->depth;
 
     if (bbhShowDepth == newDepth) return;
 
     bbhShowDepth = newDepth;
-    boxCountOnDepth = getBoxesOnDepth(bbh, bbhShowDepth).size();
+    boxCountOnDepth = getBoxesOnDepth(*bbh, bbhShowDepth).size();
 
     if (boxShown >= boxCountOnDepth) {
         boxShown = boxCountOnDepth - 1;
@@ -73,7 +73,7 @@ void Application::updateTrisShownBox()
         return;
     }
 
-    const auto nodesOnDepth = getBoxesOnDepth(bbh, bbhShowDepth);
+    const auto nodesOnDepth = getBoxesOnDepth(*bbh, bbhShowDepth);
     const auto box = nodesOnDepth[boxShown];
 
     glObjects.meshTrisBegin = box.tris_begin;

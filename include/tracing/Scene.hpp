@@ -19,8 +19,8 @@ struct Scene
 
     ObjectsInfo info;
 
-    DeviceVector<TriangleMesh> objects;
-    DeviceVector<Material> materials;
+    DeviceVector<TriangleMesh> objects{{}};
+    DeviceVector<Material> materials{{}};
 
     std::list<GpuTris> mesh_storage;
 };

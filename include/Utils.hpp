@@ -14,13 +14,14 @@
     #define HD __host__ __device__
 #endif
 
-class Timer
+struct Timer
 {
-    std::chrono::steady_clock::time_point start_time;
-
-public:
     Timer();
+
     float elapsed_seconds() const;
+
+private:
+    std::chrono::steady_clock::time_point start_time;
 };
 
 constexpr float pi = std::numbers::pi_v<float>;

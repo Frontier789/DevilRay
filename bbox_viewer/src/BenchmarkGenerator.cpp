@@ -2,41 +2,40 @@
 
 BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
 {
-    BenchmarkGenerator gen;
+    auto randStates = CudaRandomStates(Size2i{.width = ray_count, .height = 1});
+    auto tris = GpuTris{convertMeshToTris(mesh, false)};
 
-    gen.randStates = std::make_unique<CudaRandomStates>(Size2i{.width = ray_count, .height = 1});
-    gen.tris = GpuTris{convertMeshToTris(mesh, false)};
-    gen.ray_count = ray_count;
-
-    cudaMalloc(&gen.stats, sizeof(*gen.stats) * ray_count);
-    cudaMemset(gen.stats, 0, sizeof(*gen.stats) * ray_count);
-
+    auto stats = DeviceArray<benchmark::HitTests>(ray_count, benchmark::HitTests{});
+    auto gpu_tris = viewGpuTris(tris);
     const auto bounds = calculateMeshBounds(mesh);
 
-    gen.center = bounds.center;
-    gen.radius = bounds.extent * 0.8f;
+    stats.ensureDeviceAllocation();
 
-    gen.gpu_tris = viewGpuTris(gen.tris);
-
-    return gen;
+    return BenchmarkGenerator{
+        .randStates = std::move(randStates),
+        .stats = std::move(stats),
+        .tris = std::move(tris),
+        .gpu_tris = std::move(gpu_tris),
+        .center = bounds.center,
+        .radius = bounds.extent * 0.8f,
+        .ray_count = ray_count,
+    };
 }
 
 void BenchmarkGenerator::step()
 {
     benchmarkRayCast(
-        *randStates, stats, ray_count,
+        randStates, stats.devicePtr(), ray_count,
         gpu_tris, center, radius
     );
 }
 
 benchmark::HitTests BenchmarkGenerator::aggregateResults() const
 {
-    std::vector<benchmark::HitTests> benches(ray_count);
-
-    cudaMemcpy(benches.data(), stats, sizeof(*stats) * ray_count, cudaMemcpyDeviceToHost);
-
+    stats.updateHostData();
+    
     benchmark::HitTests summed{};
-    for (const auto &test : benches)
+    for (const auto &test : stats.hostSpan())
     {
         summed.bbox_tests += test.bbox_tests;
         summed.triangle_tests += test.triangle_tests;

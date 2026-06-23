@@ -47,12 +47,12 @@ struct Application
     GLFWwindow *window;
 
     Mesh mesh;
-    BBH bbh;
+    std::optional<BBH> bbh;
 
     CameraController cameraController;
     UiHandler uiHandler;
     OGLObjects glObjects;
-    BenchmarkGenerator bench;
+    std::optional<BenchmarkGenerator> bench;
 
     int bbhShowDepth = 0;
     int boxCountOnDepth = 1;

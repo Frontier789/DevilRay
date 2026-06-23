@@ -9,6 +9,8 @@
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
 
+#include <curand.h>
+
 void cudaCheckLAstError(const char *file, int line, bool abort)
 {
     const auto code = cudaPeekAtLastError();
@@ -24,17 +26,9 @@ void cudaCheckLAstError(const char *file, int line, bool abort)
 
 CudaRandomStates::CudaRandomStates(Size2i resolution)
     : size(resolution)
-    , rand_states(nullptr)
+    , rand_states(std::vector<curandState>(resolution.area()))
 {
-    cudaMalloc(&rand_states, resolution.width * resolution.height * sizeof(*rand_states));
-
     init();
-}
-
-CudaRandomStates::~CudaRandomStates()
-{
-    cudaFree(rand_states);
-    rand_states = nullptr;
 }
 
 
@@ -75,6 +69,8 @@ void CudaRandomStates::init()
     dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
     dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
 
-    initRand<<<dimGrid, dimBlock>>>(rand_states, size.width, size.height, 42);
+    rand_states.ensureDeviceAllocation();
+
+    initRand<<<dimGrid, dimBlock>>>(rand_states.devicePtr(), size.width, size.height, 42);
     CUDA_ERROR_CHECK();
 }

@@ -40,5 +40,5 @@ void benchmarkRayCast(
     dim3 dimBlock(32, 1);
     dim3 dimGrid((ray_count + dimBlock.x - 1) / dimBlock.x, 1);
 
-    runRaycasts<<<dimGrid, dimBlock>>>(randStates.ptr(), stats, ray_count, tris, center, radius);
+    runRaycasts<<<dimGrid, dimBlock>>>(randStates.devicePtr(), stats, ray_count, tris, center, radius);
 }

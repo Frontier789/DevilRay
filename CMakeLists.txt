@@ -51,7 +51,7 @@ add_library(${PROJECT_NAME}
             src/models/BBH.cpp
             src/device/implementation.cu
             src/device/DevUtils.cu
-            src/device/Array.cu
+            src/device/Array.cpp
             src/device/Vector.cu
             src/tracing/TriangleMesh.cpp)
 
@@ -62,6 +62,8 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
+
+target_compile_options(${PROJECT_NAME} PRIVATE -Wmissing-field-initializers)
 
 enable_testing()
 add_subdirectory(test)

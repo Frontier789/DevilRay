@@ -55,7 +55,7 @@ struct Application
     GLFWwindow *window;
     std::unique_ptr<Renderer> renderer;
 
-    Meshes meshes;
+    std::optional<Meshes> meshes;
 
     RenderOptions renderOptions;
     CameraController cameraController;

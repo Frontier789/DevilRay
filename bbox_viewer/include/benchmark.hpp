@@ -19,19 +19,11 @@ struct BenchmarkGenerator
 {
     static BenchmarkGenerator create(int ray_count, Mesh &mesh);
 
-    BenchmarkGenerator() = default;
-
-    BenchmarkGenerator(const BenchmarkGenerator &) = delete;
-    BenchmarkGenerator &operator=(const BenchmarkGenerator &) = delete;
-
-    BenchmarkGenerator(BenchmarkGenerator &&) = default;
-    BenchmarkGenerator &operator=(BenchmarkGenerator &&) = default;
-
     void step();
     benchmark::HitTests aggregateResults() const;
 
-    std::unique_ptr<CudaRandomStates> randStates;
-    benchmark::HitTests *stats;
+    CudaRandomStates randStates;
+    mutable DeviceArray<benchmark::HitTests> stats;
 
     GpuTris tris;
     TriangleMesh gpu_tris;

@@ -91,7 +91,7 @@ void Renderer::schedule_device_render()
         materials,
         light_table,
         localDebug,
-        cuda_randoms.ptr()
+        cuda_randoms.devicePtr()
     );
 
     CUDA_ERROR_CHECK();

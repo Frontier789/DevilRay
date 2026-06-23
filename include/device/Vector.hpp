@@ -10,6 +10,7 @@ struct DeviceMemoryManager
     DeviceMemoryManager(DeviceMemoryManager &&);
     ~DeviceMemoryManager();
 
+    DeviceMemoryManager &operator=(const DeviceMemoryManager &other) = delete;
     DeviceMemoryManager &operator=(DeviceMemoryManager &&other);
 
     template<typename T>
@@ -28,7 +29,7 @@ template<typename T>
 struct DeviceVector
 {
     explicit DeviceVector(std::vector<T> data) : m_host(std::move(data)), m_deviceNeedsUpdate{true} {}
-    DeviceVector() : m_deviceNeedsUpdate{true} {}
+    DeviceVector() = delete;
 
     void deleteDeviceMemory() {
         m_device.free();

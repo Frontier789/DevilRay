@@ -58,6 +58,7 @@ HD std::optional<Intersection> getIntersectionTris(
                 .uv = Vec2f{0,0},
                 .n = n,
                 .mat = tris.material,
+                .object = &tris,
                 .triangle = TriangleHitData{
                     .bari = intersection->bari,
                     .area = triangleArea(world_triangle.a, world_triangle.b, world_triangle.c),
@@ -166,7 +167,6 @@ HD std::optional<Intersection> cast(const Ray &ray, const std::span<const Triang
 
         if (!best.has_value() || best->t > intersection->t)
         {
-            intersection->object = &mesh;
             best = intersection;
         }
     }

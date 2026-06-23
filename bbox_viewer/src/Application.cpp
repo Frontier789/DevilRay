@@ -198,7 +198,7 @@ void Application::updateBoundingBoxMesh()
 {
     std::vector<Vec3> lineVerts;
 
-    for (const auto &node : getBoxesOnDepth(bbh, bbhShowDepth))
+    for (const auto &node : getBoxesOnDepth(*bbh, bbhShowDepth))
         appendBboxLineVerts(node.box, lineVerts);
 
     glObjects.bboxVertexCount = static_cast<GLsizei>(lineVerts.size());
