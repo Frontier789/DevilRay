@@ -29,7 +29,12 @@ __global__ void runRaycasts(
 
     const auto ray = Ray{.p = p, .v = v};
 
-    getIntersectionBenchmark(ray, tris, stats[idx]);
+    const auto intersection = getIntersectionBenchmark(ray, tris, stats[idx]);
+
+    if (intersection.has_value())
+    {
+        stats[idx].registerTriangleHit();
+    }
 }
 
 void benchmarkRayCast(

@@ -104,6 +104,18 @@ HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
     return std::max(enter_time, 0.0f);
 }
 
+namespace
+{
+    constexpr bool rayPointsToRight(const Ray& ray, uint32_t depth)
+    {
+        uint32_t axis = depth % 3;
+
+        if (axis == 0) return ray.v.x > 0.0f;
+        if (axis == 1) return ray.v.y > 0.0f;
+        return ray.v.z > 0.0f;
+    }
+}
+
 template<Benchmark B>
 HD std::optional<Intersection> getIntersectionImpl(
     const Ray &ray_in_world,
@@ -118,25 +130,94 @@ HD std::optional<Intersection> getIntersectionImpl(
     // getIntersectionTris(ray, tris, 0, tris.tris_count, best, benchmark);
     // return best;
     
-    int bbox_index = 0;
-    while (bbox_index < bbh.nodes.size())
+    // int bbox_index = 0;
+    // while (bbox_index < bbh.nodes.size())
+    // {
+    //     const auto &node = bbh.nodes[bbox_index];
+    //     benchmark.registerBBoxTest();
+    //     const auto bboxHit = testBoxIntersection(node.box, ray);
+
+    //     if (bboxHit.has_value())
+    //     {
+    //         if (node.isLeaf())
+    //         {
+    //             getIntersectionTris(ray, tris, node.tris_begin, node.tris_end, best, benchmark);
+    //         }
+
+    //         ++bbox_index;
+    //     }
+    //     else
+    //     {
+    //         bbox_index = node.skip_index;
+    //     }
+    // }
+    // return best;
+
+    uint32_t bit_trail = 0;
+    uint32_t depth = 0;
+    int current_index = 0;
+
+    while (current_index >= 0 && current_index < bbh.nodes.size())
     {
-        const auto &node = bbh.nodes[bbox_index];
+        const auto &node = bbh.nodes[current_index];
         benchmark.registerBBoxTest();
         const auto bboxHit = testBoxIntersection(node.box, ray);
 
         if (bboxHit.has_value())
         {
-            if (node.isLeaf())
+            const auto t = *bboxHit;
+
+            if (!best.has_value() || t < best->t)
             {
-                getIntersectionTris(ray, tris, node.tris_begin, node.tris_end, best, benchmark);
+                if (node.isLeaf())
+                {
+                    getIntersectionTris(ray, tris, node.tris_begin, node.tris_end, best, benchmark);
+                }
+                else
+                {
+                    const auto ray_right = rayPointsToRight(ray, depth);
+                    const auto near_child = ray_right ? node.left_child : node.right_child;
+                    // const auto near_child = node.left_child;
+                    
+                    bit_trail &= ~(1u << depth);
+
+                    current_index = near_child;
+                    depth++;
+
+                    continue;
+                }
+            }
+        }
+
+        while (true)
+        {
+            if (current_index == 0) {
+                current_index = -1;
+                break;
             }
 
-            ++bbox_index;
-        }
-        else
-        {
-            bbox_index = node.skip_index;
+            const auto parent_index = bbh.nodes[current_index].parent_index;
+            const auto &parent = bbh.nodes[parent_index];
+
+            depth--;
+            const auto far_child_visited = bit_trail & (1u << depth);
+
+            if (!far_child_visited)
+            {
+                const auto ray_right = rayPointsToRight(ray, depth);
+                const auto far_child = ray_right ? parent.right_child : parent.left_child;
+                // const auto far_child = parent.right_child;
+
+                bit_trail |= (1u << depth);
+
+                current_index = far_child;
+                depth++;
+                break;
+            }
+            else
+            {
+                current_index = parent_index;
+            }
         }
     }
 

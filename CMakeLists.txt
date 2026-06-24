@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
+set(CMAKE_CUDA_ARCHITECTURES native)
+
 # Allow constexpr calls in CUDA code
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 
@@ -54,8 +56,6 @@ add_library(${PROJECT_NAME}
             src/device/Array.cpp
             src/device/Vector.cu
             src/tracing/TriangleMesh.cpp)
-
-set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES 89)
 
 target_link_libraries(${PROJECT_NAME}
     stb::stb

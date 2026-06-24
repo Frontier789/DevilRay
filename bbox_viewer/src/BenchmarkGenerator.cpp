@@ -17,7 +17,7 @@ BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
         .tris = std::move(tris),
         .gpu_tris = std::move(gpu_tris),
         .center = bounds.center,
-        .radius = bounds.extent * 0.8f,
+        .radius = bounds.extent * 1.1f,
         .ray_count = ray_count,
     };
 }
@@ -37,8 +37,9 @@ benchmark::HitTests BenchmarkGenerator::aggregateResults() const
     benchmark::HitTests summed{};
     for (const auto &test : stats.hostSpan())
     {
-        summed.bbox_tests += test.bbox_tests;
         summed.triangle_tests += test.triangle_tests;
+        summed.triangle_hits += test.triangle_hits;
+        summed.bbox_tests += test.bbox_tests;
     }
 
     return summed;
