@@ -178,3 +178,73 @@ TEST(MeshLoaderTest, ThrowsOnInvalidContent) {
         std::filesystem::remove(output_folder / filename);
     }
 }
+
+// --- Geometry utilities (no file IO) ---
+
+namespace
+{
+    Mesh triangleMesh(std::vector<Vec3> points)
+    {
+        Mesh mesh;
+        mesh.name = "geometry";
+        mesh.points = std::move(points);
+        mesh.triangles = {Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}}};
+        return mesh;
+    }
+}
+
+TEST(MeshGeometryTest, CalculateBoundsFindsCentroidAndExtent)
+{
+    const Mesh mesh = triangleMesh({{0, 0, 0}, {2, 0, 0}, {0, 2, 0}});
+    const auto bounds = calculateMeshBounds(mesh);
+
+    EXPECT_NEAR(bounds.center.x, 2.0f / 3.0f, 1e-5f);
+    EXPECT_NEAR(bounds.center.y, 2.0f / 3.0f, 1e-5f);
+    EXPECT_NEAR(bounds.center.z, 0.0f, 1e-5f);
+
+    const float farthest = (Vec3{2, 0, 0} - bounds.center).length();
+    EXPECT_NEAR(bounds.extent, farthest, 1e-5f);
+}
+
+TEST(MeshGeometryTest, NormalizeRecentersAndRescales)
+{
+    Mesh mesh = triangleMesh({{0, 0, 0}, {2, 0, 0}, {0, 2, 0}});
+    normalizeMeshSize(mesh);
+
+    const auto bounds = calculateMeshBounds(mesh);
+    EXPECT_NEAR(bounds.center.x, 0.0f, 1e-5f);
+    EXPECT_NEAR(bounds.center.y, 0.0f, 1e-5f);
+    EXPECT_NEAR(bounds.extent, 1.0f, 1e-5f);
+}
+
+TEST(MeshGeometryTest, CoarseNormalsAreFaceNormals)
+{
+    Mesh mesh = triangleMesh({{0, 0, 0}, {1, 0, 0}, {0, 1, 0}});
+    generateCoarseNormals(mesh);
+
+    ASSERT_EQ(mesh.normals.size(), 1u);
+    EXPECT_NEAR(mesh.normals[0].x, 0.0f, 1e-6f);
+    EXPECT_NEAR(mesh.normals[0].y, 0.0f, 1e-6f);
+    EXPECT_NEAR(mesh.normals[0].z, 1.0f, 1e-6f);
+
+    EXPECT_EQ(mesh.triangles[0].a.ni, 0u);
+    EXPECT_EQ(mesh.triangles[0].b.ni, 0u);
+    EXPECT_EQ(mesh.triangles[0].c.ni, 0u);
+}
+
+TEST(MeshGeometryTest, CoarseNormalsAreGeneratedPerTriangle)
+{
+    Mesh mesh;
+    mesh.name = "two-faces";
+    mesh.points = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {0, 0, 1}};
+    mesh.triangles = {
+        Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}},
+        Triangle{.a = {0, 0}, .b = {1, 0}, .c = {3, 0}},
+    };
+
+    generateCoarseNormals(mesh);
+
+    ASSERT_EQ(mesh.normals.size(), 2u);
+    EXPECT_EQ(mesh.triangles[0].a.ni, 0u);
+    EXPECT_EQ(mesh.triangles[1].a.ni, 1u);
+}
