@@ -6,5 +6,5 @@
 
 void printCudaDeviceInfo();
 
-#define CUDA_ERROR_CHECK() { cudaCheckLAstError(__FILE__, __LINE__); }
-void cudaCheckLAstError(const char *file, int line, bool abort=true);
+#define CUDA_ERROR_CHECK() { cudaCheckLastError(__FILE__, __LINE__, false); }
+void cudaCheckLastError(const char *file, int line, bool abort=true);

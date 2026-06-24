@@ -1,6 +1,7 @@
 #include "benchmark.hpp"
 
 #include <tracing/IntersectionTestsImpl.hpp>
+#include <device/DevUtils.hpp>
 
 struct CudaRandom
 {
@@ -23,8 +24,12 @@ __global__ void runRaycasts(
 
     auto rng = CudaRandom{randStates + idx};
 
-    const auto p0 = uniformSphereSample(rng) * radius + center;
-    const auto p1 = uniformSphereSample(rng) * radius + center;
+    const auto dir0 = uniformSphereSample(rng);
+    const auto dir1 = uniformSphereSample(rng);
+
+    const auto r = radius * 1.1f;
+    const auto p0 = dir0 * r + center;
+    const auto p1 = (dir1 - dir0) * r + center;
 
     const auto ray = Ray{.p = p0, .v = (p1 - p0).normalized()};
 
@@ -45,4 +50,6 @@ void benchmarkRayCast(
     dim3 dimGrid((ray_count + dimBlock.x - 1) / dimBlock.x, 1);
 
     runRaycasts<<<dimGrid, dimBlock>>>(randStates.devicePtr(), stats, ray_count, tris, center, radius);
+    cudaDeviceSynchronize();
+    CUDA_ERROR_CHECK();
 }

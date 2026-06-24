@@ -11,7 +11,7 @@
 
 #include <curand.h>
 
-void cudaCheckLAstError(const char *file, int line, bool abort)
+void cudaCheckLastError(const char *file, int line, bool abort)
 {
     const auto code = cudaPeekAtLastError();
 

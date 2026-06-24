@@ -18,8 +18,6 @@ add_executable(${PROJECT_NAME}
                src/BenchmarkGenerator.cpp
                src/main.cpp)
 
-set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES 89)
-
 target_link_libraries(${PROJECT_NAME}
     devil_ray_lib
 )
