@@ -121,22 +121,6 @@ void Application::loadMesh()
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.normals.size() << " normals" << std::endl;
     std::cout << "Mesh '" << mesh.name << "' has " << mesh.triangles.size() << " tris" << std::endl;
 
-    std::cout << "== Benchmark Started ==" << std::endl;
-    Timer timer;
-
-    bench = BenchmarkGenerator::create(10000000, mesh);
-    bench->step();
-
-    const auto benchResults = bench->aggregateResults();
-    const auto ray_casts = bench->ray_count;
-
-    std::cout << "== Benchmark Finished in " << timer.elapsed_seconds() << "s ==" << std::endl;
-    std::cout << "Number of rays: " << ray_casts << std::endl;
-    std::cout << "Triangle hits: " << benchResults.triangle_hits << " (" << benchResults.triangle_hits / static_cast<double>(ray_casts)*100 << "%)" << std::endl;
-    std::cout << "Triangle tests: " << benchResults.triangle_tests << " (" << benchResults.triangle_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
-    std::cout << "BBox tests: " << benchResults.bbox_tests << " (" << benchResults.bbox_tests / static_cast<double>(ray_casts) << "/ray)" << std::endl;
-    std::cout << "== Benchmark Reported ==" << std::endl;
-
     normalizeMeshSize(this->mesh);
 
     this->bbh = generateSimpleBBH(this->mesh);

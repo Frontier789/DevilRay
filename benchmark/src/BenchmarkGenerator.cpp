@@ -17,7 +17,7 @@ BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
         .tris = std::move(tris),
         .gpu_tris = std::move(gpu_tris),
         .center = bounds.center,
-        .radius = bounds.extent * 1.1f,
+        .radius = bounds.extent,
         .ray_count = ray_count,
     };
 }

@@ -23,11 +23,10 @@ __global__ void runRaycasts(
 
     auto rng = CudaRandom{randStates + idx};
 
-    const auto pn = uniformSphereSample(rng);
-    const auto p = pn * radius + center;
-    const auto v = uniformHemisphereSample(pn * -1, rng);
+    const auto p0 = uniformSphereSample(rng) * radius + center;
+    const auto p1 = uniformSphereSample(rng) * radius + center;
 
-    const auto ray = Ray{.p = p, .v = v};
+    const auto ray = Ray{.p = p0, .v = (p1 - p0).normalized()};
 
     const auto intersection = getIntersectionBenchmark(ray, tris, stats[idx]);
 

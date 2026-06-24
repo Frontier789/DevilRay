@@ -11,7 +11,7 @@
 #include <GL/glew.h>
 
 #include <thread>
-#include "benchmark.hpp"
+#include <optional>
 
 struct OGLObjects
 {
@@ -52,7 +52,6 @@ struct Application
     CameraController cameraController;
     UiHandler uiHandler;
     OGLObjects glObjects;
-    std::optional<BenchmarkGenerator> bench;
 
     int bbhShowDepth = 0;
     int boxCountOnDepth = 1;
