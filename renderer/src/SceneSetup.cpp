@@ -1,5 +1,7 @@
 #include "Application.hpp"
 
+#include <random>
+
 Scene createScene(Meshes &meshes)
 {
     Scene scene;

@@ -54,8 +54,7 @@ add_library(${PROJECT_NAME}
             src/models/BBH.cpp
             src/device/implementation.cu
             src/device/DevUtils.cu
-            src/device/Array.cpp
-            src/device/Vector.cu
+            src/device/DeviceMemory.cu
             src/tracing/TriangleMesh.cpp)
 
 target_link_libraries(${PROJECT_NAME}

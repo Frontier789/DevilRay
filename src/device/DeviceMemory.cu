@@ -1,5 +1,7 @@
-#include "device/Vector.hpp"
+#include "device/DeviceMemory.hpp"
+#include "device/DevUtils.hpp"
 
+#include <cuda_runtime.h>
 #include <stdexcept>
 
 DeviceMemoryManager::DeviceMemoryManager()
@@ -14,6 +16,8 @@ DeviceMemoryManager::DeviceMemoryManager(DeviceMemoryManager &&other)
 
 DeviceMemoryManager &DeviceMemoryManager::operator=(DeviceMemoryManager &&other)
 {
+    free();
+
     m_devicePtr = other.m_devicePtr;
     other.m_devicePtr = nullptr;
 
@@ -30,6 +34,7 @@ void DeviceMemoryManager::allocate(size_t bytes)
     free();
 
     cudaMalloc(&m_devicePtr, bytes);
+    CUDA_ERROR_CHECK();
 }
 
 void DeviceMemoryManager::free()
@@ -40,13 +45,22 @@ void DeviceMemoryManager::free()
     }
 }
 
-void DeviceMemoryManager::memcpy(const void *src, size_t bytes)
+void DeviceMemoryManager::copyFromHost(const void *src, size_t bytes)
 {
     if (empty()) {
-        throw std::runtime_error("Memcpying into a nullptr device memory.");
+        throw std::runtime_error("Copying into an unallocated device buffer.");
     }
 
     cudaMemcpy(m_devicePtr, src, bytes, cudaMemcpyHostToDevice);
+    CUDA_ERROR_CHECK();
+}
+
+void DeviceMemoryManager::copyToHost(void *dst, size_t bytes) const
+{
+    if (m_devicePtr == nullptr) return;
+
+    cudaMemcpy(dst, m_devicePtr, bytes, cudaMemcpyDeviceToHost);
+    CUDA_ERROR_CHECK();
 }
 
 bool DeviceMemoryManager::empty() const

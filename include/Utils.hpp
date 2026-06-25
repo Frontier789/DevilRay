@@ -1,9 +1,9 @@
 #pragma once
 
 #include <chrono>
-#include <random>
-#include <mutex>
+#include <cmath>
 #include <thread>
+#include <vector>
 
 #ifndef __CUDACC__
     #define __global__
@@ -46,40 +46,6 @@ void parallel_for(int range, const F &func) {
         });
     }
 }
-
-
-struct Random
-{
-    Random() : m_id{id_counter++}, m_generator(13), m_distribution_0_1(0, 1) {}
-
-    float rnd()
-    {
-        return m_distribution_0_1(m_generator);
-    }
-
-    Random(const Random &) = delete;
-    Random(Random &&) = default;
-
-    int getId() {return m_id;}
-private:
-    int m_id;
-    std::mt19937 m_generator;
-    std::uniform_real_distribution<float> m_distribution_0_1;
-
-    static int id_counter;
-};
-
-
-struct RandomPool
-{
-    Random borrowRandom();
-    void returnRandom(Random r);
-
-    static RandomPool &singleton();
-private:
-    std::vector<Random> m_randoms;
-    std::mutex m_mutex;
-};
 
 
 struct ColorRGBA8
@@ -221,13 +187,6 @@ struct AABB
         return box;
     }
 };
-
-namespace Resolutions
-{
-    inline Size2i vga() {return Size2i{640, 480};}
-    inline Size2i hd() {return Size2i{1280, 720};}
-    inline Size2i fhd() {return Size2i{1920, 1080};}
-}
 
 struct Ray
 {

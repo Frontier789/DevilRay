@@ -1,29 +1,9 @@
 #pragma once
 
+#include "device/DeviceMemory.hpp"
+
 #include <vector>
 #include <span>
-
-struct DeviceMemoryManager
-{
-    DeviceMemoryManager();
-    DeviceMemoryManager(const DeviceMemoryManager &) = delete;
-    DeviceMemoryManager(DeviceMemoryManager &&);
-    ~DeviceMemoryManager();
-
-    DeviceMemoryManager &operator=(const DeviceMemoryManager &other) = delete;
-    DeviceMemoryManager &operator=(DeviceMemoryManager &&other);
-
-    template<typename T>
-    T *getPtr() {return static_cast<T*>(m_devicePtr);}
-
-    void allocate(size_t bytes);
-    void free();
-    void memcpy(const void *src, size_t bytes);
-    bool empty() const;
-
-private:
-    void *m_devicePtr;
-};
 
 template<typename T>
 struct DeviceVector
@@ -46,7 +26,7 @@ struct DeviceVector
     }
 
     void updateDeviceData() {
-        m_device.memcpy(m_host.data(), sizeof(T) * size());
+        m_device.copyFromHost(m_host.data(), sizeof(T) * size());
     }
 
     void push_back(T elem) {
@@ -66,4 +46,3 @@ private:
     DeviceMemoryManager m_device;
     bool m_deviceNeedsUpdate;
 };
-

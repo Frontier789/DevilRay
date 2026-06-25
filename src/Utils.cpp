@@ -11,34 +11,6 @@ float Timer::elapsedSeconds() const
 }
 
 
-int Random::id_counter = 0;
-
-Random RandomPool::borrowRandom()
-{
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    if (m_randoms.empty()) m_randoms.push_back(Random{});
-    Random r = std::move(m_randoms.back());
-    m_randoms.pop_back();
-
-    return r;
-}
-
-void RandomPool::returnRandom(Random r)
-{
-    std::lock_guard<std::mutex> guard(m_mutex);
-
-    m_randoms.emplace_back(std::move(r));
-}
-
-RandomPool &RandomPool::singleton()
-{
-    static RandomPool pool;
-
-    return pool;
-}
-
-
 std::ostream &operator<<(std::ostream &os, const ColorRGBA8 &color) {
     os << "(" << static_cast<int>(color.r) << ", "
        << static_cast<int>(color.g) << ", "

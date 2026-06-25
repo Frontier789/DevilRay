@@ -15,12 +15,6 @@
 #include <optional>
 #include <span>
 
-struct ColorSample
-{
-    Vec4 color;
-    int casts;
-};
-
 HD std::optional<Intersection> cast(
     const Ray &ray,
     const std::span<const TriangleMesh> objects,
