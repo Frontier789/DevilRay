@@ -174,7 +174,7 @@ HD void generateNewRay(
 
         // Reflect or refract
         const auto eta = n1/n2;
-        const auto d = dot(ray.v, normal);
+        const auto d = ray.v.dot(normal);
         const auto k = 1 - eta*eta * (1 - d*d);
 
         Vec3 v;
@@ -250,7 +250,7 @@ HD LightSample samplePointOnLights(
 
     // printf("Rolled %d\n", index);
 
-    const auto tris_table = std::span{object.tris_sampler, static_cast<size_t>(object.tris_count)};
+    const auto tris_table = std::span{object.triangle_sampler, static_cast<size_t>(object.triangle_count)};
     const auto [i, triangle_pdf] = sample(tris_table, rng);
 
     const auto triangle = object.triangles[i];
@@ -260,9 +260,9 @@ HD LightSample samplePointOnLights(
 
     const auto p = uniformTriangleSample(A, B, C, rng);
 
-    const auto Aw = A * object.modelToWorld.s;
-    const auto Bw = B * object.modelToWorld.s;
-    const auto Cw = C * object.modelToWorld.s;
+    const auto Aw = A * object.model_to_world.s;
+    const auto Bw = B * object.model_to_world.s;
+    const auto Cw = C * object.model_to_world.s;
 
     const auto perp = (Aw - Bw).cross(Aw - Cw);
     const auto perp_length = perp.length();
@@ -270,7 +270,7 @@ HD LightSample samplePointOnLights(
     const auto world_triangle_area = perp_length / 2.0f;
 
     return LightSample{
-        .p = object.modelToWorld.applyToPoint(p),
+        .p = object.model_to_world.applyToPoint(p),
         .n = n,
         .mat = mat,
         .pdf = object_pdf * triangle_pdf / world_triangle_area,

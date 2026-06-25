@@ -25,7 +25,7 @@ HD Vec3 uniformHemisphereSample(const Vec3 &normal, Rng &r)
 {
     const auto v = uniformSphereSample(r);
 
-    if (dot(v, normal) < 0) return v*-1;
+    if (v.dot(normal) < 0) return v*-1;
 
     return v;
 }

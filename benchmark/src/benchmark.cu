@@ -1,7 +1,7 @@
 #include "benchmark.hpp"
 
-#include <tracing/IntersectionTestsImpl.hpp>
-#include <device/DevUtils.hpp>
+#include "tracing/IntersectionTestsImpl.hpp"
+#include "device/DevUtils.hpp"
 
 struct CudaRandom
 {

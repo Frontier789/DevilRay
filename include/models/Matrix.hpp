@@ -44,7 +44,7 @@ inline std::ostream &operator<<(std::ostream &out, const Matrix4x4<T> &m)
     return out;
 }
 
-typedef Matrix4x4<float> Matrix4x4f;
+using Matrix4x4f = Matrix4x4<float>;
 
 template<typename T>
 constexpr Matrix4x4<T> Matrix4x4<T>::identity()

@@ -46,12 +46,12 @@ __global__ void cuda_render(
     casts[idx] += stats.ray_casts;
 }
 
-void Renderer::schedule_device_render()
+void Renderer::scheduleDeviceRender()
 {
     dim3 dimBlock(16, 16);
     dim3 dimGrid;
-    dimGrid.x = (resolution.width + dimBlock.x - 1) / dimBlock.x;
-    dimGrid.y = (resolution.height + dimBlock.y - 1) / dimBlock.y;
+    dimGrid.x = (m_resolution.width + dimBlock.x - 1) / dimBlock.x;
+    dimGrid.y = (m_resolution.height + dimBlock.y - 1) / dimBlock.y;
 
     static bool printed = false;
     if (!printed) {
@@ -70,28 +70,28 @@ void Renderer::schedule_device_render()
     DebugOptions localDebug;
 
     {
-        std::scoped_lock guard{renderMutex};
-        localCamera = camera;
-        localPixelSampling = pixel_sampling;
-        localDebug = debug;
+        std::scoped_lock guard{m_renderMutex};
+        localCamera = m_camera;
+        localPixelSampling = m_pixel_sampling;
+        localDebug = m_debug;
     }
 
-    const auto objects = std::span{scene.objects.devicePtr(), scene.objects.size()};
-    const auto materials = std::span{scene.materials.devicePtr(), scene.materials.size()};
-    const auto light_table = std::span{light_sampler.entries.devicePtr(), light_sampler.entries.size()};
+    const auto objects = std::span{m_scene.objects.devicePtr(), m_scene.objects.size()};
+    const auto materials = std::span{m_scene.materials.devicePtr(), m_scene.materials.size()};
+    const auto light_table = std::span{m_light_sampler.entries.devicePtr(), m_light_sampler.entries.size()};
 
     cuda_render<<<dimGrid, dimBlock>>>(
-        resolution,
-        buffers.color.devicePtr(),
-        buffers.casts.devicePtr(),
+        m_resolution,
+        m_buffers.color.devicePtr(),
+        m_buffers.casts.devicePtr(),
         localCamera,
         localPixelSampling,
         objects,
-        scene.info,
+        m_scene.info,
         materials,
         light_table,
         localDebug,
-        cuda_randoms.devicePtr()
+        m_cuda_randoms.devicePtr()
     );
 
     CUDA_ERROR_CHECK();

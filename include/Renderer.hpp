@@ -22,38 +22,38 @@
 
 class Renderer
 {
-    Buffers buffers;
-    uint64_t totalCasts;
+    Buffers m_buffers;
+    uint64_t m_totalCasts;
 
-    Camera camera;
-    DebugOptions debug;
-    OutputOptions output_options;
-    PixelSampling pixel_sampling;
-    Size2i resolution;
-    AliasTable light_sampler;
+    Camera m_camera;
+    DebugOptions m_debug;
+    OutputOptions m_output_options;
+    PixelSampling m_pixel_sampling;
+    Size2i m_resolution;
+    AliasTable m_light_sampler;
 
-    std::vector<uint32_t> pixels;
-    std::vector<uint32_t> displayPixels;
+    std::vector<uint32_t> m_pixels;
+    std::vector<uint32_t> m_displayPixels;
 
-    Scene scene;
+    Scene m_scene;
 
-    CudaRandomStates cuda_randoms;
-    RunningAverage renderTimes;
+    CudaRandomStates m_cuda_randoms;
+    RunningAverage m_renderTimes;
 
-    std::mutex renderMutex;
-    std::mutex displayMutex;
-    bool needsToBeCleared = false;
+    std::mutex m_renderMutex;
+    std::mutex m_displayMutex;
+    bool m_needsToBeCleared = false;
 
 public:
     Renderer(Size2i resolution);
 
-    const Buffers &getBuffers() const { return buffers; }
-    float getMeanRenderTimes() const { return renderTimes.mean(); }
-    uint64_t getTotalCasts() const { return totalCasts; }
+    const Buffers &getBuffers() const { return m_buffers; }
+    float getMeanRenderTimes() const { return m_renderTimes.mean(); }
+    uint64_t getTotalCasts() const { return m_totalCasts; }
 
     void setDebug(DebugOptions dbg);
     void setCamera(Camera cam);
-    void setScene(Scene scn) { scene = std::move(scn); calculateLightWeights(); }
+    void setScene(Scene scn) { m_scene = std::move(scn); calculateLightWeights(); }
     void setPixelSampling(PixelSampling sampling);
     void setOutputOptions(OutputOptions options);
 
@@ -69,6 +69,6 @@ public:
     void calculateLightWeights();
 
 private:
-    void schedule_cpu_render();
-    void schedule_device_render();
+    void scheduleCpuRender();
+    void scheduleDeviceRender();
 };

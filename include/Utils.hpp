@@ -18,7 +18,7 @@ struct Timer
 {
     Timer();
 
-    float elapsed_seconds() const;
+    float elapsedSeconds() const;
 
 private:
     std::chrono::steady_clock::time_point start_time;
@@ -50,21 +50,21 @@ void parallel_for(int range, const F &func) {
 
 struct Random
 {
-    Random() : id{id_counter++}, generator(13), distribution_0_1(0, 1) {}
+    Random() : m_id{id_counter++}, m_generator(13), m_distribution_0_1(0, 1) {}
 
     float rnd()
     {
-        return distribution_0_1(generator);
+        return m_distribution_0_1(m_generator);
     }
 
     Random(const Random &) = delete;
     Random(Random &&) = default;
-	
-    int get_id() {return id;}
+
+    int getId() {return m_id;}
 private:
-    int id;
-    std::mt19937 generator;
-    std::uniform_real_distribution<float> distribution_0_1;
+    int m_id;
+    std::mt19937 m_generator;
+    std::uniform_real_distribution<float> m_distribution_0_1;
 
     static int id_counter;
 };
@@ -72,13 +72,13 @@ private:
 
 struct RandomPool
 {
-	Random borrowRandom();
-	void returnRandom(Random r);
+    Random borrowRandom();
+    void returnRandom(Random r);
 
     static RandomPool &singleton();
 private:
     std::vector<Random> m_randoms;
-	std::mutex m_mutex;
+    std::mutex m_mutex;
 };
 
 
@@ -222,16 +222,11 @@ struct AABB
     }
 };
 
-inline constexpr float dot(const Vec3 &a, const Vec3 &b)
-{
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-
 namespace Resolutions
 {
     inline Size2i vga() {return Size2i{640, 480};}
     inline Size2i hd() {return Size2i{1280, 720};}
-    inline Size2i fhd() {return Size2i{1920, 1280};}
+    inline Size2i fhd() {return Size2i{1920, 1080};}
 }
 
 struct Ray
@@ -286,15 +281,15 @@ inline constexpr float areaToSolidAngle(Vec3 from, Vec3 to, Vec3 to_n)
 
     const auto dir = diff.normalized();
 
-    const auto cos_theta = std::abs(dot(dir, to_n));
+    const auto cos_theta = std::abs(dir.dot(to_n));
     if (cos_theta < 1e-6f) return 0.0f;
 
     return distance_squared / cos_theta;
-};
+}
 
 inline constexpr float cosineWeightedHemispherePdf(Vec3 current_vertex_position, Vec3 next_vertex_position, Vec3 normal)
 {
     const auto dir = (next_vertex_position - current_vertex_position).normalized();
-    const auto cos_phi = dot(dir, normal);
+    const auto cos_phi = dir.dot(normal);
     return cos_phi > 0 ? cos_phi / pi : 0.0f;
 }

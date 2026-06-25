@@ -335,7 +335,7 @@ TEST(BenchmarkCountsTest, HierarchyPrunesTriangleTests)
     getIntersectionBenchmark(Ray{.p = {0, 0, 5}, .v = {0, 0, -1}}, mesh, counts);
 
     EXPECT_GT(counts.bbox_tests, 0);
-    EXPECT_LT(counts.triangle_tests, mesh.tris_count)
+    EXPECT_LT(counts.triangle_tests, mesh.triangle_count)
         << "BBH should test fewer triangles than a brute force scan";
 }
 

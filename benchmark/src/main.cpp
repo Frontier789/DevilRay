@@ -93,7 +93,7 @@ int main(int argc, char **argv)
         const auto results = bench.aggregateResults();
         const auto rays = bench.ray_count;
 
-        const auto elapsed = timer.elapsed_seconds();
+        const auto elapsed = timer.elapsedSeconds();
 
         std::cout << "Number of rays: " << rays << std::endl;
         std::cout << "Triangle hits: " << results.triangle_hits << " (" << results.triangle_hits / static_cast<double>(rays) * 100 << "%)" << std::endl;

@@ -14,7 +14,7 @@ struct GpuTris
     DeviceVector<Vec3> normals;
     DeviceVector<Triangle> triangles;
 
-    AliasTable triangleSampler;
+    AliasTable triangle_sampler;
 
     BBH bbh;
 };

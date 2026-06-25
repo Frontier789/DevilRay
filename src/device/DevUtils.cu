@@ -9,8 +9,6 @@
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
 
-#include <curand.h>
-
 void cudaCheckLastError(const char *file, int line, bool abort)
 {
     const auto code = cudaPeekAtLastError();

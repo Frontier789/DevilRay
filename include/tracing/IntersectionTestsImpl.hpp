@@ -36,25 +36,25 @@ HD std::optional<Intersection> getIntersectionTris(
         if (!best.has_value() || best->t > intersection->t)
         {
             const auto world_triangle = TriangleVertices{
-                .a = tris.modelToWorld.applyToPoint(triangle.a),
-                .b = tris.modelToWorld.applyToPoint(triangle.b),
-                .c = tris.modelToWorld.applyToPoint(triangle.c),
+                .a = tris.model_to_world.applyToPoint(triangle.a),
+                .b = tris.model_to_world.applyToPoint(triangle.b),
+                .c = tris.model_to_world.applyToPoint(triangle.c),
             };
 
             const auto norm = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
             const bool is_ccw = norm.dot(ray.v) > 0;
 
             auto n = triangleNormal(triangle);
-            if (dot(n, ray.v) > 0) n = n * -1;
+            if (n.dot(ray.v) > 0) n = n * -1;
 
-            const auto inv_s = tris.modelToWorld.s.inv();
+            const auto inv_s = tris.model_to_world.s.inv();
             n = (n * inv_s).normalized();
 
             const auto p_in_model = ray.p + ray.v * intersection->t;
 
             best = Intersection{
                 .t = intersection->t,
-                .p = tris.modelToWorld.applyToPoint(p_in_model),
+                .p = tris.model_to_world.applyToPoint(p_in_model),
                 .uv = Vec2f{0,0},
                 .n = n,
                 .mat = tris.material,
@@ -125,9 +125,9 @@ HD std::optional<Intersection> getIntersectionImpl(
     std::optional<Intersection> best = std::nullopt;
     
     const auto &bbh = tris.bbh;
-    const auto ray = tris.modelToWorld.applyInverse(ray_in_world);
+    const auto ray = tris.model_to_world.applyInverse(ray_in_world);
 
-    // getIntersectionTris(ray, tris, 0, tris.tris_count, best, benchmark);
+    // getIntersectionTris(ray, tris, 0, tris.triangle_count, best, benchmark);
     // return best;
     
     // int bbox_index = 0;
@@ -270,7 +270,7 @@ HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, 
 
     auto n = n_f.normalized();
 
-    auto dp = dot(ray.p - A, n);
+    auto dp = (ray.p - A).dot(n);
 
     if (dp < 0) {
         n = n * -1;
@@ -279,7 +279,7 @@ HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, 
 
     // (ray.p - o) . n + ray.v . n * t = 0
 
-    const auto d = -dot(ray.v, n);
+    const auto d = -ray.v.dot(n);
     if (d < 1e-7f) return std::nullopt;
 
     const float t = dp / d;

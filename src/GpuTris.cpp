@@ -14,13 +14,13 @@ GpuTris convertMeshToTris(Mesh &mesh, bool generateTriangleSampler)
         triangleAreas.push_back(triangleArea(A, B, C));
     }
 
-    AliasTable triangleSampler;
+    AliasTable triangle_sampler;
 
     if (generateTriangleSampler) {
-        triangleSampler = generateAliasTable(triangleAreas);
+        triangle_sampler = generateAliasTable(triangleAreas);
 
         std::cout << "Generated alias table for '" << mesh.name << "'" << std::endl;
-        // for (const auto e : std::span{triangleSampler.entries.hostPtr(), triangleSampler.entries.size()})
+        // for (const auto e : std::span{triangle_sampler.entries.hostPtr(), triangle_sampler.entries.size()})
         // {
         //     std::cout << "  A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << " pdf_A=" << e.pdf_A << " pdf_B=" << e.pdf_B << std::endl;
         // }
@@ -32,7 +32,7 @@ GpuTris convertMeshToTris(Mesh &mesh, bool generateTriangleSampler)
         .points = DeviceVector(mesh.points),
         .normals = DeviceVector(mesh.normals),
         .triangles = DeviceVector(mesh.triangles),
-        .triangleSampler = std::move(triangleSampler),
+        .triangle_sampler = std::move(triangle_sampler),
         .bbh = std::move(bbh),
     };
 }
@@ -71,13 +71,13 @@ TriangleMesh viewGpuTris(GpuTris &tris)
     tris.triangles.ensureDeviceAllocation();
     obj.triangles = tris.triangles.devicePtr();
 
-    tris.triangleSampler.entries.ensureDeviceAllocation();
-    obj.tris_sampler = tris.triangleSampler.entries.devicePtr();
+    tris.triangle_sampler.entries.ensureDeviceAllocation();
+    obj.triangle_sampler = tris.triangle_sampler.entries.devicePtr();
 
     tris.bbh.nodes.ensureDeviceAllocation();
     obj.bbh = createBBHGpuView(tris.bbh);
 
-    obj.tris_count = tris.triangles.size();
+    obj.triangle_count = tris.triangles.size();
     obj.base_surface_area = totalSurfaceArea(tris);
     obj.surface_area = obj.base_surface_area;
 

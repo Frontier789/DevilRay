@@ -1,11 +1,11 @@
 #pragma once
 
-#include <tracing/Intersection.hpp>
-#include <tracing/DistributionSamplers.hpp>
-#include <tracing/TriangleMesh.hpp>
-#include <tracing/GpuTris.hpp>
-#include <device/Random.hpp>
-#include <models/BBH.hpp>
+#include "tracing/Intersection.hpp"
+#include "tracing/DistributionSamplers.hpp"
+#include "tracing/TriangleMesh.hpp"
+#include "tracing/GpuTris.hpp"
+#include "device/Random.hpp"
+#include "models/BBH.hpp"
 
 #include <curand.h>
 #include <curand_kernel.h>

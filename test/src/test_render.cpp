@@ -1,5 +1,5 @@
-#include <Utils.hpp>
-#include <Renderer.hpp>
+#include "Utils.hpp"
+#include "Renderer.hpp"
 
 #include "tracing/GpuTris.hpp"
 #include <gtest/gtest.h>

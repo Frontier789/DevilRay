@@ -13,7 +13,7 @@
 #include "Application.hpp"
 #include "Utils.hpp"
 #include "Shaders.hpp"
-#include <models/BBH.hpp>
+#include "models/BBH.hpp"
 
 void glfwErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;

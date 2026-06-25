@@ -17,7 +17,6 @@ struct Buffers
 
     static constexpr int maxPathLength = 10;
 
-    DeviceArray<float> lightWeights;
     DeviceArray<Vec4> color;
     mutable DeviceArray<uint32_t> casts;
 };

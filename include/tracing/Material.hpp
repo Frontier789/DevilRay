@@ -26,5 +26,7 @@ using Material = std::variant<TransparentMaterial, DiffuseMaterial>;
 
 inline constexpr Vec4 getDebugColor(const Material &mat)
 {
-    return std::visit([](auto &&m){return m.debug_color;}, mat);
+    return std::visit(Overloaded{
+        [](const auto &m){ return m.debug_color; },
+    }, mat);
 }

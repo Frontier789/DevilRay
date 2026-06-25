@@ -47,14 +47,14 @@ TEST(ConvertMeshToTrisTest, CopiesGeometryAndBuildsStructures)
     EXPECT_EQ(tris.points.size(), pointCount);
     EXPECT_EQ(tris.triangles.size(), triangleCount);
     EXPECT_GT(tris.bbh.nodes.size(), 0u);
-    EXPECT_EQ(tris.triangleSampler.entries.size(), triangleCount);
+    EXPECT_EQ(tris.triangle_sampler.entries.size(), triangleCount);
 }
 
 TEST(ConvertMeshToTrisTest, SkipsSamplerWhenDisabled)
 {
     Mesh mesh = tetrahedronMesh();
     GpuTris tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/false);
-    EXPECT_EQ(tris.triangleSampler.entries.size(), 0u);
+    EXPECT_EQ(tris.triangle_sampler.entries.size(), 0u);
 }
 
 TEST(CreateQuadMeshTest, ProducesAxisAlignedSquare)
@@ -81,11 +81,11 @@ TEST(ViewGpuTrisTest, WiresUpDevicePointersAndSurfaceArea)
     GpuTris quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
     const TriangleMesh view = viewGpuTris(quad);
 
-    EXPECT_EQ(view.tris_count, 2);
+    EXPECT_EQ(view.triangle_count, 2);
     EXPECT_NE(view.points, nullptr);
     EXPECT_NE(view.normals, nullptr);
     EXPECT_NE(view.triangles, nullptr);
-    EXPECT_NE(view.tris_sampler, nullptr);
+    EXPECT_NE(view.triangle_sampler, nullptr);
     EXPECT_FALSE(view.bbh.isEmpty());
 
     EXPECT_NEAR(view.base_surface_area, 4.0f, 1e-5f);

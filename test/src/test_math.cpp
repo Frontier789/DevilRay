@@ -44,7 +44,6 @@ TEST(Vec3Test, DotProduct)
     constexpr Vec3 b{4, 5, 6};
 
     EXPECT_FLOAT_EQ(a.dot(b), 32.0f);
-    EXPECT_FLOAT_EQ(dot(a, b), 32.0f);
     EXPECT_FLOAT_EQ((Vec3{1, 0, 0}.dot(Vec3{0, 1, 0})), 0.0f);
 }
 

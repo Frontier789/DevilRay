@@ -1,22 +1,22 @@
 #pragma once
 
-#include <Utils.hpp>
-#include <models/Mesh.hpp>
-#include <tracing/DistributionSamplers.hpp>
-#include <models/BBH.hpp>
-#include <Transform.hpp>
+#include "Utils.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/DistributionSamplers.hpp"
+#include "models/BBH.hpp"
+#include "Transform.hpp"
 
 struct TriangleMesh
 {
     Vec3 *points;
     Vec3 *normals;
     Triangle *triangles;
-    int tris_count;
+    int triangle_count;
 
-    Transform modelToWorld;
+    Transform model_to_world;
     int material;
 
-    AliasEntry *tris_sampler;
+    AliasEntry *triangle_sampler;
     float surface_area;
     float base_surface_area;
 

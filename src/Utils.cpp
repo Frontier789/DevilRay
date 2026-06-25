@@ -3,7 +3,7 @@
 
 Timer::Timer() : start_time(std::chrono::steady_clock::now()) {}
 
-float Timer::elapsed_seconds() const
+float Timer::elapsedSeconds() const
 {
     const auto delta = std::chrono::steady_clock::now() - start_time;
     const auto mics = std::chrono::duration_cast<std::chrono::microseconds>(delta);
@@ -15,20 +15,20 @@ int Random::id_counter = 0;
 
 Random RandomPool::borrowRandom()
 {
-	std::lock_guard<std::mutex> guard(m_mutex);
+    std::lock_guard<std::mutex> guard(m_mutex);
 
-	if (m_randoms.empty()) m_randoms.push_back(Random{});
-	Random r = std::move(m_randoms.back());
-	m_randoms.pop_back();
-	
-	return r;
+    if (m_randoms.empty()) m_randoms.push_back(Random{});
+    Random r = std::move(m_randoms.back());
+    m_randoms.pop_back();
+
+    return r;
 }
 
 void RandomPool::returnRandom(Random r)
 {
-	std::lock_guard<std::mutex> guard(m_mutex);
-	
-	m_randoms.emplace_back(std::move(r));	
+    std::lock_guard<std::mutex> guard(m_mutex);
+
+    m_randoms.emplace_back(std::move(r));
 }
 
 RandomPool &RandomPool::singleton()

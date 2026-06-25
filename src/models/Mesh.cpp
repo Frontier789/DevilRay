@@ -12,7 +12,7 @@ namespace
         {
             if (std::string("0123456789/").find(c) == std::string::npos)
             {
-                throw std::runtime_error(std::string("Found unkown character in face descriptor: '") + c + "'");
+                throw std::runtime_error(std::string("Found unknown character in face descriptor: '") + c + "'");
             }
         }
 
@@ -226,14 +226,12 @@ MeshBounds calculateMeshBounds(const Mesh &mesh)
 
     const auto center = sum / static_cast<float>(mesh.points.size());
 
-    Vec3 corner;
     float object_size = 0;
 
     for (const auto &p : mesh.points) {
         const auto distance = (p - center).length();
 
         if (distance > object_size) {
-            corner = p;
             object_size = distance;
         }
     }

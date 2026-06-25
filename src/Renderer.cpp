@@ -4,6 +4,7 @@
 #include "tracing/PathGeneration.hpp"
 #include "tracing/LightSampling.hpp"
 #include <iostream>
+#include <numeric>
 
 
 Buffers::Buffers(Size2i resolution)
@@ -34,22 +35,22 @@ uint64_t Buffers::totalCasts() const
 }
 
 Renderer::Renderer(Size2i resolution)
-    : buffers(resolution)
-    , totalCasts(0)
-    , pixel_sampling(PixelSampling::UniformRandom)
-    , pixels(resolution.area())
-    , displayPixels(resolution.area(), 0)
-    , resolution(resolution)
-    , cuda_randoms(resolution)
-    , output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
-    , renderTimes(20)
+    : m_buffers(resolution)
+    , m_totalCasts(0)
+    , m_output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
+    , m_pixel_sampling(PixelSampling::UniformRandom)
+    , m_resolution(resolution)
+    , m_pixels(resolution.area())
+    , m_displayPixels(resolution.area(), 0)
+    , m_cuda_randoms(resolution)
+    , m_renderTimes(20)
 {
 
 }
 
 void Renderer::createPixels()
 {
-    const auto linearity = output_options.linearity;
+    const auto linearity = m_output_options.linearity;
     auto toSRGB = [&linearity](float linear) -> float
     {
         if (linearity == OutputLinearity::Linear) return linear;
@@ -69,18 +70,18 @@ void Renderer::createPixels()
     };
 
     auto setPixel = [&](int x, int y, float r, float g, float b, float a=1.0f) {
-        const auto flipped_y = resolution.height - y - 1;
-        pixels[x + flipped_y*resolution.width] = packPixel(r,g,b,a);
+        const auto flipped_y = m_resolution.height - y - 1;
+        m_pixels[x + flipped_y*m_resolution.width] = packPixel(r,g,b,a);
     };
 
-    buffers.color.updateHostData();
+    m_buffers.color.updateHostData();
 
-    const auto data = buffers.color.hostPtr();
+    const auto data = m_buffers.color.hostPtr();
 
-    for (int y=0;y<resolution.height;++y)
-    for (int x=0;x<resolution.width;++x)
+    for (int y=0;y<m_resolution.height;++y)
+    for (int x=0;x<m_resolution.width;++x)
     {
-        const auto pix = data[x + y*resolution.width];
+        const auto pix = data[x + y*m_resolution.width];
         if (pix.w == 0)
             setPixel(x, y, 0,0,0);
         else
@@ -90,30 +91,30 @@ void Renderer::createPixels()
 
 void Renderer::saveImage(const std::filesystem::path &path)
 {
-    std::scoped_lock guard{displayMutex};
+    std::scoped_lock guard{m_displayMutex};
 
-    savePNG(path.string(), displayPixels, resolution);
+    savePNG(path.string(), m_displayPixels, m_resolution);
 }
 
 const uint32_t *Renderer::getPixels()
 {
-    std::scoped_lock guard{displayMutex};
+    std::scoped_lock guard{m_displayMutex};
 
-    return displayPixels.data();
+    return m_displayPixels.data();
 }
 
 const Vec4 *Renderer::getRawPixels()
 {
-    buffers.color.updateHostData();
+    m_buffers.color.updateHostData();
 
-    return buffers.color.hostPtr();
+    return m_buffers.color.hostPtr();
 }
 
 void Renderer::calculateLightWeights()
 {
-    const auto materials = scene.materials.hostPtr();
-    const auto objects = scene.objects.hostPtr();
-    const auto N = scene.objects.size();
+    const auto materials = m_scene.materials.hostPtr();
+    const auto objects = m_scene.objects.hostPtr();
+    const auto N = m_scene.objects.size();
 
     std::vector<float> weights(N, 0);
 
@@ -138,13 +139,13 @@ void Renderer::calculateLightWeights()
         std::cout << "  Object #" << i << ": " << weights[i] << std::endl;
     }
 
-    light_sampler = generateAliasTable(weights);
-    light_sampler.entries.ensureDeviceAllocation();
+    m_light_sampler = generateAliasTable(weights);
+    m_light_sampler.entries.ensureDeviceAllocation();
 
-    scene.info.total_radiant_power = total_radiant_power;
+    m_scene.info.total_radiant_power = total_radiant_power;
     std::cout << "Total radiant power: " << total_radiant_power << std::endl;
 
-    for (const auto e : std::span{light_sampler.entries.hostPtr(), light_sampler.entries.size()})
+    for (const auto e : std::span{m_light_sampler.entries.hostPtr(), m_light_sampler.entries.size()})
     {
         std::cout << "  A=" << e.A << ", B=" << e.B << " p_A=" << e.p_A << " pdf_A=" << e.pdf_A << " pdf_B=" << e.pdf_B << std::endl;
     }
@@ -153,43 +154,43 @@ void Renderer::calculateLightWeights()
 
 void Renderer::setDebug(DebugOptions dbg)
 {
-    std::scoped_lock guard{renderMutex};
+    std::scoped_lock guard{m_renderMutex};
 
-    debug = std::move(dbg);
-    needsToBeCleared = true;
+    m_debug = std::move(dbg);
+    m_needsToBeCleared = true;
 }
 
 void Renderer::setCamera(Camera cam)
 {
-    std::scoped_lock guard{renderMutex};
+    std::scoped_lock guard{m_renderMutex};
 
-    camera = std::move(cam);
-    needsToBeCleared = true;
+    m_camera = std::move(cam);
+    m_needsToBeCleared = true;
 }
 
 void Renderer::clear()
 {
-    std::scoped_lock guard{renderMutex};
+    std::scoped_lock guard{m_renderMutex};
 
-    needsToBeCleared = true;
+    m_needsToBeCleared = true;
 }
 
 void Renderer::setPixelSampling(PixelSampling sampling)
 {
-    std::scoped_lock guard{renderMutex};
+    std::scoped_lock guard{m_renderMutex};
 
-    pixel_sampling = sampling;
-    needsToBeCleared = true;
+    m_pixel_sampling = sampling;
+    m_needsToBeCleared = true;
 }
 
 void Renderer::setOutputOptions(OutputOptions options)
 {
-    std::scoped_lock guard{renderMutex};
+    std::scoped_lock guard{m_renderMutex};
 
-    output_options = std::move(options);
+    m_output_options = std::move(options);
 }
 
-void Renderer::schedule_cpu_render()
+void Renderer::scheduleCpuRender()
 {
     throw std::runtime_error("unimplemented");
 }
@@ -197,36 +198,36 @@ void Renderer::schedule_cpu_render()
 void Renderer::render()
 {
     {
-        std::scoped_lock guard{renderMutex};
+        std::scoped_lock guard{m_renderMutex};
 
-        if (needsToBeCleared)
+        if (m_needsToBeCleared)
         {
-            renderTimes.reset();
-            buffers.reset();
-            needsToBeCleared = false;
+            m_renderTimes.reset();
+            m_buffers.reset();
+            m_needsToBeCleared = false;
         }
     }
 
-    buffers.ensureDeviceAllocation();
+    m_buffers.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
-    scene.ensureDeviceAllocation();
+    m_scene.ensureDeviceAllocation();
     CUDA_ERROR_CHECK();
 
 
     Timer t;
-    schedule_device_render();
+    scheduleDeviceRender();
 
     createPixels();
 
     {
-        std::scoped_lock guard{displayMutex};
-        std::memcpy(displayPixels.data(), pixels.data(), pixels.size() * sizeof(uint32_t));
+        std::scoped_lock guard{m_displayMutex};
+        std::memcpy(m_displayPixels.data(), m_pixels.data(), m_pixels.size() * sizeof(uint32_t));
     }
-    const auto elapsed_ms = t.elapsed_seconds() * 1000;
-    renderTimes.add(elapsed_ms);
+    const auto elapsed_ms = t.elapsedSeconds() * 1000;
+    m_renderTimes.add(elapsed_ms);
 
 
-    buffers.casts.updateHostData();
-    totalCasts = buffers.totalCasts();
+    m_buffers.casts.updateHostData();
+    m_totalCasts = m_buffers.totalCasts();
 }

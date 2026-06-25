@@ -62,7 +62,7 @@ namespace test
     {
         Mesh mesh;
         BBH bbh;
-        AliasTable triangleSampler;
+        AliasTable triangle_sampler;
         Transform transform{};
         int material = 0;
 
@@ -72,10 +72,10 @@ namespace test
             object.points = mesh.points.data();
             object.normals = mesh.normals.data();
             object.triangles = mesh.triangles.data();
-            object.tris_count = static_cast<int>(mesh.triangles.size());
-            object.modelToWorld = transform;
+            object.triangle_count = static_cast<int>(mesh.triangles.size());
+            object.model_to_world = transform;
             object.material = material;
-            object.tris_sampler = triangleSampler.entries.hostPtr();
+            object.triangle_sampler = triangle_sampler.entries.hostPtr();
             object.surface_area = 0;
             object.base_surface_area = 0;
             object.bbh = BBHGpuView{std::span<const BBHNode>{bbh.nodes.hostPtr(), bbh.nodes.size()}};
@@ -107,7 +107,7 @@ namespace test
         return HostObject{
             .mesh = std::move(mesh),
             .bbh = std::move(bbh),
-            .triangleSampler = std::move(sampler),
+            .triangle_sampler = std::move(sampler),
         };
     }
 
