@@ -10,7 +10,6 @@ struct BBHNode
     AABB box;
     int left_child = -1;
     int right_child = -1;
-    int skip_index = -1;
     int parent_index = -1;
 
     int tris_begin;

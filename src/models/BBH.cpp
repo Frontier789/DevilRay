@@ -75,9 +75,6 @@ namespace
             }
         }
 
-        const auto next_node = nodes.size();
-        nodes[node_index].skip_index = next_node;
-
         return node_index;
     }
 
@@ -110,13 +107,6 @@ BBH generateSimpleBBH(Mesh &mesh)
     auto &sorted_triangles = mesh.triangles;
 
     generateBBHLayer(nodes, sorted_triangles, 0, sorted_triangles.size(), 0, -1, mesh);
-
-    // std::cout << "Created " << nodes.size() << " nodes" << std::endl;
-    // for (int i=0;i<nodes.size();++i)
-    // {
-    //     std::cout << i << ": c(" << nodes[i].left_child << "," << nodes[i].right_child << "), skip:" << nodes[i].skip_index << " t(" << nodes[i].tris_begin << "--" << nodes[i].tris_end << ")" << std::endl;
-    // }
-    // std::cout << std::endl;
 
     return BBH{
         .depth = findBBHDepth(nodes[0], nodes),

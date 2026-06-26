@@ -114,6 +114,28 @@ namespace
         if (axis == 1) return ray.v.y > 0.0f;
         return ray.v.z > 0.0f;
     }
+
+    constexpr int nearChild(const Ray& ray, uint32_t depth, int current_node, const BBHNode &node)
+    {
+        if (rayPointsToRight(ray, depth))
+        {
+            const auto left_child = current_node + 1;
+            return left_child;
+        }
+
+        return node.right_child;
+    }
+
+    constexpr int farChild(const Ray& ray, uint32_t depth, int current_node, const BBHNode &node)
+    {
+        if (rayPointsToRight(ray, depth))
+        {
+            return node.right_child;
+        }
+
+        const auto left_child = current_node + 1;
+        return left_child;
+    }
 }
 
 template<Benchmark B>
@@ -128,29 +150,6 @@ HD std::optional<Intersection> getIntersectionImpl(
     const auto ray = tris.model_to_world.applyInverse(ray_in_world);
 
     // getIntersectionTris(ray, tris, 0, tris.triangle_count, best, benchmark);
-    // return best;
-    
-    // int bbox_index = 0;
-    // while (bbox_index < bbh.nodes.size())
-    // {
-    //     const auto &node = bbh.nodes[bbox_index];
-    //     benchmark.registerBBoxTest();
-    //     const auto bboxHit = testBoxIntersection(node.box, ray);
-
-    //     if (bboxHit.has_value())
-    //     {
-    //         if (node.isLeaf())
-    //         {
-    //             getIntersectionTris(ray, tris, node.tris_begin, node.tris_end, best, benchmark);
-    //         }
-
-    //         ++bbox_index;
-    //     }
-    //     else
-    //     {
-    //         bbox_index = node.skip_index;
-    //     }
-    // }
     // return best;
 
     uint32_t bit_trail = 0;
@@ -175,9 +174,7 @@ HD std::optional<Intersection> getIntersectionImpl(
                 }
                 else
                 {
-                    const auto ray_right = rayPointsToRight(ray, depth);
-                    const auto near_child = ray_right ? node.left_child : node.right_child;
-                    // const auto near_child = node.left_child;
+                    const auto near_child = nearChild(ray, depth, current_index, node);
                     
                     bit_trail &= ~(1u << depth);
 
@@ -204,9 +201,7 @@ HD std::optional<Intersection> getIntersectionImpl(
 
             if (!far_child_visited)
             {
-                const auto ray_right = rayPointsToRight(ray, depth);
-                const auto far_child = ray_right ? parent.right_child : parent.left_child;
-                // const auto far_child = parent.right_child;
+                const auto far_child = farChild(ray, depth, parent_index, parent);
 
                 bit_trail |= (1u << depth);
 

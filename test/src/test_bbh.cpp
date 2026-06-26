@@ -48,16 +48,6 @@ namespace
         return depth;
     }
 
-    void collectSubtreeIndices(std::span<const BBHNode> nodes, int index, std::vector<int> &out)
-    {
-        out.push_back(index);
-        const auto &node = nodes[index];
-        if (node.left_child != -1)
-            collectSubtreeIndices(nodes, node.left_child, out);
-        if (node.right_child != -1)
-            collectSubtreeIndices(nodes, node.right_child, out);
-    }
-
     float maxXExtent(const Mesh &mesh, const Triangle &tri)
     {
         return std::max({mesh.points[tri.a.pi].x, mesh.points[tri.b.pi].x, mesh.points[tri.c.pi].x});
@@ -137,51 +127,6 @@ TEST(BBHTest, RootSplitsAlongXAxisByMedian)
         minRight = std::min(minRight, maxXExtent(mesh, mesh.triangles[i]));
 
     EXPECT_LE(maxLeft, minRight) << "Left subtree must sort before the right along the split axis";
-}
-
-TEST(BBHTest, SkipIndexAlwaysAdvances)
-{
-    Mesh mesh = spreadTriangleMesh(16);
-    const BBH bbh = generateSimpleBBH(mesh);
-    const auto nodes = hostNodes(bbh);
-
-    for (int i = 0; i < static_cast<int>(nodes.size()); ++i)
-        EXPECT_GT(nodes[i].skip_index, i) << "node " << i;
-
-    EXPECT_EQ(nodes[0].skip_index, static_cast<int>(nodes.size()))
-        << "Root skip target must be the end of the array";
-}
-
-TEST(BBHTest, LeafSkipsToNextNode)
-{
-    Mesh mesh = spreadTriangleMesh(16);
-    const BBH bbh = generateSimpleBBH(mesh);
-    const auto nodes = hostNodes(bbh);
-
-    for (int i = 0; i < static_cast<int>(nodes.size()); ++i)
-        if (nodes[i].isLeaf())
-            EXPECT_EQ(nodes[i].skip_index, i + 1) << "Leaf " << i << " must skip to its immediate successor";
-}
-
-TEST(BBHTest, SkipIndexSpansContiguousSubtree)
-{
-    Mesh mesh = spreadTriangleMesh(16);
-    const BBH bbh = generateSimpleBBH(mesh);
-    const auto nodes = hostNodes(bbh);
-
-    for (int i = 0; i < static_cast<int>(nodes.size()); ++i)
-    {
-        std::vector<int> subtree;
-        collectSubtreeIndices(nodes, i, subtree);
-
-        const int maxIndex = *std::max_element(subtree.begin(), subtree.end());
-        const int minIndex = *std::min_element(subtree.begin(), subtree.end());
-
-        EXPECT_EQ(minIndex, i) << "Subtree of " << i << " must start at the node itself";
-        EXPECT_EQ(maxIndex + 1, nodes[i].skip_index) << "Skip must point just past the subtree of " << i;
-        EXPECT_EQ(static_cast<int>(subtree.size()), nodes[i].skip_index - i)
-            << "Subtree indices must be contiguous";
-    }
 }
 
 TEST(BBHTest, IsLeafReflectsChildren)

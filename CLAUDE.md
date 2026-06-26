@@ -81,7 +81,7 @@ The path tracer (`include/tracing/PathGeneration.hpp`) accumulates progressive s
 
 `Mesh` (host) → `GpuTris` (device-resident triangle data, owned in `Scene::mesh_storage` as a `std::list` so device pointers stay stable) → `TriangleMesh` (the GPU view: raw `points`/`normals`/`triangles` pointers, `modelToWorld` `Transform`, material index, per-triangle alias sampler, and a `BBHGpuView`). A `TriangleMesh` holds **pointers into** `GpuTris`/`BBH` storage, so that backing storage must outlive it.
 
-`BBH` (`include/models/BBH.hpp`, `src/models/BBH.cpp`) is the bounding-box hierarchy. Nodes carry `left_child`/`right_child` plus a `skip_index` for stackless traversal. `generateSimpleBBH` builds it; `createBBHGpuView` exposes nodes to the GPU; `getBoxesOnDepth` feeds the bbox_viewer.
+`BBH` (`include/models/BBH.hpp`, `src/models/BBH.cpp`) is the bounding-box hierarchy. Nodes carry `left_child`/`right_child` plus a `parent_index`. `generateSimpleBBH` builds it; `createBBHGpuView` exposes nodes to the GPU; `getBoxesOnDepth` feeds the bbox_viewer.
 
 Intersection cost can be instrumented via the `Benchmark` concept (`include/tracing/Benchmark.hpp`): pass `benchmark::HitTests` to count triangle/bbox tests, or `benchmark::Skip` (zero-overhead) in production. `getIntersectionBenchmark` is the instrumented variant of `getIntersection`.
 
