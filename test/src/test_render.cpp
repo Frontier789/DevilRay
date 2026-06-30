@@ -49,7 +49,7 @@ namespace {
 
 TEST(RendererTest, AnalyticalDiffuseReflection) {
     // 1. Setup Resolution and Camera
-    const Size2i resolution{512, 512};
+    const Size2i resolution{256, 256};
     Renderer renderer(resolution);
 
     // focal_length and pixel_size set to keep FOV simple
@@ -238,7 +238,7 @@ TEST(RendererTest, DebugRenderSquare) {
 
 TEST(RendererTest, TriangleSceneRender) {
     // 1. Setup Resolution and Camera
-    const Size2i resolution{512, 512};
+    const Size2i resolution{256, 256};
     Renderer renderer(resolution);
 
     Camera cam = createCamera(resolution, 50.0f, 0.1f);

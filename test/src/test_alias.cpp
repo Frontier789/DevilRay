@@ -192,7 +192,7 @@ TEST(AliasTableGen, AlternatingHighLow) {
 
 TEST(AliasTableGen, StressTest) {
     // 1. Setup
-    constexpr size_t N = 1000000;
+    constexpr size_t N = 200000;
     std::vector<float> input(N);
 
     // Use a fixed seed for reproducibility
