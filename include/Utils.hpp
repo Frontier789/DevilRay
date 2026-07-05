@@ -59,20 +59,6 @@ struct ColorRGBA8
 static_assert(sizeof(ColorRGBA8) == sizeof(uint8_t)*4);
 
 
-struct Vec4
-{
-    float x;
-    float y;
-    float z;
-    float w;
-
-    constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
-    constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
-    constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
-    constexpr Vec4 operator/(const float f) const {return *this * (1.0f / f);}
-    constexpr float max() const {return std::max(std::max(x,y),z);}
-};
-
 struct Vec3
 {
     float x;
@@ -114,6 +100,24 @@ struct Vec3
 
     constexpr Vec3 inv() const {
         return Vec3{1/x, 1/y, 1/z};
+    }
+};
+
+struct Vec4
+{
+    float x;
+    float y;
+    float z;
+    float w;
+
+    constexpr Vec4 operator+(const Vec4 &v) const {return Vec4{x+v.x, y+v.y, z+v.z, w+v.w};}
+    constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
+    constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
+    constexpr Vec4 operator/(const float f) const {return *this * (1.0f / f);}
+    constexpr float max() const {return std::max(std::max(x,y),z);}
+
+    constexpr static Vec4 from(const Vec3 &v, const float f) {
+        return Vec4{v.x, v.y, v.z, f};
     }
 };
 

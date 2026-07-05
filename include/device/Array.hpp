@@ -44,10 +44,31 @@ struct DeviceArray
     T *hostPtr() { return m_host.data(); }
     const T *hostPtr() const { return m_host.data(); }
     std::span<T> hostSpan() { return std::span{m_host.data(), size()}; }
+    std::span<T> deviceSpan() { return std::span{devicePtr(), size()}; }
     size_t size() const { return m_host.size(); }
 
 private:
     T m_initialValue;
     std::vector<T> m_host;
     DeviceMemoryManager m_device;
+};
+
+template<typename T>
+struct DeviceBuffer
+{
+    DeviceMemoryManager deviceData;
+    int elementCount;
+
+    std::span<T> deviceSpan() { return std::span{deviceData.getPtr<T>(), static_cast<size_t>(elementCount)}; }
+
+    static DeviceBuffer<T> allocate(int numberOfElements)
+    {
+        DeviceMemoryManager data;
+        data.allocate(numberOfElements * sizeof(T));
+
+        return DeviceBuffer {
+            .deviceData = std::move(data),
+            .elementCount = numberOfElements,
+        };
+    }
 };

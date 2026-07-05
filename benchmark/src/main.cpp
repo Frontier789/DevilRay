@@ -82,24 +82,26 @@ int main(int argc, char **argv)
                   << "\t" << mesh.points.size() << " points, \n"
                   << "\t" << mesh.normals.size() << " normals, \n"
                   << "\t" << mesh.triangles.size() << " tris" << std::endl;
+        
+        testWavefront(mesh);
 
-        std::cout << std::endl;
-        std::cout << "== Benchmark Started ==" << std::endl;
-        Timer timer;
+        // std::cout << std::endl;
+        // std::cout << "== Benchmark Started ==" << std::endl;
+        // Timer timer;
 
-        auto bench = BenchmarkGenerator::create(ray_count, mesh);
-        bench.step();
+        // auto bench = BenchmarkGenerator::create(ray_count, mesh);
+        // bench.step();
 
-        const auto results = bench.aggregateResults();
-        const auto rays = bench.ray_count;
+        // const auto results = bench.aggregateResults();
+        // const auto rays = bench.ray_count;
 
-        const auto elapsed = timer.elapsedSeconds();
+        // const auto elapsed = timer.elapsedSeconds();
 
-        std::cout << "Number of rays: " << rays << std::endl;
-        std::cout << "Triangle hits: " << results.triangle_hits << " (" << results.triangle_hits / static_cast<double>(rays) * 100 << "%)" << std::endl;
-        std::cout << "Triangle tests: " << results.triangle_tests << " (" << results.triangle_tests / static_cast<double>(rays) << "/ray)" << std::endl;
-        std::cout << "BBox tests: " << results.bbox_tests << " (" << results.bbox_tests / static_cast<double>(rays) << "/ray)" << std::endl;
-        std::cout << "== Benchmark Finished in " << elapsed << "s ==" << std::endl;
+        // std::cout << "Number of rays: " << rays << std::endl;
+        // std::cout << "Triangle hits: " << results.triangle_hits << " (" << results.triangle_hits / static_cast<double>(rays) * 100 << "%)" << std::endl;
+        // std::cout << "Triangle tests: " << results.triangle_tests << " (" << results.triangle_tests / static_cast<double>(rays) << "/ray)" << std::endl;
+        // std::cout << "BBox tests: " << results.bbox_tests << " (" << results.bbox_tests / static_cast<double>(rays) << "/ray)" << std::endl;
+        // std::cout << "== Benchmark Finished in " << elapsed << "s ==" << std::endl;
     }
     catch (const std::exception &e)
     {
