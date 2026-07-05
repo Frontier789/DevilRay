@@ -276,6 +276,24 @@ HD IntersectionMesh cast_dev(const Ray &ray, const std::span<const TriangleMesh>
 
 
 
+struct TriangleIdentifier
+{
+    int meshID;
+    int triangleID;
+
+    constexpr bool valid() const
+    {
+        return meshID >= 0;
+    }
+
+    static constexpr TriangleIdentifier invalid()
+    {
+        return TriangleIdentifier{
+            .meshID = -1,
+            .triangleID = -1,
+        };
+    }
+};
 
 struct WavefrontData
 {
@@ -290,11 +308,13 @@ struct WavefrontDataDevice
 struct VertexData
 {
     DeviceBuffer<Vec4> pos;
+    DeviceBuffer<TriangleIdentifier> ids;
 };
 
 struct VertexDataDevice
 {
     std::span<Vec4> pos;
+    std::span<TriangleIdentifier> ids;
 };
 
 __global__ void initWavefront(
@@ -315,7 +335,7 @@ __global__ void initWavefront(
 __global__ void findNextVertex(
     WavefrontDataDevice wavefront,
     VertexDataDevice nextVertex,
-    TriangleMesh gpuTris,
+    TriangleMesh objects,
     int ray_count
 )
 {
@@ -323,14 +343,52 @@ __global__ void findNextVertex(
     if (idx >= ray_count) return;
 
     const auto ray = wavefront.rays[idx];
-    const auto intersection = cast_dev(ray, std::span<TriangleMesh>{&gpuTris, 1}, ObjectsInfo{.total_radiant_power = 1});
+    const auto intersection = cast_dev(ray, std::span<TriangleMesh>(&objects, 1), ObjectsInfo{.total_radiant_power = 1});
 
     if (intersection.valid()) {
         const auto p = ray.p + ray.v * intersection.t;
         nextVertex.pos[idx] = Vec4::from(p, 1);
+        nextVertex.ids[idx] = TriangleIdentifier{
+            .meshID = intersection.meshID,
+            .triangleID = intersection.triangleID,
+        };
     } else {
-        nextVertex.pos[idx] = Vec4{0,0,0, -1};
+        nextVertex.ids[idx] = TriangleIdentifier::invalid();
     }
+}
+
+__global__ void sampleBrdfDirection(
+    VertexDataDevice vertices,
+    WavefrontDataDevice newWavefront,
+    curandState *randStates,
+    TriangleMesh objects,
+    int ray_count
+)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= ray_count) return;
+
+    const auto ids = vertices.ids[idx];
+    if (!ids.valid()) return;
+
+    const auto &object = (&objects)[ids.meshID];
+    const auto &triangle = object.triangles[ids.triangleID];
+    auto rng = CudaRandom{randStates + idx};
+
+    const auto triangle_vertices = TriangleVertices{
+        .a = object.points[triangle.a.pi],
+        .b = object.points[triangle.b.pi],
+        .c = object.points[triangle.c.pi],
+    };
+
+    auto n = triangleNormal(triangle_vertices);
+
+    const auto w_out = cosineWeightedHemisphereSample(n, rng);
+
+    newWavefront.rays[idx] = Ray{
+        .p = vertices.pos[idx].xyz(),
+        .v = w_out,
+    };
 }
 
 void testWavefront(Mesh &mesh)
@@ -339,22 +397,31 @@ void testWavefront(Mesh &mesh)
 
     auto tris = GpuTris{convertMeshToTris(mesh, false)};
     auto gpuTris = viewGpuTris(tris);
+    auto objects = std::span<TriangleMesh>(&gpuTris, 1);
     const auto bounds = calculateMeshBounds(mesh);
 
-
-    CudaRandomStates states(Size2i{.width = RAY_COUNT, .height = 1});
+    CudaRandomStates rng(Size2i{.width = RAY_COUNT, .height = 1});
     WavefrontData wavefront{.rays = DeviceBuffer<Ray>::allocate(RAY_COUNT)};
-    VertexData vertexData{.pos = DeviceBuffer<Vec4>::allocate(RAY_COUNT)};
+    VertexData vertexData{
+        .pos = DeviceBuffer<Vec4>::allocate(RAY_COUNT),
+        .ids = DeviceBuffer<TriangleIdentifier>::allocate(RAY_COUNT),
+    };
 
     WavefrontDataDevice wavefrontView{.rays = wavefront.rays.deviceSpan()};
-    VertexDataDevice vertexDataView{.pos = vertexData.pos.deviceSpan()};
+    VertexDataDevice vertexDataView{
+        .pos = vertexData.pos.deviceSpan(),
+        .ids = vertexData.ids.deviceSpan(),
+    };
 
     dim3 dimBlock(128, 1);
     dim3 dimGrid((RAY_COUNT + dimBlock.x - 1) / dimBlock.x, 1);
 
     const auto runCudaCalls = [&]{
-        initWavefront<<<dimGrid, dimBlock>>>(wavefrontView, states.devicePtr(), bounds.center, bounds.extent * 0.5f, RAY_COUNT);
-        findNextVertex<<<dimGrid, dimBlock>>>(wavefrontView, vertexDataView, gpuTris, RAY_COUNT);
+        initWavefront<<<dimGrid, dimBlock>>>(wavefrontView, rng.devicePtr(), bounds.center, bounds.extent * 0.5f, RAY_COUNT);
+        for (int depth=0;depth<8;++depth) {
+            findNextVertex<<<dimGrid, dimBlock>>>(wavefrontView, vertexDataView, gpuTris, RAY_COUNT);
+            sampleBrdfDirection<<<dimGrid, dimBlock>>>(vertexDataView, wavefrontView, rng.devicePtr(), gpuTris, RAY_COUNT);
+        }
         cudaDeviceSynchronize();
         CUDA_ERROR_CHECK();
     };

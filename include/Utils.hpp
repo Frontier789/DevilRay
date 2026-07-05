@@ -119,6 +119,10 @@ struct Vec4
     constexpr static Vec4 from(const Vec3 &v, const float f) {
         return Vec4{v.x, v.y, v.z, f};
     }
+
+    constexpr Vec3 xyz() const {
+        return Vec3{x, y, z};
+    }
 };
 
 template<typename T>

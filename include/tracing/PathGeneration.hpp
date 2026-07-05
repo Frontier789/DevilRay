@@ -373,6 +373,8 @@ HD void sampleColor(
     std::span<const AliasEntry> light_table,
     DebugOptions debug,
     Rng &rng)
+
+    
 {
     if (debug == DebugOptions::UVChecker)
         return sampleColorDebug(sensorPos, pixel, stats, std::move(camera), pixel_sampling, objects, info, materials, rng);
