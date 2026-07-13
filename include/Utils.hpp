@@ -114,6 +114,10 @@ struct Vec4
     constexpr Vec4 operator*(const Vec4 &v) const {return Vec4{x*v.x, y*v.y, z*v.z, w*v.w};}
     constexpr Vec4 operator*(const float f) const {return Vec4{x*f, y*f, z*f, w*f};}
     constexpr Vec4 operator/(const float f) const {return *this * (1.0f / f);}
+
+    constexpr Vec4 &operator*=(const Vec4 &v) {return *this = *this * v;}
+    constexpr Vec4 &operator+=(const Vec4 &v) {return *this = *this + v;}
+
     constexpr float max() const {return std::max(std::max(x,y),z);}
 
     constexpr static Vec4 from(const Vec3 &v, const float f) {
@@ -254,9 +258,15 @@ inline constexpr float areaToSolidAngle(Vec3 from, Vec3 to, Vec3 to_n)
     return distance_squared / cos_theta;
 }
 
+inline constexpr float cosineWeightedHemisphereDirPdf(Vec3 direction, Vec3 normal)
+{
+    const auto cos_phi = direction.dot(normal);
+    return cos_phi > 0 ? cos_phi / pi : 0.0f;
+}
+
 inline constexpr float cosineWeightedHemispherePdf(Vec3 current_vertex_position, Vec3 next_vertex_position, Vec3 normal)
 {
     const auto dir = (next_vertex_position - current_vertex_position).normalized();
-    const auto cos_phi = dir.dot(normal);
-    return cos_phi > 0 ? cos_phi / pi : 0.0f;
+    
+    return cosineWeightedHemisphereDirPdf(dir, normal);
 }
