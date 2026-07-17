@@ -8,6 +8,7 @@
 
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
+#include "device/Random.hpp"
 
 void cudaCheckLastError(const char *file, int line, bool abort)
 {
@@ -22,10 +23,9 @@ void cudaCheckLastError(const char *file, int line, bool abort)
 }
 
 
-CudaRandomStates::CudaRandomStates(Size2i resolution)
-    : size(resolution)
-    , rand_states(std::vector<curandState>(resolution.area()))
+CudaRandom::CudaRandom(int state_count)
 {
+    rand_states = DeviceBuffer<curandState>::allocate(state_count);
     init();
 }
 
@@ -51,24 +51,20 @@ void printCudaDeviceInfo() {
     std::cout << "Compute Capability: " << deviceProp.major << "." << deviceProp.minor << std::endl;
 }
 
-__global__ void initRand(curandState *randStates, int width, int height, unsigned long seed) {
-    int x = blockIdx.x * blockDim.x + threadIdx.x;
-    int y = blockIdx.y * blockDim.y + threadIdx.y;
-    if (x >= width || y >= height) return;
+__global__ void initRand(curandState *randStates, int elemCount, unsigned long seed) {
+    int idx = KERNEL_IDX(elemCount);
 
-    int idx = y * width + x;
-    curand_init(seed, idx, 0, &randStates[idx]);
+    curand_init(seed, idx, 0, randStates + idx);
 }
 
-void CudaRandomStates::init()
+void CudaRandom::init()
 {
-    dim3 dimBlock(32, 32);
+    const int elemCount = rand_states.elementCount;
+
+    dim3 dimBlock(128, 1);
     dim3 dimGrid;
-    dimGrid.x = (size.width + dimBlock.x - 1) / dimBlock.x;
-    dimGrid.y = (size.height + dimBlock.y - 1) / dimBlock.y;
+    dimGrid.x = (elemCount + dimBlock.x - 1) / dimBlock.x;
 
-    rand_states.ensureDeviceAllocation();
-
-    initRand<<<dimGrid, dimBlock>>>(rand_states.devicePtr(), size.width, size.height, 42);
+    initRand<<<dimGrid, dimBlock>>>(rand_states.devicePtr(), elemCount, 42);
     CUDA_ERROR_CHECK();
 }

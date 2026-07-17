@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <span>
+#include <iostream>
 
 template<typename T>
 struct DeviceVector
@@ -18,6 +19,7 @@ struct DeviceVector
 
     void ensureDeviceAllocation() {
         if (m_deviceNeedsUpdate) {
+            std::cout << "updating initial device allocation of " << size() << " elements" << std::endl;
             m_device.allocate(sizeof(T) * size());
             updateDeviceData();
 

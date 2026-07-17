@@ -1,7 +1,6 @@
 #include "Renderer.hpp"
 #include "Image.hpp"
 
-#include "tracing/PathGeneration.hpp"
 #include "tracing/LightSampling.hpp"
 #include <iostream>
 #include <numeric>
@@ -36,13 +35,21 @@ uint64_t Buffers::totalCasts() const
 
 Renderer::Renderer(Size2i resolution)
     : m_buffers(resolution)
+    , m_wavefront{ .rays = DeviceBuffer<Ray>::allocate(resolution.area()) }
+    , m_pathVertices{
+        .t = DeviceBuffer<float>::allocate(resolution.area()),
+        .bsdfPdfPrev = DeviceBuffer<float>::allocate(resolution.area()),
+        .throughput = DeviceBuffer<Vec4>::allocate(resolution.area()),
+        .prevSpecular = DeviceBuffer<int>::allocate(resolution.area()),
+        .ids = DeviceBuffer<TriangleIdentifier>::allocate(resolution.area()),
+      }
     , m_totalCasts(0)
     , m_output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
     , m_pixel_sampling(PixelSampling::UniformRandom)
     , m_resolution(resolution)
     , m_pixels(resolution.area())
     , m_displayPixels(resolution.area(), 0)
-    , m_cuda_randoms(resolution)
+    , m_cuda_randoms(resolution.area())
     , m_renderTimes(20)
 {
 

@@ -9,6 +9,8 @@
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
 #include "tracing/Scene.hpp"
+#include "tracing/Wavefront.hpp"
+#include "tracing/Path.hpp"
 
 #include "Buffers.hpp"
 #include "DebugOptions.hpp"
@@ -23,6 +25,10 @@
 class Renderer
 {
     Buffers m_buffers;
+
+    WavefrontData m_wavefront;
+    PathVertexData m_pathVertices;
+
     uint64_t m_totalCasts;
 
     Camera m_camera;
@@ -37,7 +43,7 @@ class Renderer
 
     Scene m_scene;
 
-    CudaRandomStates m_cuda_randoms;
+    CudaRandom m_cuda_randoms;
     RunningAverage m_renderTimes;
 
     std::mutex m_renderMutex;

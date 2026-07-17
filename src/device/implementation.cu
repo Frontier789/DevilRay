@@ -5,9 +5,9 @@
 
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
+#include "tracing/IntersectionImpl.hpp"
 #include "tracing/PathGeneration.hpp"
 #include "tracing/LightSampling.hpp"
-#include "tracing/IntersectionTestsImpl.hpp"
 
 #include "RendererImpl.hpp"
 

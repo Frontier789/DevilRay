@@ -52,23 +52,3 @@ private:
     std::vector<T> m_host;
     DeviceMemoryManager m_device;
 };
-
-template<typename T>
-struct DeviceBuffer
-{
-    DeviceMemoryManager deviceData;
-    int elementCount;
-
-    std::span<T> deviceSpan() { return std::span{deviceData.getPtr<T>(), static_cast<size_t>(elementCount)}; }
-
-    static DeviceBuffer<T> allocate(int numberOfElements)
-    {
-        DeviceMemoryManager data;
-        data.allocate(numberOfElements * sizeof(T));
-
-        return DeviceBuffer {
-            .deviceData = std::move(data),
-            .elementCount = numberOfElements,
-        };
-    }
-};

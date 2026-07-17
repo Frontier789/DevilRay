@@ -3,6 +3,7 @@
 #include "tracing/Intersection.hpp"
 #include "tracing/DistributionSamplers.hpp"
 #include "tracing/TriangleMesh.hpp"
+#include "tracing/Benchmark.hpp"
 #include "tracing/GpuTris.hpp"
 #include "device/Random.hpp"
 #include "models/BBH.hpp"
@@ -11,7 +12,7 @@
 #include <curand_kernel.h>
 
 void benchmarkRayCast(
-    CudaRandomStates &randStates, benchmark::HitTests *stats, int ray_count,
+    CudaRandom &randStates, benchmark::HitTests *stats, int ray_count,
     const TriangleMesh &tris, Vec3 center, float radius
 );
 
@@ -22,7 +23,7 @@ struct BenchmarkGenerator
     void step();
     benchmark::HitTests aggregateResults() const;
 
-    CudaRandomStates randStates;
+    CudaRandom randStates;
     mutable DeviceArray<benchmark::HitTests> stats;
 
     GpuTris tris;

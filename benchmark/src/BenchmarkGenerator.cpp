@@ -2,7 +2,7 @@
 
 BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
 {
-    auto randStates = CudaRandomStates(Size2i{.width = ray_count, .height = 1});
+    auto randStates = CudaRandom(ray_count);
     auto tris = GpuTris{convertMeshToTris(mesh, false)};
 
     auto stats = DeviceArray<benchmark::HitTests>(ray_count, benchmark::HitTests{});

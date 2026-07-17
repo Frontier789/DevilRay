@@ -99,36 +99,38 @@ Scene createScene(Meshes &meshes)
         scene.materials.push_back(material);
     }
 
-    const int  glass = scene.materials.size();
-    {
-        auto material = TransparentMaterial{
-            .inside_medium = Medium{.ior = 1.2},
-        };
-        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
-        scene.materials.push_back(material);
-    }
+    // const int  glass = scene.materials.size();
+    // {
+    //     auto material = TransparentMaterial{
+    //         .inside_medium = Medium{.ior = 1.2},
+    //     };
+    //     material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+    //     scene.materials.push_back(material);
+    // }
 
-    const int  air = scene.materials.size();
-    {
-        auto material = TransparentMaterial{
-            .inside_medium = Medium{.ior = 1.0f},
-        };
-        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
-        scene.materials.push_back(material);
-    }
+    // const int  air = scene.materials.size();
+    // {
+    //     auto material = TransparentMaterial{
+    //         .inside_medium = Medium{.ior = 1.0f},
+    //     };
+    //     material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+    //     scene.materials.push_back(material);
+    // }
 
     auto addQuad = [&](Vec3 center, Vec3 normal, Vec3 right, float size, int mat) {
         scene.mesh_storage.push_back(createQuadMesh(center, normal, right, size));
+        std::cout << "G" << __LINE__ << std::endl;
         auto view = viewGpuTris(scene.mesh_storage.back());
+        std::cout << "G" << __LINE__ << std::endl;
         view.material = mat;
         scene.objects.push_back(std::move(view));
     };
 
-    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
-    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
-    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
-    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
-    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
+    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white); std::cout << "Added white quad" << std::endl;
+    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);   std::cout << "Added red quad" << std::endl;
+    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green); std::cout << "Added green quad" << std::endl;
+    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white); std::cout << "Added white1 quad" << std::endl;
+    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white); std::cout << "Added white2 quad" << std::endl;
 
     {
         auto lightPanel = viewGpuTris(meshes.lightPanel);
@@ -141,7 +143,7 @@ Scene createScene(Meshes &meshes)
 
     {
         auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
-        mesh_object_monkey.material = glass;
+        mesh_object_monkey.material = blue;
         mesh_object_monkey.setPosition(Vec3{0.0, -0.32, 2});
         mesh_object_monkey.setScale(Vec3{0.35f,0.35f,0.35f});
         scene.objects.push_back(std::move(mesh_object_monkey));

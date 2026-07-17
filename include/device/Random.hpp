@@ -1,21 +1,20 @@
 #pragma once
 
-#include "device/Vector.hpp"
+#include "device/Buffer.hpp"
 #include "Utils.hpp"
 
 #include <curand_kernel.h>
 
 using curandState = curandStateXORWOW;
 
-struct CudaRandomStates
+struct CudaRandom
 {
-    CudaRandomStates(Size2i resolution);
+    CudaRandom(int state_count);
 
-    curandState *devicePtr() const {return rand_states.devicePtr();}
+    curandState *devicePtr() {return rand_states.devicePtr();}
 
 private:
-    Size2i size;
-    mutable DeviceVector<curandState> rand_states;
+    DeviceBuffer<curandState> rand_states;
 
     void init();
 };

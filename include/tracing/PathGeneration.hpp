@@ -8,12 +8,257 @@
 #include "tracing/CameraRay.hpp"
 #include "tracing/LightSampling.hpp"
 #include "tracing/DistributionSamplers.hpp"
+#include "tracing/Wavefront.hpp"
+#include "tracing/Path.hpp"
+#include "tracing/RenderBuffers.hpp"
+#include "tracing/ShadingUtils.hpp"
+#include "models/MeshUtils.hpp"
+#include "device/CudaRng.hpp"
+#include "device/Random.hpp"
 
 #include "Buffers.hpp"
 #include "DebugOptions.hpp"
 
 #include <optional>
 #include <span>
+
+__global__ void initPaths(
+    PathVertexDataDevice vertex, int path_count
+)
+{
+    const int idx = KERNEL_IDX(path_count);
+
+    vertex.throughput[idx] = Vec4{1, 1, 1, 0};
+    vertex.prevSpecular[idx] = true;
+    vertex.bsdfPdfPrev[idx] = 0;
+}
+
+__global__ void initCameraRays(
+    WavefrontDataDevice wavefront,
+    PixelSampling pixel_sampling,
+    Camera camera,
+    curandState *rand_states
+)
+{
+    int idx = KERNEL_IDX(camera.resolution.area());
+
+    const auto width = camera.resolution.width;
+    const auto pixel_pos = Vec2f{idx % width, idx / width};
+
+    auto rng = CudaRng{.state = rand_states + idx};
+
+    const Ray ray = cameraRay(camera, pixel_pos, pixel_sampling, 0, rng);
+
+    wavefront.rays[idx] = ray;
+}
+
+__global__ void extendPaths(
+    WavefrontDataDevice wavefront,
+    PathVertexDataDevice vertex,
+    std::span<const TriangleMesh> objects,
+    int path_count
+)
+{
+    int idx = KERNEL_IDX(path_count);
+
+    const auto ray = wavefront.rays[idx];
+    const auto intersection = intersectScene(ray, objects);
+
+    if (intersection.valid()) {
+        vertex.t[idx] = intersection.t;
+        vertex.ids[idx] = TriangleIdentifier{
+            .meshID = intersection.meshID,
+            .triangleID = intersection.triangleID,
+        };
+    } else {
+        vertex.ids[idx] = TriangleIdentifier::invalid();
+    }
+}
+
+__global__ void sampleBsdfDirection(
+    PathVertexDataDevice vertex,
+    WavefrontDataDevice wavefront,
+    curandState *rand_states,
+    std::span<const TriangleMesh> objects,
+    std::span<const Material> materials,
+    int path_count
+)
+{
+    int idx = KERNEL_IDX(path_count);
+
+    const auto ids = vertex.ids[idx];
+    if (!ids.valid()) return;
+
+    const auto &object = objects[ids.meshID];
+    auto rng = CudaRng{rand_states + idx};
+
+    const auto ray = wavefront.rays[idx];
+    const auto pos = ray.p + ray.v * vertex.t[idx];
+    const auto n = surfaceNormal(object, ids.triangleID, ray.v);
+
+    const auto w_out = cosineWeightedHemisphereSample(n, rng);
+    const float bsdf_pdf = cosineWeightedHemisphereDirPdf(w_out, n);
+
+    wavefront.rays[idx] = Ray{
+        .p = pos + n * 1e-5f,
+        .v = w_out,
+    };
+
+    // TODO: handle transparent materials here
+    const auto &material = *std::get_if<DiffuseMaterial>(&materials[object.material]);
+
+    vertex.bsdfPdfPrev[idx] = bsdf_pdf;
+    vertex.prevSpecular[idx] = 0;
+    vertex.throughput[idx] *= material.diffuse_reflectance;
+}
+
+// // // // // // SHADE // // // // // // 
+
+inline HD void shadeDiffuseMaterial(
+    PathVertexDataDevice vertex,
+    WavefrontDataDevice wavefront,
+    const TriangleIdentifier &ids,
+    const Material &material,
+    int idx,
+    const TriangleMesh &object,
+    CudaRng &rng,
+    std::span<const TriangleMesh> objects,
+    std::span<const Material> materials,
+    std::span<const AliasEntry> light_table,
+    ObjectsInfo info,
+    RenderBuffersDevice output
+)
+{
+    const auto &ray = wavefront.rays[idx];
+    const auto prevPos = ray.p;
+    const auto pos = ray.p + ray.v * vertex.t[idx];
+    const auto n = surfaceNormal(object, ids.triangleID, ray.v);
+
+    const auto diffuse_material = std::get_if<DiffuseMaterial>(&material);
+
+    const auto nee_pdf = computeNeePdf(prevPos, pos, n, material, info);
+    Vec4 color = misWeightedEmission(
+        diffuse_material->emission, vertex.throughput[idx],
+        vertex.prevSpecular[idx], MisPdfs{
+            .bsdf_pdf = vertex.bsdfPdfPrev[idx],
+            .nee_pdf = nee_pdf,
+        }
+    );
+
+    LightSample light_sample = samplePointOnLights(objects, light_table, rng);
+    const auto *light_material = std::get_if<DiffuseMaterial>(&materials[light_sample.mat]);
+
+    const auto nee_pdf_bsdf = cosineWeightedHemispherePdf(pos, light_sample.p, n);
+    const auto nee_pdf_nee = light_sample.pdf * areaToSolidAngle(pos, light_sample.p, light_sample.n);
+
+    const auto Ld_nee = evaluateDirectLighting(
+        pos, n, diffuse_material->diffuse_reflectance,
+        light_sample, light_material->emission, objects);
+
+    if (nee_pdf_nee + nee_pdf_bsdf > 0)
+        color = color + Ld_nee * vertex.throughput[idx] * powerHeuristic(nee_pdf_nee, nee_pdf_bsdf);
+    
+    output.colors[idx] += color;
+}
+
+__global__ void shade(
+    PathVertexDataDevice vertex,
+    WavefrontDataDevice wavefront,
+    curandState *rand_states,
+    std::span<const TriangleMesh> objects,
+    std::span<const Material> materials,
+    std::span<const AliasEntry> light_table,
+    int path_count,
+    ObjectsInfo info,
+    RenderBuffersDevice output
+)
+{
+    int idx = KERNEL_IDX(path_count);
+
+    const auto ids = vertex.ids[idx];
+    if (!ids.valid()) return;
+
+    const auto &object = objects[ids.meshID];
+    const auto &material = materials[object.material];
+    auto rng = CudaRng{rand_states + idx};
+
+    if (const auto *diffuse_material = std::get_if<DiffuseMaterial>(&material))
+    {
+        shadeDiffuseMaterial(
+            vertex, wavefront,
+            ids, material,
+            idx, object, rng,
+            objects, materials,
+            light_table, info, output
+        );
+    }
+    else if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
+        // PASS
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*
 
 HD std::optional<Intersection> cast(
     const Ray &ray,
@@ -515,3 +760,4 @@ HD void sampleColor(
         pixel = pixel + color;
     }
 }
+*/

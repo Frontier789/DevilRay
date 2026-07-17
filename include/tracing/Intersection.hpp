@@ -1,17 +1,36 @@
 #pragma once
 
 #include "Utils.hpp"
-#include "tracing/Material.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "tracing/Benchmark.hpp"
 
-#include <optional>
+#include <span>
 
-struct TriangleMesh;
-
-struct TriangleIntersection
+struct TriangleHit
 {
     float t;
-    Vec3 bari;
+
+    HD static constexpr TriangleHit missed() { return TriangleHit{.t = -1}; }
+    HD constexpr bool valid() const { return t >= 0; }
+};
+
+struct MeshHit
+{
+    float t;
+    int triangleID;
+
+    HD static constexpr MeshHit missed() { return MeshHit{.t = -1, .triangleID = -1}; }
+    HD constexpr bool valid() const { return t >= 0; }
+};
+
+struct SceneHit
+{
+    float t;
+    int triangleID;
+    int meshID;
+
+    HD static constexpr SceneHit missed() { return SceneHit{.t = -1, .triangleID = -1, .meshID = -1}; }
+    HD constexpr bool valid() const { return t >= 0; }
 };
 
 struct TriangleVertices
@@ -21,36 +40,11 @@ struct TriangleVertices
     Vec3 c;
 };
 
-struct TriangleHitData
-{
-    Vec3 bari;
-    float area;
-    bool ccw;
-};
+HD TriangleHit intersectTriangle(const Ray &ray_model, const TriangleVertices &triangle);
+HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMesh &mesh);
+HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMesh> &meshes);
+HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMesh> &meshes, benchmark::HitTests &benchmark);
 
-struct Intersection
-{
-    float t;
-    Vec3 p;
-    Vec2f uv;
-    Vec3 n;
-    int mat;
-    const TriangleMesh *object;
-    TriangleHitData triangle;
-};
+HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects);
+HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects, benchmark::HitTests &benchmark);
 
-struct PathEntry
-{
-    Vec3 p;
-    Vec2f uv;
-    Vec3 n;
-    int mat;
-    Vec4 total_throughput;
-
-    float triangle_area;
-};
-
-HD std::optional<TriangleIntersection> testTriangleIntersection(const Ray &ray, const TriangleVertices &triangle);
-
-HD std::optional<Intersection> getIntersection(const Ray &ray, const TriangleMesh &tris);
-HD std::optional<Intersection> getIntersectionBenchmark(const Ray &ray, const TriangleMesh &tris, benchmark::HitTests &benchmark);
