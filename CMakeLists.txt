@@ -55,6 +55,7 @@ add_library(${PROJECT_NAME}
             src/device/implementation.cu
             src/device/DevUtils.cu
             src/device/DeviceMemory.cu
+            src/device/CudaTimer.cu
             src/tracing/TriangleMesh.cpp)
 
 target_link_libraries(${PROJECT_NAME}

@@ -36,7 +36,7 @@ HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
     const auto enter_time = std::max(std::max(interval_x.enter_time, interval_y.enter_time), interval_z.enter_time);
     const auto exit_time = std::min(std::min(interval_x.exit_time, interval_y.exit_time), interval_z.exit_time);
 
-    if (exit_time < 0 || enter_time > exit_time) {
+    if (exit_time < 0 || enter_time > exit_time || std::isnan(enter_time) || std::isnan(exit_time)) {
         return std::nullopt;
     }
 

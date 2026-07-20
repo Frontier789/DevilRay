@@ -62,38 +62,24 @@ TriangleMesh viewGpuTris(GpuTris &tris)
 {
     TriangleMesh obj;
 
-        std::cout << "L" << __LINE__ << std::endl;
     tris.points.ensureDeviceAllocation();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.points = tris.points.devicePtr();
-        std::cout << "L" << __LINE__ << std::endl;
 
     tris.normals.ensureDeviceAllocation();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.normals = tris.normals.devicePtr();
-        std::cout << "L" << __LINE__ << std::endl;
 
     tris.triangles.ensureDeviceAllocation();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.triangles = tris.triangles.devicePtr();
-        std::cout << "L" << __LINE__ << std::endl;
 
     tris.triangle_sampler.entries.ensureDeviceAllocation();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.triangle_sampler = tris.triangle_sampler.entries.devicePtr();
-        std::cout << "L" << __LINE__ << std::endl;
 
     tris.bbh.nodes.ensureDeviceAllocation();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.bbh = createBBHGpuView(tris.bbh);
-        std::cout << "L" << __LINE__ << std::endl;
 
     obj.triangle_count = tris.triangles.size();
-        std::cout << "L" << __LINE__ << std::endl;
     obj.base_surface_area = totalSurfaceArea(tris);
-        std::cout << "L" << __LINE__ << std::endl;
     obj.surface_area = obj.base_surface_area;
-        std::cout << "L" << __LINE__ << std::endl;
 
     return obj;
 }
