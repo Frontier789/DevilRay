@@ -8,9 +8,11 @@
 struct WavefrontData
 {
     DeviceBuffer<Ray> rays;
+    DeviceBuffer<int> current_mat;
 };
 
 struct WavefrontDataDevice
 {
     Ray *rays;
+    int *current_mat;
 };

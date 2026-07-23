@@ -35,7 +35,10 @@ uint64_t Buffers::totalCasts() const
 
 Renderer::Renderer(Size2i resolution)
     : m_buffers(resolution)
-    , m_wavefront{ .rays = DeviceBuffer<Ray>::allocate(resolution.area()) }
+    , m_wavefront{
+        .rays = DeviceBuffer<Ray>::allocate(resolution.area()),
+        .current_mat = DeviceBuffer<int>::allocate(resolution.area()),
+      }
     , m_pathVertices{
         .t = DeviceBuffer<float>::allocate(resolution.area()),
         .bsdfPdfPrev = DeviceBuffer<float>::allocate(resolution.area()),

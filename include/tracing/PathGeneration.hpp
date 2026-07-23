@@ -22,6 +22,9 @@
 #include <optional>
 #include <span>
 
+constexpr int VACUUM_MAT = -1;
+constexpr float VACUUM_IOR = 1.0f;
+
 __global__ void initPaths(
     PathVertexDataDevice vertex, int path_count
 )
@@ -43,13 +46,14 @@ __global__ void initCameraRays(
     int idx = KERNEL_IDX(camera.resolution.area());
 
     const auto width = camera.resolution.width;
-    const auto pixel_pos = Vec2f{idx % width, idx / width};
+    const auto pixel_pos = Vec2f{static_cast<float>(idx % width), static_cast<float>(idx / width)};
 
     auto rng = CudaRng{.state = rand_states + idx};
 
     const Ray ray = cameraRay(camera, pixel_pos, pixel_sampling, 0, rng);
 
     wavefront.rays[idx] = ray;
+    wavefront.current_mat[idx] = VACUUM_MAT;
 }
 
 __global__ void extendPaths(
@@ -75,6 +79,78 @@ __global__ void extendPaths(
     }
 }
 
+inline HD Vec3 reflect(const Vec3 &i, const Vec3 &n, const float dotp)
+{
+    return i - n * 2*dotp;
+}
+
+inline HD float schlick(const float dotp, const float n1, const float n2)
+{
+    const float r = (n1 - n2) / (n1 + n2);
+    const float R0 = r*r;
+
+    const float cosT1 = 1 - dotp;
+    const float cosT1_2 = cosT1*cosT1;
+    const float cosT1_4 = cosT1_2*cosT1_2;
+    const float cosT1_5 = cosT1_4*cosT1;
+
+    return R0 + (1.0 - R0) * cosT1_5;
+}
+
+template<typename Rng>
+inline HD Vec3 reflectOrRefractRay(
+    const Vec3 &dir,
+    const TransparentMaterial &hit_material,
+    int &inside_mat, int hit_mat,
+    bool enter,
+    const Vec3 &normal,
+    Rng &rng
+){
+    float n1;
+    float n2;
+
+    if (!enter) {
+        n1 = hit_material.inside_medium.ior;
+        n2 = VACUUM_IOR;
+    } else {
+        n1 = VACUUM_IOR;
+        n2 = hit_material.inside_medium.ior;
+    }
+
+    // Reflect or refract
+    const auto eta = n1/n2;
+    const auto d = dir.dot(normal);
+    const auto k = 1 - eta*eta * (1 - d*d);
+
+    Vec3 v;
+
+    // Total internal reflection
+    if (n1 > n2 && k < 0)
+    {
+        v = reflect(dir, normal, d);
+    }
+    else
+    {
+        const auto F = schlick(-d, n1, n2);
+
+        // Fresnel reflection
+        if (rng.rnd() < F)
+        {
+            v = reflect(dir, normal, d);
+        }
+        else
+        {
+            if (enter) inside_mat = hit_mat;
+            else inside_mat = VACUUM_MAT;
+
+            const float dotp = -d;
+            v = normal * -1 * (std::sqrt(k) - dotp * eta) + dir * eta;
+        }
+    }
+
+    return v;
+}
+
 __global__ void sampleBsdfDirection(
     PathVertexDataDevice vertex,
     WavefrontDataDevice wavefront,
@@ -96,20 +172,37 @@ __global__ void sampleBsdfDirection(
     const auto pos = ray.p + ray.v * vertex.t[idx];
     const auto n = surfaceNormal(object, ids.triangleID, ray.v);
 
-    const auto w_out = cosineWeightedHemisphereSample(n, rng);
-    const float bsdf_pdf = cosineWeightedHemisphereDirPdf(w_out, n);
+    if (const auto material = std::get_if<DiffuseMaterial>(&materials[object.material]))
+    {
+        const auto w_out = cosineWeightedHemisphereSample(n, rng);
+        const float bsdf_pdf = cosineWeightedHemisphereDirPdf(w_out, n);
+    
+        wavefront.rays[idx] = Ray{
+            .p = pos + n * 1e-5f,
+            .v = w_out,
+        };
+        wavefront.current_mat[idx] = VACUUM_MAT;
 
-    wavefront.rays[idx] = Ray{
-        .p = pos + n * 1e-5f,
-        .v = w_out,
-    };
+        vertex.bsdfPdfPrev[idx] = bsdf_pdf;
+        vertex.prevSpecular[idx] = false;
+        vertex.throughput[idx] *= material->diffuse_reflectance;
+    }
+    else if (const auto material = std::get_if<TransparentMaterial>(&materials[object.material]))
+    {
+        int &current_mat = wavefront.current_mat[idx];
+        const bool enter = current_mat == VACUUM_MAT; // Assume no nesting of objects
 
-    // TODO: handle transparent materials here
-    const auto &material = *std::get_if<DiffuseMaterial>(&materials[object.material]);
+        const auto newDir = reflectOrRefractRay(ray.v, *material, current_mat, object.material, enter, n, rng);
+        const auto normalTowardsV = newDir.dot(n) > 0 ? n : -n;
 
-    vertex.bsdfPdfPrev[idx] = bsdf_pdf;
-    vertex.prevSpecular[idx] = 0;
-    vertex.throughput[idx] *= material.diffuse_reflectance;
+        wavefront.rays[idx] = Ray{
+            .p = pos + normalTowardsV * 1e-5f,
+            .v = newDir,
+        };
+
+        vertex.bsdfPdfPrev[idx] = 1;
+        vertex.prevSpecular[idx] = true;
+    }
 }
 
 // // // // // // SHADE // // // // // // 

@@ -99,23 +99,23 @@ Scene createScene(Meshes &meshes)
         scene.materials.push_back(material);
     }
 
-    // const int  glass = scene.materials.size();
-    // {
-    //     auto material = TransparentMaterial{
-    //         .inside_medium = Medium{.ior = 1.2},
-    //     };
-    //     material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
-    //     scene.materials.push_back(material);
-    // }
+    const int  glass = scene.materials.size();
+    {
+        auto material = TransparentMaterial{
+            .inside_medium = Medium{.ior = 1.2},
+        };
+        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+        scene.materials.push_back(material);
+    }
 
-    // const int  air = scene.materials.size();
-    // {
-    //     auto material = TransparentMaterial{
-    //         .inside_medium = Medium{.ior = 1.0f},
-    //     };
-    //     material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
-    //     scene.materials.push_back(material);
-    // }
+    const int  air = scene.materials.size();
+    {
+        auto material = TransparentMaterial{
+            .inside_medium = Medium{.ior = 1.0f},
+        };
+        material.debug_color = Vec4{0.9, 0.9, 0.9, 0.0},
+        scene.materials.push_back(material);
+    }
 
     auto addQuad = [&](Vec3 center, Vec3 normal, Vec3 right, float size, int mat) {
         scene.mesh_storage.push_back(createQuadMesh(center, normal, right, size));
@@ -141,7 +141,7 @@ Scene createScene(Meshes &meshes)
 
     {
         auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
-        mesh_object_monkey.material = blue;
+        mesh_object_monkey.material = glass;
         mesh_object_monkey.setPosition(Vec3{0.0, -0.32, 2});
         mesh_object_monkey.setScale(Vec3{0.35f,0.35f,0.35f});
         scene.objects.push_back(std::move(mesh_object_monkey));

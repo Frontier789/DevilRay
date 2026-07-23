@@ -34,12 +34,13 @@ void Renderer::scheduleDeviceRender()
         localPixelSampling = m_pixel_sampling;
     }
 
-    const auto objects = std::span{m_scene.objects.devicePtr(), m_scene.objects.size()};
-    const auto materials = std::span{m_scene.materials.devicePtr(), m_scene.materials.size()};
-    const auto light_table = std::span{m_light_sampler.entries.devicePtr(), m_light_sampler.entries.size()};
+    const auto objects = m_scene.objects.deviceSpan();
+    const auto materials = m_scene.materials.deviceSpan();
+    const auto light_table = m_light_sampler.entries.deviceSpan();
 
     WavefrontDataDevice wavefront{
         .rays = m_wavefront.rays.devicePtr(),
+        .current_mat = m_wavefront.current_mat.devicePtr(),
     };
     PathVertexDataDevice vertex{
         .t = m_pathVertices.t.devicePtr(),

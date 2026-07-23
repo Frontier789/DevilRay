@@ -70,6 +70,7 @@ struct Vec3
     constexpr Vec3 operator*(const Vec3 &v) const {return Vec3{x*v.x, y*v.y, z*v.z};}
     constexpr Vec3 operator*(const float f) const {return Vec3{x*f, y*f, z*f};}
     constexpr Vec3 operator/(const float f) const {return *this*(1.0f/f);}
+    constexpr Vec3 operator-() const {return *this*-1.0f;}
 
     constexpr float length() const {
         return std::sqrt(x*x + y*y + z*z);
