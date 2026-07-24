@@ -25,6 +25,8 @@
 constexpr int VACUUM_MAT = -1;
 constexpr float VACUUM_IOR = 1.0f;
 
+HD Vec4 checkerPattern(const Vec2f &uv, int checker_count, Vec4 dark, Vec4 bright);
+
 __global__ void initPaths(
     PathVertexDataDevice vertex, int path_count
 )
@@ -60,10 +62,15 @@ __global__ void extendPaths(
     WavefrontDataDevice wavefront,
     PathVertexDataDevice vertex,
     std::span<const TriangleMesh> objects,
-    int path_count
+    int path_count,
+    uint32_t *casts,
+    int depth
 )
 {
     int idx = KERNEL_IDX(path_count);
+
+    const bool alive = (depth == 0) || vertex.ids[idx].valid();
+    if (alive) casts[idx] += 1;
 
     const auto ray = wavefront.rays[idx];
     const auto intersection = intersectScene(ray, objects);
@@ -288,6 +295,68 @@ __global__ void shade(
     else if (const auto *transparent_material = std::get_if<TransparentMaterial>(&material)) {
         // PASS
     }
+}
+
+__global__ void debugShade(
+    PathVertexDataDevice vertex,
+    WavefrontDataDevice wavefront,
+    std::span<const TriangleMesh> objects,
+    std::span<const Material> materials,
+    DebugOptions debug,
+    int path_count,
+    RenderBuffersDevice output
+)
+{
+    int idx = KERNEL_IDX(path_count);
+
+    Vec4 color{0, 0, 0, 0};
+
+    const auto ids = vertex.ids[idx];
+    if (ids.valid())
+    {
+        const auto &object = objects[ids.meshID];
+        const auto &material = materials[object.material];
+
+        const auto worldRay = wavefront.rays[idx];
+        const auto modelRay = object.model_to_world.applyInverse(worldRay);
+
+        const auto &tri = object.triangles[ids.triangleID];
+        const auto triangle = TriangleVertices{
+            .a = object.points[tri.a.pi],
+            .b = object.points[tri.b.pi],
+            .c = object.points[tri.c.pi],
+        };
+
+        color = getDebugColor(material);
+
+        switch (debug)
+        {
+            case DebugOptions::BariCoords:
+            {
+                const auto point = modelRay.p + modelRay.v * vertex.t[idx];
+                const auto bari = triangleBarycentric(triangle, point);
+                color = Vec4{bari.x, bari.y, bari.z, 0};
+                break;
+            }
+            case DebugOptions::WindingOrder:
+            {
+                constexpr auto clockWiseColor = Vec4{0.53, 0.82, 1.0, 0.0};
+                constexpr auto counterClockWiseColor = Vec4{1.0, 0.73, 0.47, 0.0};
+                const auto geom_normal = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
+                const bool ccw = geom_normal.dot(modelRay.v) > 0;
+                color = ccw ? counterClockWiseColor : clockWiseColor;
+                break;
+            }
+            case DebugOptions::UVChecker:
+                color = checkerPattern(Vec2f{0, 0}, 7,
+                    Vec4{0.5, 0.5, 0.5, 0}, Vec4{0.8, 0.8, 0.8, 0}) * getDebugColor(material);
+                break;
+            case DebugOptions::Off:
+                break;
+        }
+    }
+
+    output.colors[idx] += color;
 }
 
 

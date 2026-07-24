@@ -27,11 +27,13 @@ void Renderer::scheduleDeviceRender()
 
     Camera localCamera;
     PixelSampling localPixelSampling;
+    DebugOptions localDebug;
 
     {
         std::scoped_lock guard{m_renderMutex};
         localCamera = m_camera;
         localPixelSampling = m_pixel_sampling;
+        localDebug = m_debug;
     }
 
     const auto objects = m_scene.objects.deviceSpan();
@@ -58,15 +60,25 @@ void Renderer::scheduleDeviceRender()
     const int gridSize = (path_count + blockSize - 1) / blockSize;
 
     curandState *rand = m_cuda_randoms.devicePtr();
+    uint32_t *casts = m_buffers.casts.devicePtr();
 
-    initPaths<<<gridSize, blockSize>>>(vertex, path_count);
-    initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
-
-    for (int depth = 0; depth < Buffers::maxPathLength; ++depth)
+    if (localDebug != DebugOptions::Off)
     {
-        extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, path_count);
-        shade<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, light_table, path_count, m_scene.info, output);
-        sampleBsdfDirection<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, path_count);
+        initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
+        extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, path_count, casts, 0);
+        debugShade<<<gridSize, blockSize>>>(vertex, wavefront, objects, materials, localDebug, path_count, output);
+    }
+    else
+    {
+        initPaths<<<gridSize, blockSize>>>(vertex, path_count);
+        initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
+
+        for (int depth = 0; depth < Buffers::maxPathLength; ++depth)
+        {
+            extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, path_count, casts, depth);
+            shade<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, light_table, path_count, m_scene.info, output);
+            sampleBsdfDirection<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, path_count);
+        }
     }
 
     accumulateSampleCount<<<gridSize, blockSize>>>(m_buffers.color.devicePtr(), path_count);
