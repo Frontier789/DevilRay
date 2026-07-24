@@ -142,7 +142,7 @@ Scene createScene(Meshes &meshes)
     {
         auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
         mesh_object_monkey.material = glass;
-        mesh_object_monkey.setPosition(Vec3{0.0, -0.32, 2});
+        mesh_object_monkey.setPosition(Vec3{0.0, -0.3175, 2});
         mesh_object_monkey.setScale(Vec3{0.35f,0.35f,0.35f});
         scene.objects.push_back(std::move(mesh_object_monkey));
     }
