@@ -1,5 +1,6 @@
 #include "Renderer.hpp"
 #include "Image.hpp"
+#include "ImageMetadata.hpp"
 
 #include "tracing/LightSampling.hpp"
 #include <iostream>
@@ -104,6 +105,18 @@ void Renderer::saveImage(const std::filesystem::path &path)
     std::scoped_lock guard{m_displayMutex};
 
     savePNG(path.string(), m_displayPixels, m_resolution);
+
+    const double pixelCount = static_cast<double>(m_resolution.area());
+
+    ImageMetadata meta;
+    meta.totalRayCasts = m_totalCasts;
+    meta.raysPerPixel = pixelCount > 0 ? static_cast<double>(m_totalCasts) / pixelCount : 0.0;
+    meta.maxPathDepth = Buffers::maxPathLength;
+    meta.pixelSampling = m_pixel_sampling == PixelSampling::Center ? "Center" : "UniformRandom";
+    meta.outputLinearity =
+        m_output_options.linearity == OutputLinearity::Linear ? "Linear" : "GammaCorrected";
+
+    writeImageMetadata(path.string(), meta);
 }
 
 const uint32_t *Renderer::getPixels()

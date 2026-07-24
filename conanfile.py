@@ -11,7 +11,8 @@ class MyCudaGuiProjectConan(ConanFile):
         "glfw/3.4",
         "imgui/1.92.2b",
         "glew/2.2.0",
-        "stb/cci.20240531"
+        "stb/cci.20240531",
+        "exiv2/0.28.3"
     )
     default_options = {
         "glfw/*:shared": False,

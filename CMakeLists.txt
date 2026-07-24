@@ -15,6 +15,7 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-relaxed-constexpr")
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xptxas -v")
 
 find_package(stb REQUIRED)
+find_package(exiv2 REQUIRED)
 
 option(BUILD_RENDERER    "Build the renderer application"    ON)
 option(BUILD_BBOX_VIEWER "Build the bbox viewer application" ON)
@@ -46,6 +47,7 @@ add_library(${PROJECT_NAME}
             src/DistributionSamplers.cpp
             src/Utils.cpp
             src/Image.cpp
+            src/ImageMetadata.cpp
             src/Renderer.cpp
             src/RunningAverage.cpp
             src/Scene.cpp
@@ -60,6 +62,7 @@ add_library(${PROJECT_NAME}
 
 target_link_libraries(${PROJECT_NAME}
     stb::stb
+    exiv2::exiv2
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
