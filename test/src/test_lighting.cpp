@@ -2,9 +2,10 @@
 
 #include "TracingTestHelpers.hpp"
 
-#include "tracing/Camera.hpp"
-#include "tracing/PathGeneration.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/Scene.hpp"
 #include "tracing/LightSampling.hpp"
+#include "tracing/ShadingUtils.hpp"
 
 #include <gtest/gtest.h>
 
@@ -56,27 +57,31 @@ TEST(MisWeightedEmissionTest, ZeroPdfNonSpecularContributesNothing)
     test::expectVec4Near(result, {0, 0, 0, 0});
 }
 
-// --- computeNextBounceMisPdfs ---
+// --- NEE / BSDF pdf components used for emission MIS ---
+// The wavefront path splits the megakernel's computeNextBounceMisPdfs into a
+// stored bsdf pdf (cosineWeightedHemispherePdf, recorded at the sampling vertex)
+// and computeNeePdf, evaluated at the emitter. This exercises both.
 
 TEST(NextBounceMisPdfsTest, MatchesAnalyticFormula)
 {
-    std::vector<Material> materials;
-    materials.push_back(emissiveMaterial(0.5f));
+    const Material emitter = emissiveMaterial(0.5f);
 
-    const PathEntry vertex{.p = {0, 0, 0}, .uv = {0, 0}, .n = {0, 0, 1}, .mat = 0, .total_throughput = {1, 1, 1, 0}, .triangle_area = 1};
-    const PathEntry next{.p = {0, 0, 2}, .uv = {0, 0}, .n = {0, 0, -1}, .mat = 0, .total_throughput = {1, 1, 1, 0}, .triangle_area = 1};
+    const Vec3 vertexPos{0, 0, 0};
+    const Vec3 vertexNormal{0, 0, 1};
+    const Vec3 nextPos{0, 0, 2};
+    const Vec3 nextNormal{0, 0, -1};
     const ObjectsInfo info{.total_radiant_power = 10.0f};
 
-    const auto pdfs = computeNextBounceMisPdfs(vertex, next, std::span<const Material>{materials}, info);
+    const float nee_pdf = computeNeePdf(vertexPos, nextPos, nextNormal, emitter, info);
+    const float bsdf_pdf = cosineWeightedHemispherePdf(vertexPos, nextPos, vertexNormal);
 
-    const float expectedBsdf = cosineWeightedHemispherePdf(vertex.p, next.p, vertex.n);
-    const float radiantExitanceLuminance = luminance(radiantExitance(materials[0]));
+    const float radiantExitanceLuminance = luminance(radiantExitance(emitter));
     const float expectedNee =
-        radiantExitanceLuminance / info.total_radiant_power * areaToSolidAngle(vertex.p, next.p, next.n);
+        radiantExitanceLuminance / info.total_radiant_power * areaToSolidAngle(vertexPos, nextPos, nextNormal);
 
-    EXPECT_NEAR(pdfs.bsdf_pdf, expectedBsdf, 1e-6f);
-    EXPECT_NEAR(pdfs.nee_pdf, expectedNee, 1e-6f);
-    EXPECT_NEAR(pdfs.bsdf_pdf, 1.0f / pi, 1e-6f);
+    EXPECT_NEAR(bsdf_pdf, cosineWeightedHemispherePdf(vertexPos, nextPos, vertexNormal), 1e-6f);
+    EXPECT_NEAR(nee_pdf, expectedNee, 1e-6f);
+    EXPECT_NEAR(bsdf_pdf, 1.0f / pi, 1e-6f);
 }
 
 // --- evaluateDirectLighting ---
@@ -88,11 +93,10 @@ TEST(DirectLightingTest, UnoccludedMatchesRenderingEquation)
     const Vec4 reflectance{0.8f, 0.8f, 0.8f, 0};
     const Vec4 emission{1, 1, 1, 0};
     const LightSample light{.p = {0, 0, 2}, .n = {0, 0, -1}, .mat = 0, .pdf = 0.5f};
-    const ObjectsInfo info{.total_radiant_power = 1.0f};
 
     const auto result = evaluateDirectLighting(
         surfacePos, surfaceNormal, reflectance, light, emission,
-        std::span<const TriangleMesh>{}, info);
+        std::span<const TriangleMesh>{});
 
     const float brdf = 0.8f / pi;
     const float geometric = 1.0f * 1.0f / 4.0f;
@@ -103,11 +107,10 @@ TEST(DirectLightingTest, UnoccludedMatchesRenderingEquation)
 TEST(DirectLightingTest, BackFacingSurfaceContributesNothing)
 {
     const LightSample light{.p = {0, 0, 2}, .n = {0, 0, -1}, .mat = 0, .pdf = 0.5f};
-    const ObjectsInfo info{.total_radiant_power = 1.0f};
 
     const auto result = evaluateDirectLighting(
         {0, 0, 0}, {0, 0, -1}, {0.8f, 0.8f, 0.8f, 0}, light, {1, 1, 1, 0},
-        std::span<const TriangleMesh>{}, info);
+        std::span<const TriangleMesh>{});
 
     test::expectVec4Near(result, {0, 0, 0, 0});
 }
@@ -118,11 +121,10 @@ TEST(DirectLightingTest, OccluderBlocksContribution)
     const std::array<TriangleMesh, 1> objects{occluder.view()};
 
     const LightSample light{.p = {0, 0, 2}, .n = {0, 0, -1}, .mat = 0, .pdf = 0.5f};
-    const ObjectsInfo info{.total_radiant_power = 1.0f};
 
     const auto result = evaluateDirectLighting(
         {0, 0, 0}, {0, 0, 1}, {0.8f, 0.8f, 0.8f, 0}, light, {1, 1, 1, 0},
-        objects, info);
+        objects);
 
     test::expectVec4Near(result, {0, 0, 0, 0});
 }

@@ -3,16 +3,17 @@
 #include "TracingTestHelpers.hpp"
 
 #include "tracing/Intersection.hpp"
-#include "tracing/Scene.hpp"
 #include "tracing/Benchmark.hpp"
+#include "models/MeshUtils.hpp"
 
 #include <gtest/gtest.h>
 
 #include <array>
+#include <limits>
 #include <optional>
 #include <span>
 
-// Defined in IntersectionTestsImpl.hpp and compiled into the library; not exposed
+// Defined in IntersectionImpl.hpp and compiled into the library, but not exposed
 // through a public header, so we declare the signatures we exercise here.
 struct BoxInterval
 {
@@ -21,8 +22,6 @@ struct BoxInterval
 };
 BoxInterval findBoxInterval(float min, float max, float p, float v);
 std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray);
-Vec3 triangleNormal(const TriangleVertices &triangle);
-std::optional<Intersection> cast(const Ray &ray, std::span<const TriangleMesh> objects, const ObjectsInfo &info);
 
 using test::expectVec3Near;
 using test::HostObject;
@@ -43,9 +42,9 @@ namespace
                 .b = mesh.points[tri.b.pi],
                 .c = mesh.points[tri.c.pi],
             };
-            const auto hit = testTriangleIntersection(ray, verts);
-            if (hit.has_value())
-                best = std::min(best, hit->t);
+            const auto hit = intersectTriangle(ray, verts);
+            if (hit.valid())
+                best = std::min(best, hit.t);
         }
         return best;
     }
@@ -144,27 +143,29 @@ TEST(TriangleNormalTest, IsUnitLength)
     EXPECT_NEAR(triangleNormal(tri).length(), 1.0f, 1e-6f);
 }
 
-// --- getIntersection on a TriangleMesh (BBH traversal) ---
+// --- intersectMesh (BBH traversal) ---
+// The wavefront intersectMesh returns {t, triangleID}; world position is
+// recovered as ray.p + ray.v * t and the shading normal via surfaceNormal.
 
 TEST(MeshIntersectionTest, HitsSingleTriangle)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
     const TriangleMesh mesh = object.view();
 
-    const auto hit = getIntersection(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh);
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_NEAR(hit->t, 5.0f, 1e-5f);
-    expectVec3Near(hit->p, {0.2f, 0.2f, 0});
-    EXPECT_FLOAT_EQ(hit->triangle.area, 0.5f);
+    const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    const auto hit = intersectMesh(ray, mesh);
+    ASSERT_TRUE(hit.valid());
+    EXPECT_NEAR(hit.t, 5.0f, 1e-5f);
+    expectVec3Near(ray.p + ray.v * hit.t, {0.2f, 0.2f, 0});
 }
 
-TEST(MeshIntersectionTest, MissReturnsNullopt)
+TEST(MeshIntersectionTest, MissReturnsInvalid)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
     const TriangleMesh mesh = object.view();
 
-    const auto hit = getIntersection(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, mesh);
-    EXPECT_FALSE(hit.has_value());
+    const auto hit = intersectMesh(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, mesh);
+    EXPECT_FALSE(hit.valid());
 }
 
 TEST(MeshIntersectionTest, AppliesModelToWorldTranslation)
@@ -173,20 +174,10 @@ TEST(MeshIntersectionTest, AppliesModelToWorldTranslation)
     object.transform = Transform{.s = {1, 1, 1}, .p = {10, 0, 0}};
     const TriangleMesh mesh = object.view();
 
-    const auto hit = getIntersection(Ray{.p = {10.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh);
-    ASSERT_TRUE(hit.has_value());
-    expectVec3Near(hit->p, {10.2f, 0.2f, 0});
-}
-
-TEST(MeshIntersectionTest, WorldSpaceAreaScalesWithTransform)
-{
-    HostObject object = makeHostObject(unitTriangleMesh());
-    object.transform = Transform{.s = {2, 3, 1}, .p = {0, 0, 0}};
-    const TriangleMesh mesh = object.view();
-
-    const auto hit = getIntersection(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh);
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_NEAR(hit->triangle.area, 0.5f * 2.0f * 3.0f, 1e-5f);
+    const Ray ray{.p = {10.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    const auto hit = intersectMesh(ray, mesh);
+    ASSERT_TRUE(hit.valid());
+    expectVec3Near(ray.p + ray.v * hit.t, {10.2f, 0.2f, 0});
 }
 
 TEST(MeshIntersectionTest, NormalFlipsTowardIncomingRay)
@@ -194,28 +185,17 @@ TEST(MeshIntersectionTest, NormalFlipsTowardIncomingRay)
     HostObject object = makeHostObject(unitTriangleMesh());
     const TriangleMesh mesh = object.view();
 
-    const auto fromAbove = getIntersection(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh);
-    ASSERT_TRUE(fromAbove.has_value());
-    expectVec3Near(fromAbove->n, {0, 0, 1});
-    EXPECT_LE(fromAbove->n.dot(Vec3{0, 0, -1}), 0.0f);
+    const Ray above{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    const auto fromAbove = intersectMesh(above, mesh);
+    ASSERT_TRUE(fromAbove.valid());
+    const auto nAbove = surfaceNormal(mesh, fromAbove.triangleID, above.v);
+    expectVec3Near(nAbove, {0, 0, 1});
+    EXPECT_LE(nAbove.dot(above.v), 0.0f);
 
-    const auto fromBelow = getIntersection(Ray{.p = {0.2f, 0.2f, -5}, .v = {0, 0, 1}}, mesh);
-    ASSERT_TRUE(fromBelow.has_value());
-    expectVec3Near(fromBelow->n, {0, 0, -1});
-}
-
-TEST(MeshIntersectionTest, WindingFlagFollowsRayDirection)
-{
-    HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
-
-    const auto fromAbove = getIntersection(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh);
-    ASSERT_TRUE(fromAbove.has_value());
-    EXPECT_FALSE(fromAbove->triangle.ccw);
-
-    const auto fromBelow = getIntersection(Ray{.p = {0.2f, 0.2f, -5}, .v = {0, 0, 1}}, mesh);
-    ASSERT_TRUE(fromBelow.has_value());
-    EXPECT_TRUE(fromBelow->triangle.ccw);
+    const Ray below{.p = {0.2f, 0.2f, -5}, .v = {0, 0, 1}};
+    const auto fromBelow = intersectMesh(below, mesh);
+    ASSERT_TRUE(fromBelow.valid());
+    expectVec3Near(surfaceNormal(mesh, fromBelow.triangleID, below.v), {0, 0, -1});
 }
 
 TEST(MeshIntersectionTest, ReturnsClosestOfStackedTriangles)
@@ -233,10 +213,11 @@ TEST(MeshIntersectionTest, ReturnsClosestOfStackedTriangles)
     }
 
     HostObject object = makeHostObject(std::move(mesh));
-    const auto hit = getIntersection(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, object.view());
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_NEAR(hit->t, 5.0f, 1e-5f);
-    EXPECT_NEAR(hit->p.z, 0.0f, 1e-5f);
+    const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    const auto hit = intersectMesh(ray, object.view());
+    ASSERT_TRUE(hit.valid());
+    EXPECT_NEAR(hit.t, 5.0f, 1e-5f);
+    EXPECT_NEAR((ray.p + ray.v * hit.t).z, 0.0f, 1e-5f);
 }
 
 TEST(MeshIntersectionTest, TraversalMatchesBruteForce)
@@ -256,24 +237,24 @@ TEST(MeshIntersectionTest, TraversalMatchesBruteForce)
             .v = {0, 0, -1},
         };
 
-        const auto hit = getIntersection(ray, view);
+        const auto hit = intersectMesh(ray, view);
         const float bruteT = bruteForceClosestT(meshCopy, ray);
 
         if (std::isinf(bruteT))
         {
-            EXPECT_FALSE(hit.has_value()) << "ray " << i;
+            EXPECT_FALSE(hit.valid()) << "ray " << i;
         }
         else
         {
-            ASSERT_TRUE(hit.has_value()) << "ray " << i;
-            EXPECT_NEAR(hit->t, bruteT, 1e-4f) << "ray " << i;
+            ASSERT_TRUE(hit.valid()) << "ray " << i;
+            EXPECT_NEAR(hit.t, bruteT, 1e-4f) << "ray " << i;
         }
     }
 }
 
-// --- cast across multiple objects ---
+// --- intersectScene across multiple objects ---
 
-TEST(CastTest, ReturnsNearestObject)
+TEST(SceneIntersectionTest, ReturnsNearestObject)
 {
     HostObject near = makeHostObject(unitTriangleMesh());
     near.material = 11;
@@ -282,19 +263,17 @@ TEST(CastTest, ReturnsNearestObject)
     far.transform = Transform{.s = {1, 1, 1}, .p = {0, 0, -3}};
 
     const std::array<TriangleMesh, 2> objects{near.view(), far.view()};
-    const ObjectsInfo info{.total_radiant_power = 1.0f};
 
-    const auto hit = cast(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, objects, info);
-    ASSERT_TRUE(hit.has_value());
-    EXPECT_EQ(hit->mat, 11);
-    EXPECT_NEAR(hit->t, 5.0f, 1e-5f);
+    const auto hit = intersectScene(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, objects);
+    ASSERT_TRUE(hit.valid());
+    EXPECT_EQ(objects[hit.meshID].material, 11);
+    EXPECT_NEAR(hit.t, 5.0f, 1e-5f);
 }
 
-TEST(CastTest, EmptySceneMisses)
+TEST(SceneIntersectionTest, EmptySceneMisses)
 {
-    const ObjectsInfo info{.total_radiant_power = 1.0f};
-    const auto hit = cast(Ray{.p = {0, 0, 0}, .v = {0, 0, -1}}, std::span<const TriangleMesh>{}, info);
-    EXPECT_FALSE(hit.has_value());
+    const auto hit = intersectScene(Ray{.p = {0, 0, 0}, .v = {0, 0, -1}}, std::span<const TriangleMesh>{});
+    EXPECT_FALSE(hit.valid());
 }
 
 // --- benchmark counters ---
@@ -302,12 +281,12 @@ TEST(CastTest, EmptySceneMisses)
 TEST(BenchmarkCountsTest, SingleTriangleHitCountsOneOfEach)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
+    const std::array<TriangleMesh, 1> objects{object.view()};
 
-    benchmark::HitTests counts;
-    const auto hit = getIntersectionBenchmark(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, mesh, counts);
+    benchmark::HitTests counts{};
+    const auto hit = intersectSceneBenchmark(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, objects, counts);
 
-    ASSERT_TRUE(hit.has_value());
+    ASSERT_TRUE(hit.valid());
     EXPECT_EQ(counts.bbox_tests, 1);
     EXPECT_EQ(counts.triangle_tests, 1);
 }
@@ -315,12 +294,12 @@ TEST(BenchmarkCountsTest, SingleTriangleHitCountsOneOfEach)
 TEST(BenchmarkCountsTest, MissingBoxSkipsTriangleTests)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
+    const std::array<TriangleMesh, 1> objects{object.view()};
 
-    benchmark::HitTests counts;
-    const auto hit = getIntersectionBenchmark(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, mesh, counts);
+    benchmark::HitTests counts{};
+    const auto hit = intersectSceneBenchmark(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, objects, counts);
 
-    EXPECT_FALSE(hit.has_value());
+    EXPECT_FALSE(hit.valid());
     EXPECT_EQ(counts.bbox_tests, 1);
     EXPECT_EQ(counts.triangle_tests, 0);
 }
@@ -330,9 +309,10 @@ TEST(BenchmarkCountsTest, HierarchyPrunesTriangleTests)
     test::DeterministicRng rng;
     HostObject object = makeHostObject(scatteredTriangleMesh(rng, 64));
     const TriangleMesh mesh = object.view();
+    const std::array<TriangleMesh, 1> objects{mesh};
 
-    benchmark::HitTests counts;
-    getIntersectionBenchmark(Ray{.p = {0, 0, 5}, .v = {0, 0, -1}}, mesh, counts);
+    benchmark::HitTests counts{};
+    intersectSceneBenchmark(Ray{.p = {0, 0, 5}, .v = {0, 0, -1}}, objects, counts);
 
     EXPECT_GT(counts.bbox_tests, 0);
     EXPECT_LT(counts.triangle_tests, mesh.triangle_count)
@@ -344,14 +324,15 @@ TEST(BenchmarkCountsTest, SkipAndCountingTraversalAgree)
     test::DeterministicRng rng;
     HostObject object = makeHostObject(scatteredTriangleMesh(rng, 32));
     const TriangleMesh mesh = object.view();
+    const std::array<TriangleMesh, 1> objects{mesh};
 
     const Ray ray{.p = {0.3f, -0.2f, 5}, .v = {0, 0, -1}};
-    const auto plain = getIntersection(ray, mesh);
+    const auto plain = intersectScene(ray, objects);
 
-    benchmark::HitTests counts;
-    const auto counted = getIntersectionBenchmark(ray, mesh, counts);
+    benchmark::HitTests counts{};
+    const auto counted = intersectSceneBenchmark(ray, objects, counts);
 
-    EXPECT_EQ(plain.has_value(), counted.has_value());
-    if (plain.has_value() && counted.has_value())
-        EXPECT_FLOAT_EQ(plain->t, counted->t);
+    EXPECT_EQ(plain.valid(), counted.valid());
+    if (plain.valid() && counted.valid())
+        EXPECT_FLOAT_EQ(plain.t, counted.t);
 }

@@ -1,5 +1,6 @@
 
 #include "tracing/Intersection.hpp"
+#include "models/MeshUtils.hpp"
 
 #include <gtest/gtest.h>
 #include <optional>
@@ -14,7 +15,30 @@
 /// hand.                             ///
 /////////////////////////////////////////
 
-void ExpectValidNumbers(const TriangleIntersection& intersect) {
+namespace
+{
+    // The wavefront intersectTriangle returns only a hit distance; barycentric
+    // coordinates are recovered separately via triangleBarycentric. This adapter
+    // reunites them so the tests below keep exercising both.
+    struct TriResult
+    {
+        bool hit;
+        float t;
+        Vec3 bari;
+    };
+
+    TriResult hitTriangle(const Ray &ray, const TriangleVertices &tri)
+    {
+        const auto h = intersectTriangle(ray, tri);
+        if (!h.valid())
+            return TriResult{.hit = false, .t = h.t, .bari = {0, 0, 0}};
+
+        const Vec3 point = ray.p + ray.v * h.t;
+        return TriResult{.hit = true, .t = h.t, .bari = triangleBarycentric(tri, point)};
+    }
+}
+
+void ExpectValidNumbers(const TriResult& intersect) {
     EXPECT_TRUE(std::isfinite(intersect.t)) << "Intersection 't' is NaN or Inf";
     EXPECT_TRUE(std::isfinite(intersect.bari.x)) << "Barycentric x is NaN or Inf";
     EXPECT_TRUE(std::isfinite(intersect.bari.y)) << "Barycentric y is NaN or Inf";
@@ -33,80 +57,80 @@ protected:
 TEST_F(IntersectionTest, HitsCenterOfTriangle) {
     // Ray starts at (0.2, 0.2, 5) and shoots straight down the Z-axis
     Ray ray{{0.2f, 0.2f, 5.0f}, {0.0f, 0.0f, -1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
+    auto result = hitTriangle(ray, unitTri);
 
-    ASSERT_TRUE(result.has_value()) << "Ray should have hit the center of the triangle";
-    ExpectValidNumbers(*result);
-    EXPECT_NEAR(result->t, 5.0f, 1e-5f);
+    ASSERT_TRUE(result.hit) << "Ray should have hit the center of the triangle";
+    ExpectValidNumbers(result);
+    EXPECT_NEAR(result.t, 5.0f, 1e-5f);
 
     // Check that barycentric coordinates are within the valid [0, 1] range
-    EXPECT_GE(result->bari.x, 0.0f);
-    EXPECT_GE(result->bari.y, 0.0f);
-    EXPECT_GE(result->bari.z, 0.0f);
+    EXPECT_GE(result.bari.x, 0.0f);
+    EXPECT_GE(result.bari.y, 0.0f);
+    EXPECT_GE(result.bari.z, 0.0f);
 
-    float barySum = result->bari.x + result->bari.y + result->bari.z;
+    float barySum = result.bari.x + result.bari.y + result.bari.z;
     EXPECT_NEAR(barySum, 1.0f, 1e-5f);
 }
 
 TEST_F(IntersectionTest, HitsExactlyOnVertex) {
     // Ray pointing directly at vertex A (0,0,0) from Z=10
     Ray ray{{0.0f, 0.0f, 10.0f}, {0.0f, 0.0f, -1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
+    auto result = hitTriangle(ray, unitTri);
 
-    ASSERT_TRUE(result.has_value());
-    ExpectValidNumbers(*result);
-    EXPECT_NEAR(result->t, 10.0f, 1e-5f);
+    ASSERT_TRUE(result.hit);
+    ExpectValidNumbers(result);
+    EXPECT_NEAR(result.t, 10.0f, 1e-5f);
 }
 
 // 2. MISS CASES (GEOMETRY)
 TEST_F(IntersectionTest, MissesJustOutsideEdge) {
     // Ray at (-0.01, 0.5, 1) - slightly to the left of the triangle
     Ray ray{{-0.01f, 0.5f, 1.0f}, {0.0f, 0.0f, -1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
-    EXPECT_FALSE(result.has_value());
+    auto result = hitTriangle(ray, unitTri);
+    EXPECT_FALSE(result.hit);
 }
 
 TEST_F(IntersectionTest, MissesBehindRayOrigin) {
     // Ray starts at (0.2, 0.2, 1) but points UP (+Z), away from triangle at Z=0
     Ray ray{{0.2f, 0.2f, 1.0f}, {0.0f, 0.0f, 1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
-    EXPECT_FALSE(result.has_value());
+    auto result = hitTriangle(ray, unitTri);
+    EXPECT_FALSE(result.hit);
 }
 
 // 3. EDGE CASES (MATHEMATICAL)
 TEST_F(IntersectionTest, ParallelRayDoesNotIntersect) {
     // Ray is parallel to the triangle plane (sliding along X-axis at Z=1)
     Ray ray{{-1.0f, 0.2f, 1.0f}, {1.0f, 0.0f, 0.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
-    EXPECT_FALSE(result.has_value());
+    auto result = hitTriangle(ray, unitTri);
+    EXPECT_FALSE(result.hit);
 }
 
 TEST_F(IntersectionTest, DegenerateTriangleFails) {
     // Triangle where all points are identical (a single point, no area)
     TriangleVertices flatTri = {{0,0,0}, {0,0,0}, {0,0,0}};
     Ray ray{{0,0,1}, {0,0,-1}};
-    auto result = testTriangleIntersection(ray, flatTri);
-    EXPECT_FALSE(result.has_value());
+    auto result = hitTriangle(ray, flatTri);
+    EXPECT_FALSE(result.hit);
 }
 
 TEST_F(IntersectionTest, NoBackfaceCulling) {
     // Ray hits from "underneath" (Z = -1, pointing UP to Z=0)
     // Most renderers/engines treat this as a miss if culling is enabled
     Ray ray{{0.2f, 0.2f, -1.0f}, {0.0f, 0.0f, 1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
+    auto result = hitTriangle(ray, unitTri);
 
     // Adjust this expectation based on whether your function allows backfaces
-    ASSERT_TRUE(result.has_value());
-    ExpectValidNumbers(*result);
+    ASSERT_TRUE(result.hit);
+    ExpectValidNumbers(result);
 }
 
 TEST_F(IntersectionTest, VeryDistantIntersection) {
     Ray ray{{0.2f, 0.2f, 10000.0f}, {0.0f, 0.0f, -1.0f}};
-    auto result = testTriangleIntersection(ray, unitTri);
-    ASSERT_TRUE(result.has_value());
-    ExpectValidNumbers(*result);
+    auto result = hitTriangle(ray, unitTri);
+    ASSERT_TRUE(result.hit);
+    ExpectValidNumbers(result);
 
-    EXPECT_NEAR(result->t, 10000.0f, 1e-2f);
+    EXPECT_NEAR(result.t, 10000.0f, 1e-2f);
 }
 
 // --- Degenerate Case Tests ---
@@ -116,24 +140,24 @@ TEST_F(IntersectionTest, DegenerateTriangleCollinear) {
     TriangleVertices lineTri = {{0,0,0}, {1,0,0}, {2,0,0}};
     Ray ray{{0.5f, 0, 1}, {0,0,-1}};
 
-    auto result = testTriangleIntersection(ray, lineTri);
-    EXPECT_FALSE(result.has_value()) << "Collinear vertices should not result in a hit";
+    auto result = hitTriangle(ray, lineTri);
+    EXPECT_FALSE(result.hit) << "Collinear vertices should not result in a hit";
 }
 
 TEST_F(IntersectionTest, DegenerateRayZeroDirection) {
     // Ray has no direction (v = 0,0,0)
     Ray ray{{0.2f, 0.2f, 1.0f}, {0.0f, 0.0f, 0.0f}};
 
-    auto result = testTriangleIntersection(ray, unitTri);
-    EXPECT_FALSE(result.has_value()) << "Zero direction should not result in a hit";
+    auto result = hitTriangle(ray, unitTri);
+    EXPECT_FALSE(result.hit) << "Zero direction should not result in a hit";
 }
 
 TEST_F(IntersectionTest, DegenerateRayNaNInDirection) {
     // Ray contains a NaN in direction, common in buggy physics/cam logic
     Ray ray{{0,0,0}, {NAN, NAN, NAN}};
 
-    auto result = testTriangleIntersection(ray, unitTri);
-    EXPECT_FALSE(result.has_value());
+    auto result = hitTriangle(ray, unitTri);
+    EXPECT_FALSE(result.hit);
 }
 
 TEST_F(IntersectionTest, ExtremelyThinTriangle) {
@@ -142,9 +166,9 @@ TEST_F(IntersectionTest, ExtremelyThinTriangle) {
     TriangleVertices sliverTri = {{0,0,0}, {100.0f, 0, 0}, {100.0f, 2e-8f, 0}};
     Ray ray{{50.0f, 1e-9f, 1.0f}, {0,0,-1}};
 
-    auto result = testTriangleIntersection(ray, sliverTri);
-    ASSERT_TRUE(result.has_value());
-    ExpectValidNumbers(*result);
+    auto result = hitTriangle(ray, sliverTri);
+    ASSERT_TRUE(result.hit);
+    ExpectValidNumbers(result);
 }
 
 TEST_F(IntersectionTest, MultipleAngleSanityCheck) {
@@ -171,20 +195,20 @@ TEST_F(IntersectionTest, MultipleAngleSanityCheck) {
         const Vec3 dirHit = targetInside - origin;
         const Ray rayHit{origin, dirHit};
 
-        const auto resultHit = testTriangleIntersection(rayHit, unitTri);
+        const auto resultHit = hitTriangle(rayHit, unitTri);
 
-        EXPECT_TRUE(resultHit.has_value())
+        EXPECT_TRUE(resultHit.hit)
             << "Ray from (" << origin.x << "," << origin.y << "," << origin.z << ") should hit.";
 
-        if (resultHit.has_value()) {
-            ExpectValidNumbers(*resultHit);
+        if (resultHit.hit) {
+            ExpectValidNumbers(resultHit);
             // Since direction is (Target - Origin), t should be approximately 1.0
-            EXPECT_NEAR(resultHit->t, 1.0f, 1e-4f);
+            EXPECT_NEAR(resultHit.t, 1.0f, 1e-4f);
 
-            EXPECT_NEAR(resultHit->bari.x + resultHit->bari.y + resultHit->bari.z, 1.0f, 1e-5f);
-            EXPECT_NEAR(resultHit->bari.x, expectedW, 1e-4f);
-            EXPECT_NEAR(resultHit->bari.y, expectedU, 1e-4f);
-            EXPECT_NEAR(resultHit->bari.z, expectedV, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.x + resultHit.bari.y + resultHit.bari.z, 1.0f, 1e-5f);
+            EXPECT_NEAR(resultHit.bari.x, expectedW, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.y, expectedU, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.z, expectedV, 1e-4f);
         }
 
         // 2. TEST VALID MISSES
@@ -192,9 +216,9 @@ TEST_F(IntersectionTest, MultipleAngleSanityCheck) {
         const Vec3 dirMiss = targetOutside - origin;
         const Ray rayMiss{origin, dirMiss};
 
-        const auto resultMiss = testTriangleIntersection(rayMiss, unitTri);
+        const auto resultMiss = hitTriangle(rayMiss, unitTri);
 
-        EXPECT_FALSE(resultMiss.has_value())
+        EXPECT_FALSE(resultMiss.hit)
             << "Ray from (" << origin.x << "," << origin.y << "," << origin.z << ") should miss.";
     }
 }
