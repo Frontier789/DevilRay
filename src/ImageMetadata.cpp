@@ -4,6 +4,10 @@
 
 #include <iostream>
 
+#if __has_include(<GitVersion.hpp>)
+#  include <GitVersion.hpp>
+#endif
+
 namespace
 {
     constexpr const char *kXmpNamespace = "https://github.com/Frontier789/DevilRay/ns/1.0/";
@@ -32,6 +36,11 @@ bool writeImageMetadata(const std::string &path, const ImageMetadata &meta)
         xmp["Xmp.devilray.MaxPathDepth"] = std::to_string(meta.maxPathDepth);
         if (!meta.pixelSampling.empty()) xmp["Xmp.devilray.PixelSampling"] = meta.pixelSampling;
         if (!meta.outputLinearity.empty()) xmp["Xmp.devilray.OutputLinearity"] = meta.outputLinearity;
+
+#ifdef DEVILRAY_GIT_COMMIT
+        xmp["Xmp.devilray.GitCommit"] = DEVILRAY_GIT_COMMIT;
+        xmp["Xmp.devilray.GitBranch"] = DEVILRAY_GIT_BRANCH;
+#endif
 
         image->writeMetadata();
         return true;

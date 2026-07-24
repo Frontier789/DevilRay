@@ -67,6 +67,10 @@ target_link_libraries(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
+# Stamp the current git commit/branch into a generated header at build time.
+include(cmake/GitVersion.cmake)
+target_git_version(${PROJECT_NAME} src/ImageMetadata.cpp)
+
 target_compile_options(${PROJECT_NAME} PRIVATE -Wmissing-field-initializers)
 
 enable_testing()
