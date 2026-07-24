@@ -15,10 +15,10 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
-function(add_test_dr TEST_NAME)
+function(add_test_with_source TEST_NAME SOURCE_NAME)
   add_executable(
     ${TEST_NAME}
-    src/${TEST_NAME}.cpp
+    ${SOURCE_NAME}
   )
   target_link_libraries(
     ${TEST_NAME}
@@ -26,6 +26,20 @@ function(add_test_dr TEST_NAME)
     devil_ray_lib
   )
   gtest_discover_tests(${TEST_NAME} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endfunction()
+
+function(add_test_dr TEST_NAME)
+  add_test_with_source(
+    ${TEST_NAME}
+    src/${TEST_NAME}.cpp
+  )
+endfunction()
+
+function(add_cuda_test_dr TEST_NAME)
+  add_test_with_source(
+    ${TEST_NAME}
+    src/${TEST_NAME}.cu
+  )
 endfunction()
 
 add_test_dr(test_alias)
@@ -43,3 +57,4 @@ add_test_dr(test_camera)
 add_test_dr(test_scene)
 add_test_dr(test_running_average)
 add_test_dr(test_device)
+add_cuda_test_dr(test_kernels)
