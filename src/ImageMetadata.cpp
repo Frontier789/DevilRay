@@ -41,6 +41,9 @@ bool writeImageMetadata(const std::string &path, const ImageMetadata &meta)
         xmp["Xmp.devilray.GitCommit"] = DEVILRAY_GIT_COMMIT;
         xmp["Xmp.devilray.GitBranch"] = DEVILRAY_GIT_BRANCH;
 #endif
+#ifdef DEVILRAY_GIT_ORIGIN
+        xmp["Xmp.devilray.ReposLink"] = DEVILRAY_GIT_ORIGIN;
+#endif
 
         image->writeMetadata();
         return true;

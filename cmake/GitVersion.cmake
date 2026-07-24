@@ -1,3 +1,5 @@
+# AI-generated (Claude), reviewed by hand before committing.
+#
 # GitVersion.cmake — two modes in one file.
 #
 #  * include()d from a CMakeLists it defines target_git_version(target source),
@@ -19,6 +21,7 @@ if(CMAKE_SCRIPT_MODE_FILE)
 
     set(GIT_COMMIT "")
     set(GIT_BRANCH "")
+    set(GIT_ORIGIN "")
 
     if(Git_FOUND)
         execute_process(
@@ -37,46 +40,83 @@ if(CMAKE_SCRIPT_MODE_FILE)
             ERROR_QUIET
             RESULT_VARIABLE branch_status)
 
+        execute_process(
+            COMMAND "${GIT_EXECUTABLE}" config --get remote.origin.url
+            WORKING_DIRECTORY "${SOURCE_DIR}"
+            OUTPUT_VARIABLE GIT_ORIGIN
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+            RESULT_VARIABLE origin_status)
+
         if(NOT commit_status EQUAL 0)
             set(GIT_COMMIT "")
         endif()
         if(NOT branch_status EQUAL 0)
             set(GIT_BRANCH "")
         endif()
+        if(NOT origin_status EQUAL 0)
+            set(GIT_ORIGIN "")
+        endif()
     endif()
 
-    set(changed OFF)
+    # If we couldn't fetch the essentials (no git, not a repo, command failed),
+    # fail gracefully: report it, delete the header so __has_include drops the
+    # git metadata, keep the stamp valid, and stop. Never error out the build.
+    if(GIT_COMMIT STREQUAL "")
+        message(STATUS "GitVersion: failed to fetch git info; git metadata omitted")
+        set(changed OFF)
+        if(EXISTS "${GIT_HEADER}")
+            file(REMOVE "${GIT_HEADER}")
+            set(changed ON)
+        endif()
+        if(changed OR NOT EXISTS "${GIT_STAMP}")
+            file(WRITE "${GIT_STAMP}" "\n")
+        endif()
+        return()
+    endif()
 
-    if(NOT GIT_COMMIT STREQUAL "")
-        set(NEW_CONTENT
+    # Normalize the remote to a clickable https:// link. git only reports the
+    # remote as configured (often SSH), so convert the SSH forms ourselves.
+    if(NOT GIT_ORIGIN STREQUAL "")
+        if(NOT GIT_ORIGIN MATCHES "://")
+            # scp-like syntax: [user@]host:path -> https://host/path
+            if(GIT_ORIGIN MATCHES "^[^@]+@([^:]+):(.+)$")
+                set(GIT_ORIGIN "https://${CMAKE_MATCH_1}/${CMAKE_MATCH_2}")
+            endif()
+        elseif(GIT_ORIGIN MATCHES "^ssh://")
+            # ssh://[user@]host/path -> https://host/path
+            string(REGEX REPLACE "^ssh://([^@]+@)?" "https://" GIT_ORIGIN "${GIT_ORIGIN}")
+        endif()
+
+        # Drop the trailing .git so the link opens the project page directly.
+        string(REGEX REPLACE "\\.git$" "" GIT_ORIGIN "${GIT_ORIGIN}")
+    endif()
+
+    set(NEW_CONTENT
 "#pragma once
 // Auto-generated at build time by cmake/GitVersion.cmake. Do not edit.
 #define DEVILRAY_GIT_COMMIT \"${GIT_COMMIT}\"
 #define DEVILRAY_GIT_BRANCH \"${GIT_BRANCH}\"
 ")
-        set(OLD_CONTENT "")
-        if(EXISTS "${GIT_HEADER}")
-            file(READ "${GIT_HEADER}" OLD_CONTENT)
-        endif()
-        if(NOT OLD_CONTENT STREQUAL NEW_CONTENT)
-            file(WRITE "${GIT_HEADER}" "${NEW_CONTENT}")
-            set(changed ON)
-            message(STATUS "GitVersion: ${GIT_BRANCH} @ ${GIT_COMMIT}")
-        endif()
-    else()
-        # No git information: keep the header absent so __has_include excludes it.
-        if(EXISTS "${GIT_HEADER}")
-            file(REMOVE "${GIT_HEADER}")
-            set(changed ON)
-        endif()
+    # A repository can have a commit but no remote, so origin is optional.
+    if(NOT GIT_ORIGIN STREQUAL "")
+        string(APPEND NEW_CONTENT "#define DEVILRAY_GIT_ORIGIN \"${GIT_ORIGIN}\"\n")
     endif()
 
-    # The build depends on the stamp, not the (possibly absent) header. Touch it
-    # only when the git state changed, and ensure it exists after the first run.
-    if(NOT EXISTS "${GIT_STAMP}")
-        set(changed ON)
+    # Only rewrite the header (and touch the stamp) when the content changes, so
+    # the metadata TU recompiles at most once per commit.
+    set(changed OFF)
+    set(OLD_CONTENT "")
+    if(EXISTS "${GIT_HEADER}")
+        file(READ "${GIT_HEADER}" OLD_CONTENT)
     endif()
-    if(changed)
+    if(NOT OLD_CONTENT STREQUAL NEW_CONTENT)
+        file(WRITE "${GIT_HEADER}" "${NEW_CONTENT}")
+        set(changed ON)
+        message(STATUS "GitVersion: ${GIT_BRANCH} @ ${GIT_COMMIT}")
+    endif()
+
+    if(changed OR NOT EXISTS "${GIT_STAMP}")
         file(WRITE "${GIT_STAMP}" "${GIT_COMMIT}\n")
     endif()
 
