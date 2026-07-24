@@ -15,10 +15,10 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
-function(add_test_with_source TEST_NAME SOURCE_NAME)
+function(add_test_dr TEST_NAME)
   add_executable(
     ${TEST_NAME}
-    ${SOURCE_NAME}
+    src/${TEST_NAME}.cpp
   )
   target_link_libraries(
     ${TEST_NAME}
@@ -28,22 +28,24 @@ function(add_test_with_source TEST_NAME SOURCE_NAME)
   gtest_discover_tests(${TEST_NAME} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 
-function(add_test_dr TEST_NAME)
-  add_test_with_source(
+# Registers the whole GoogleTest binary as a single CTest entry so its cases run
+# in one process. Tests that touch the CUDA runtime then share a single context
+# init instead of paying it per case. SOURCE may be a .cpp or .cu.
+function(add_shared_gpu_test_dr TEST_NAME SOURCE)
+  add_executable(
     ${TEST_NAME}
-    src/${TEST_NAME}.cpp
+    ${SOURCE}
   )
+  target_link_libraries(
+    ${TEST_NAME}
+    GTest::gtest_main
+    devil_ray_lib
+  )
+  add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME} WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
 endfunction()
 
-function(add_cuda_test_dr TEST_NAME)
-  add_test_with_source(
-    ${TEST_NAME}
-    src/${TEST_NAME}.cu
-  )
-endfunction()
-
+# Fast, CPU-only unit tests (per-case CTest entries).
 add_test_dr(test_alias)
-add_test_dr(test_render)
 add_test_dr(test_intersection)
 add_test_dr(test_mesh)
 add_test_dr(test_matrix)
@@ -55,6 +57,9 @@ add_test_dr(test_sampling)
 add_test_dr(test_lighting)
 add_test_dr(test_camera)
 add_test_dr(test_scene)
-add_test_dr(test_running_average)
 add_test_dr(test_device)
-add_cuda_test_dr(test_kernels)
+add_test_dr(test_running_average)
+
+# GPU tests: one process each, so the CUDA context is initialized only once.
+add_shared_gpu_test_dr(test_cuda    src/test_cuda.cu)
+add_shared_gpu_test_dr(test_render  src/test_render.cpp)

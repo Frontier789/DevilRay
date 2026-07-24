@@ -75,19 +75,3 @@ TEST(CreateQuadMeshTest, ProducesAxisAlignedSquare)
     // A size-2 quad has total area 4.
     EXPECT_NEAR(meshSurfaceArea(quad), 4.0f, 1e-5f);
 }
-
-TEST(ViewGpuTrisTest, WiresUpDevicePointersAndSurfaceArea)
-{
-    GpuTris quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
-    const TriangleMesh view = viewGpuTris(quad);
-
-    EXPECT_EQ(view.triangle_count, 2);
-    EXPECT_NE(view.points, nullptr);
-    EXPECT_NE(view.normals, nullptr);
-    EXPECT_NE(view.triangles, nullptr);
-    EXPECT_NE(view.triangle_sampler, nullptr);
-    EXPECT_FALSE(view.bbh.isEmpty());
-
-    EXPECT_NEAR(view.base_surface_area, 4.0f, 1e-5f);
-    EXPECT_FLOAT_EQ(view.surface_area, view.base_surface_area);
-}

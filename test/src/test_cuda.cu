@@ -11,10 +11,13 @@
 #include "tracing/GpuTris.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/CameraRay.hpp"
+#include "device/Array.hpp"
+#include "device/Vector.hpp"
 #include "device/Random.hpp"
 #include "device/DevUtils.hpp"
 
 #include <cuda_runtime.h>
+#include <utility>
 
 // checkerPattern is declared in PathGeneration.hpp and defined in the library's
 // implementation.cu. Provide a local definition so debugShade links here without
@@ -127,6 +130,16 @@ TEST(ReflectOrRefractRayTest, TotalInternalReflectionAtGrazingExit)
     EXPECT_EQ(inside, 7);                       // stays inside
 }
 
+// Device-resident scene: owns the GPU triangle storage and exposes it as a span.
+struct DeviceScene
+{
+    GpuTris tris;
+    TriangleMesh host_view;
+    DeviceBuffer<TriangleMesh> objects;
+
+    std::span<const TriangleMesh> span() { return objects.deviceSpan(); }
+};
+
 namespace
 {
     PathVertexDataDevice deviceView(PathVertexData &p)
@@ -149,15 +162,6 @@ namespace
 
     // Uploads a mesh (with per-triangle light sampler) to the device and keeps
     // the backing storage alive for as long as the returned object lives.
-    struct DeviceScene
-    {
-        GpuTris tris;
-        TriangleMesh host_view;
-        DeviceBuffer<TriangleMesh> objects;
-
-        std::span<const TriangleMesh> span() { return objects.deviceSpan(); }
-    };
-
     DeviceScene uploadScene(Mesh mesh, int material)
     {
         GpuTris tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/true);
@@ -231,9 +235,13 @@ __global__ void callShadeDiffuseMaterial(
 
 // ==========================================================================
 // CUDA kernel tests.
+//
+// Registered with CTest as a single binary (see add_shared_gpu_test_dr), so
+// every case runs in one process and the CUDA runtime is initialized only once
+// instead of once per test.
 // ==========================================================================
 
-TEST(KernelInitPaths, SetsInitialPathState)
+TEST(Kernels, InitPathsSetsInitialState)
 {
     const int N = 8;
     // Seed with sentinels to prove the kernel overwrites every field.
@@ -256,7 +264,7 @@ TEST(KernelInitPaths, SetsInitialPathState)
     }
 }
 
-TEST(KernelInitCameraRays, MatchesHostCameraRayAndResetsMedium)
+TEST(Kernels, InitCameraRaysMatchesHostCameraRay)
 {
     const Camera cam{
         .transform = Matrix4x4f::identity(),
@@ -286,7 +294,7 @@ TEST(KernelInitCameraRays, MatchesHostCameraRayAndResetsMedium)
     }
 }
 
-TEST(KernelExtendPaths, RecordsHitAndMissAndCountsPrimaryRays)
+TEST(Kernels, ExtendPathsRecordsHitAndMiss)
 {
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
 
@@ -319,7 +327,7 @@ TEST(KernelExtendPaths, RecordsHitAndMissAndCountsPrimaryRays)
     EXPECT_EQ(castCounts[1], 1u);
 }
 
-TEST(KernelExtendPaths, OnlyLivePathsAreCountedAtDeeperDepths)
+TEST(Kernels, ExtendPathsCountsOnlyLivePaths)
 {
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
 
@@ -343,7 +351,7 @@ TEST(KernelExtendPaths, OnlyLivePathsAreCountedAtDeeperDepths)
     EXPECT_EQ(castCounts[1], 0u); // dead path not counted
 }
 
-TEST(KernelSampleBsdfDirection, DiffuseScattersIntoHemisphere)
+TEST(Kernels, SampleBsdfDiffuseScattersIntoHemisphere)
 {
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
     DeviceBuffer<Material> materials = deviceBufferFrom(
@@ -377,7 +385,7 @@ TEST(KernelSampleBsdfDirection, DiffuseScattersIntoHemisphere)
     EXPECT_NEAR(paths.bsdfPdfPrev.toHost()[0], cosineWeightedHemisphereDirPdf(bounce.v, n), 1e-4f);
 }
 
-TEST(KernelSampleBsdfDirection, TransparentMarksSpecularBounce)
+TEST(Kernels, SampleBsdfTransparentMarksSpecular)
 {
     TransparentMaterial glass{};
     glass.inside_medium.ior = 1.5f;
@@ -409,7 +417,7 @@ TEST(KernelSampleBsdfDirection, TransparentMarksSpecularBounce)
     EXPECT_TRUE(medium == VACUUM_MAT || medium == 0);
 }
 
-TEST(KernelShade, InvalidAndTransparentHitsLeaveOutputUntouched)
+TEST(Kernels, ShadeSkipsInvalidAndTransparentHits)
 {
     TransparentMaterial glass{};
     glass.inside_medium.ior = 1.5f;
@@ -441,7 +449,7 @@ TEST(KernelShade, InvalidAndTransparentHitsLeaveOutputUntouched)
     expectVec4Near(colors[1], {0, 0, 0, 0});
 }
 
-TEST(ShadeDiffuseMaterialTest, AccumulatesAtLeastRawEmission)
+TEST(Kernels, ShadeDiffuseAccumulatesEmission)
 {
     const Vec4 emission{2, 3, 4, 0};
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
@@ -474,7 +482,7 @@ TEST(ShadeDiffuseMaterialTest, AccumulatesAtLeastRawEmission)
     EXPECT_TRUE(std::isfinite(c.x) && std::isfinite(c.y) && std::isfinite(c.z));
 }
 
-TEST(KernelDebugShade, ColorsFirstHitPerMode)
+TEST(Kernels, DebugShadeColorsFirstHit)
 {
     const Vec4 debugColor{0.2f, 0.4f, 0.6f, 0};
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
@@ -514,4 +522,70 @@ TEST(KernelDebugShade, ColorsFirstHitPerMode)
     // uv is fixed at (0,0) so the checker samples the dark tile: 0.5 * debug color.
     expectVec4Near(runMode(DebugOptions::UVChecker, true),
                    {0.5f * debugColor.x, 0.5f * debugColor.y, 0.5f * debugColor.z, 0}, 1e-4f);
+}
+
+// ==========================================================================
+// DeviceArray / DeviceVector host<->device transfer.
+//
+// Only the cases that actually allocate or copy device memory live here, so
+// they share this binary's single CUDA context. The pure host-side cases
+// (fill, size tracking, move of an unallocated buffer) stay in test_device.cpp
+// where they run per-case without touching the GPU.
+// ==========================================================================
+
+TEST(DeviceArrayTest, HostDeviceRoundTripRestoresData)
+{
+    DeviceArray<int> array(3, 5);
+    array.reset();
+    array.ensureDeviceAllocation();
+
+    // Clobber the host copy, then pull it back from the device.
+    array.hostPtr()[0] = 999;
+    array.hostPtr()[1] = -1;
+    array.updateHostData();
+
+    EXPECT_EQ(array.hostPtr()[0], 5);
+    EXPECT_EQ(array.hostPtr()[1], 5);
+    EXPECT_EQ(array.hostPtr()[2], 5);
+}
+
+TEST(DeviceVectorTest, LazyAllocationProvidesDevicePointer)
+{
+    DeviceVector<float> vector(std::vector<float>{1.0f, 2.0f, 3.0f, 4.0f});
+    vector.ensureDeviceAllocation();
+
+    EXPECT_NE(vector.devicePtr(), nullptr);
+    EXPECT_EQ(vector.deviceSpan().size(), 4u);
+}
+
+TEST(DeviceVectorTest, MoveKeepsDeviceAllocation)
+{
+    DeviceVector<int> source(std::vector<int>{10, 20, 30});
+    source.ensureDeviceAllocation();
+
+    DeviceVector<int> moved = std::move(source);
+    EXPECT_EQ(moved.size(), 3u);
+    EXPECT_EQ(moved.hostPtr()[0], 10);
+    EXPECT_NE(moved.devicePtr(), nullptr);
+}
+
+// ==========================================================================
+// GpuTris device view: viewGpuTris allocates the mesh on the device, so it
+// belongs with the GPU tests rather than the host-only scene tests.
+// ==========================================================================
+
+TEST(ViewGpuTrisTest, WiresUpDevicePointersAndSurfaceArea)
+{
+    GpuTris quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
+    const TriangleMesh view = viewGpuTris(quad);
+
+    EXPECT_EQ(view.triangle_count, 2);
+    EXPECT_NE(view.points, nullptr);
+    EXPECT_NE(view.normals, nullptr);
+    EXPECT_NE(view.triangles, nullptr);
+    EXPECT_NE(view.triangle_sampler, nullptr);
+    EXPECT_FALSE(view.bbh.isEmpty());
+
+    EXPECT_NEAR(view.base_surface_area, 4.0f, 1e-5f);
+    EXPECT_FLOAT_EQ(view.surface_area, view.base_surface_area);
 }
