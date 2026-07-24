@@ -33,5 +33,3 @@ struct BenchmarkGenerator
     float radius;
     int ray_count;
 };
-
-void testWavefront(Mesh &mesh);
