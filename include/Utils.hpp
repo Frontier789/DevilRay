@@ -128,6 +128,16 @@ struct Vec4
     constexpr Vec3 xyz() const {
         return Vec3{x, y, z};
     }
+
+    constexpr uint32_t to8bitColor() const
+    {
+        const uint32_t red   = static_cast<uint32_t>(std::clamp<float>(x, 0, 1) * 255) << 0;
+        const uint32_t green = static_cast<uint32_t>(std::clamp<float>(y, 0, 1) * 255) << 8;
+        const uint32_t blue  = static_cast<uint32_t>(std::clamp<float>(z, 0, 1) * 255) << 16;
+        const uint32_t alpha = static_cast<uint32_t>(std::clamp<float>(w, 0, 1) * 255) << 24;
+
+        return red | green | blue | alpha;
+    }
 };
 
 template<typename T>

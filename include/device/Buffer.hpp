@@ -31,6 +31,20 @@ struct DeviceBuffer
             .elementCount = numberOfElements,
         };
     }
+
+    static DeviceBuffer<T> fromHost(const std::vector<T> &hostData)
+    {
+        const auto numel = static_cast<int>(hostData.size());
+
+        DeviceMemoryManager data;
+        data.allocate(numel * sizeof(T));
+        data.copyFromHost(hostData.data(), numel * sizeof(T));
+
+        return DeviceBuffer {
+            .deviceData = std::move(data),
+            .elementCount = numel,
+        };
+    }
 };
 
 template<typename U>

@@ -36,6 +36,7 @@ __global__ void initPaths(
     vertex.throughput[idx] = Vec4{1, 1, 1, 0};
     vertex.prevSpecular[idx] = true;
     vertex.bsdfPdfPrev[idx] = 0;
+    vertex.alive[idx] = true;
 }
 
 __global__ void initCameraRays(
@@ -56,21 +57,23 @@ __global__ void initCameraRays(
 
     wavefront.rays[idx] = ray;
     wavefront.current_mat[idx] = VACUUM_MAT;
+    wavefront.sort_index[idx] = idx;
 }
 
 __global__ void extendPaths(
     WavefrontDataDevice wavefront,
     PathVertexDataDevice vertex,
     std::span<const TriangleMesh> objects,
-    int path_count,
+    int *alive_count,
     uint32_t *casts,
     int depth
 )
 {
-    int idx = KERNEL_IDX(path_count);
-
-    const bool alive = (depth == 0) || vertex.ids[idx].valid();
-    if (alive) casts[idx] += 1;
+    const int thread_idx = KERNEL_IDX(*alive_count);
+    const int idx = wavefront.sort_index[thread_idx];
+    if (!vertex.alive[idx]) return;
+    
+    casts[idx] += 1;
 
     const auto ray = wavefront.rays[idx];
     const auto intersection = intersectScene(ray, objects);
@@ -82,7 +85,7 @@ __global__ void extendPaths(
             .triangleID = intersection.triangleID,
         };
     } else {
-        vertex.ids[idx] = TriangleIdentifier::invalid();
+        vertex.alive[idx] = false;
     }
 }
 
@@ -164,14 +167,14 @@ __global__ void sampleBsdfDirection(
     curandState *rand_states,
     std::span<const TriangleMesh> objects,
     std::span<const Material> materials,
-    int path_count
+    int *alive_count
 )
 {
-    int idx = KERNEL_IDX(path_count);
+    const int thread_idx = KERNEL_IDX(*alive_count);
+    const int idx = wavefront.sort_index[thread_idx];
+    if (!vertex.alive[idx]) return;
 
     const auto ids = vertex.ids[idx];
-    if (!ids.valid()) return;
-
     const auto &object = objects[ids.meshID];
     auto rng = CudaRng{rand_states + idx};
 
@@ -268,16 +271,16 @@ __global__ void shade(
     std::span<const TriangleMesh> objects,
     std::span<const Material> materials,
     std::span<const AliasEntry> light_table,
-    int path_count,
+    int *alive_count,
     ObjectsInfo info,
     RenderBuffersDevice output
 )
 {
-    int idx = KERNEL_IDX(path_count);
-
+    const int thread_idx = KERNEL_IDX(*alive_count);
+    const int idx = wavefront.sort_index[thread_idx];
+    if (!vertex.alive[idx]) return;
+    
     const auto ids = vertex.ids[idx];
-    if (!ids.valid()) return;
-
     const auto &object = objects[ids.meshID];
     const auto &material = materials[object.material];
     auto rng = CudaRng{rand_states + idx};
@@ -303,21 +306,21 @@ __global__ void debugShade(
     std::span<const TriangleMesh> objects,
     std::span<const Material> materials,
     DebugOptions debug,
-    int path_count,
+    int *alive_count,
     RenderBuffersDevice output
 )
 {
-    int idx = KERNEL_IDX(path_count);
+    int idx = KERNEL_IDX(*alive_count);
 
     Vec4 color{0, 0, 0, 0};
 
-    const auto ids = vertex.ids[idx];
-    if (ids.valid())
+    if (vertex.alive[idx])
     {
+        const auto ids = vertex.ids[idx];
         const auto &object = objects[ids.meshID];
         const auto &material = materials[object.material];
 
-        const auto worldRay = wavefront.rays[idx];
+        const auto worldRay = wavefront.rays[wavefront.sort_index[idx]];
         const auto modelRay = object.model_to_world.applyInverse(worldRay);
 
         const auto &tri = object.triangles[ids.triangleID];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "device/DevUtils.hpp"
+#include "device/Binning.hpp"
 
 #include "tracing/DistributionSamplers.hpp"
 #include "tracing/OutputOptions.hpp"
@@ -28,6 +29,7 @@ class Renderer
 
     WavefrontData m_wavefront;
     PathVertexData m_pathVertices;
+    DeviceBinning m_binning;
 
     uint64_t m_totalCasts;
 

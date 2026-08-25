@@ -39,6 +39,7 @@ Renderer::Renderer(Size2i resolution)
     , m_wavefront{
         .rays = DeviceBuffer<Ray>::allocate(resolution.area()),
         .current_mat = DeviceBuffer<int>::allocate(resolution.area()),
+        .sort_index = DeviceBuffer<int>::allocate(resolution.area()),
       }
     , m_pathVertices{
         .t = DeviceBuffer<float>::allocate(resolution.area()),
@@ -46,7 +47,9 @@ Renderer::Renderer(Size2i resolution)
         .throughput = DeviceBuffer<Vec4>::allocate(resolution.area()),
         .prevSpecular = DeviceBuffer<int>::allocate(resolution.area()),
         .ids = DeviceBuffer<TriangleIdentifier>::allocate(resolution.area()),
+        .alive = DeviceBuffer<int>::allocate(resolution.area()),
       }
+    , m_binning{DeviceBinning::create(resolution.area())}
     , m_totalCasts(0)
     , m_output_options(OutputOptions{.linearity = OutputLinearity::GammaCorrected})
     , m_pixel_sampling(PixelSampling::UniformRandom)

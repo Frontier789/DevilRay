@@ -9,10 +9,6 @@ struct TriangleIdentifier
 {
     int meshID;
     int triangleID;
-
-    constexpr bool valid() const {return meshID >= 0;}
-
-    static constexpr TriangleIdentifier invalid() {return TriangleIdentifier{ .meshID = -1, .triangleID = -1 };}
 };
 
 struct PathVertexData
@@ -22,6 +18,7 @@ struct PathVertexData
     DeviceBuffer<Vec4> throughput;
     DeviceBuffer<int> prevSpecular;
     DeviceBuffer<TriangleIdentifier> ids;
+    DeviceBuffer<int> alive;
 };
 
 struct PathVertexDataDevice
@@ -31,4 +28,5 @@ struct PathVertexDataDevice
     Vec4 *throughput;
     int *prevSpecular;
     TriangleIdentifier *ids;
+    int *alive;
 };

@@ -55,6 +55,7 @@ add_library(${PROJECT_NAME}
             src/models/Mesh.cpp
             src/models/BBH.cpp
             src/device/implementation.cu
+            src/device/Binning.cu
             src/device/DevUtils.cu
             src/device/DeviceMemory.cu
             src/device/CudaTimer.cu
