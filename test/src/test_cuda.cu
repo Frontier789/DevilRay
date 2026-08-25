@@ -12,6 +12,7 @@
 #include "tracing/Camera.hpp"
 #include "tracing/CameraRay.hpp"
 #include "device/Array.hpp"
+#include "device/Binning.hpp"
 #include "device/Vector.hpp"
 #include "device/Random.hpp"
 #include "device/DevUtils.hpp"
@@ -35,6 +36,7 @@ HD Vec4 checkerPattern(const Vec2f &uv, int checker_count, Vec4 dark, Vec4 brigh
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <numeric>
 #include <span>
 #include <vector>
 
@@ -147,12 +149,13 @@ namespace
         return PathVertexDataDevice{
             .t = p.t.devicePtr(), .bsdfPdfPrev = p.bsdfPdfPrev.devicePtr(),
             .throughput = p.throughput.devicePtr(), .prevSpecular = p.prevSpecular.devicePtr(),
-            .ids = p.ids.devicePtr()};
+            .ids = p.ids.devicePtr(), .alive = p.alive.devicePtr()};
     }
 
     WavefrontDataDevice deviceView(WavefrontData &w)
     {
-        return WavefrontDataDevice{.rays = w.rays.devicePtr(), .current_mat = w.current_mat.devicePtr()};
+        return WavefrontDataDevice{.rays = w.rays.devicePtr(), .current_mat = w.current_mat.devicePtr(),
+                                   .sort_index = w.sort_index.devicePtr()};
     }
 
     RenderBuffersDevice deviceView(RenderBuffers &o, Size2i resolution)
@@ -200,7 +203,13 @@ namespace
         return m;
     }
 
+    // TriangleIdentifier no longer carries a validity sentinel; path liveness
+    // lives in PathVertexData::alive, so a lane that never hit anything just
+    // holds filler ids that the kernels must not read.
+    constexpr TriangleIdentifier NO_HIT{.meshID = -1, .triangleID = -1};
+
     PathVertexData makePaths(const std::vector<TriangleIdentifier> &ids,
+                             const std::vector<int> &alive,
                              const std::vector<float> &t,
                              const std::vector<Vec4> &throughput,
                              const std::vector<int> &prevSpecular,
@@ -211,20 +220,57 @@ namespace
             .bsdfPdfPrev = deviceBufferFrom(bsdfPdfPrev),
             .throughput = deviceBufferFrom(throughput),
             .prevSpecular = deviceBufferFrom(prevSpecular),
-            .ids = deviceBufferFrom(ids)};
+            .ids = deviceBufferFrom(ids),
+            .alive = deviceBufferFrom(alive)};
+    }
+
+    // Wavefront whose sort_index is the identity permutation: the state
+    // initCameraRays leaves behind, and what the binning pass reproduces while
+    // every path is still alive.
+    WavefrontData makeWavefront(const std::vector<Ray> &rays, const std::vector<int> &current_mat)
+    {
+        std::vector<int> identity(rays.size());
+        std::iota(identity.begin(), identity.end(), 0);
+
+        return WavefrontData{
+            .rays = deviceBufferFrom(rays),
+            .current_mat = deviceBufferFrom(current_mat),
+            .sort_index = deviceBufferFrom(identity)};
+    }
+
+    // Wavefront with an explicit, already-compacted sort_index, as the binning
+    // pass writes it once some paths have terminated.
+    WavefrontData makeWavefront(const std::vector<Ray> &rays, const std::vector<int> &current_mat,
+                                const std::vector<int> &sort_index)
+    {
+        return WavefrontData{
+            .rays = deviceBufferFrom(rays),
+            .current_mat = deviceBufferFrom(current_mat),
+            .sort_index = deviceBufferFrom(sort_index)};
+    }
+
+    // The wavefront kernels read their launch bound from device memory (cub's
+    // DeviceSelect::Flagged writes the live-path count there during binning),
+    // so tests must hand them a device-resident count rather than a plain int.
+    DeviceBuffer<int> makeAliveCount(int count)
+    {
+        return deviceBufferFrom(std::vector<int>{count});
     }
 }
 
 // Wrapper kernel so shadeDiffuseMaterial can be exercised directly on the GPU.
+// The prologue mirrors shade's: the launch bound is read from device memory and
+// the lane is reached through the binning pass' compacted sort_index.
 __global__ void callShadeDiffuseMaterial(
     PathVertexDataDevice vertex, WavefrontDataDevice wavefront, curandState *rand_states,
     std::span<const TriangleMesh> objects, std::span<const Material> materials,
-    std::span<const AliasEntry> light_table, int path_count, ObjectsInfo info, RenderBuffersDevice output)
+    std::span<const AliasEntry> light_table, int *alive_count, ObjectsInfo info, RenderBuffersDevice output)
 {
-    int idx = KERNEL_IDX(path_count);
-    const auto ids = vertex.ids[idx];
-    if (!ids.valid()) return;
+    const int thread_idx = KERNEL_IDX(*alive_count);
+    const int idx = wavefront.sort_index[thread_idx];
+    if (!vertex.alive[idx]) return;
 
+    const auto ids = vertex.ids[idx];
     const auto &object = objects[ids.meshID];
     const auto &material = materials[object.material];
     auto rng = CudaRng{rand_states + idx};
@@ -246,7 +292,8 @@ TEST(Kernels, InitPathsSetsInitialState)
     const int N = 8;
     // Seed with sentinels to prove the kernel overwrites every field.
     PathVertexData paths = makePaths(
-        std::vector<TriangleIdentifier>(N, TriangleIdentifier::invalid()),
+        std::vector<TriangleIdentifier>(N, NO_HIT),
+        std::vector<int>(N, 0), // alive sentinel: the kernel must raise every lane
         std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{9, 9, 9, 9}),
         std::vector<int>(N, -1), std::vector<float>(N, -1.f));
 
@@ -256,11 +303,13 @@ TEST(Kernels, InitPathsSetsInitialState)
     const auto throughput = paths.throughput.toHost();
     const auto prevSpecular = paths.prevSpecular.toHost();
     const auto bsdfPdf = paths.bsdfPdfPrev.toHost();
+    const auto alive = paths.alive.toHost();
     for (int i = 0; i < N; ++i)
     {
         expectVec4Near(throughput[i], {1, 1, 1, 0});
         EXPECT_EQ(prevSpecular[i], 1);
         EXPECT_FLOAT_EQ(bsdfPdf[i], 0.0f);
+        EXPECT_EQ(alive[i], 1); // every path starts alive
     }
 }
 
@@ -274,7 +323,10 @@ TEST(Kernels, InitCameraRaysMatchesHostCameraRay)
     };
     const int N = cam.resolution.area();
 
-    WavefrontData wf{.rays = DeviceBuffer<Ray>::allocate(N), .current_mat = DeviceBuffer<int>::allocate(N)};
+    WavefrontData wf{.rays = DeviceBuffer<Ray>::allocate(N),
+                     .current_mat = DeviceBuffer<int>::allocate(N),
+                     // Sentinel: the kernel must seed the identity permutation.
+                     .sort_index = deviceBufferFrom(std::vector<int>(N, -1))};
     CudaRandom rng(N); // Center sampling ignores the rng, so this stays deterministic.
 
     initCameraRays<<<1, N>>>(deviceView(wf), PixelSampling::Center, cam, rng.devicePtr());
@@ -282,6 +334,7 @@ TEST(Kernels, InitCameraRaysMatchesHostCameraRay)
 
     const auto rays = wf.rays.toHost();
     const auto current_mat = wf.current_mat.toHost();
+    const auto sort_index = wf.sort_index.toHost();
     FixedRng hostRng{0.5f};
     for (int idx = 0; idx < N; ++idx)
     {
@@ -291,6 +344,7 @@ TEST(Kernels, InitCameraRaysMatchesHostCameraRay)
         expectVec3Near(rays[idx].p, expected.p, 1e-5f);
         expectVec3Near(rays[idx].v, expected.v, 1e-5f);
         EXPECT_EQ(current_mat[idx], VACUUM_MAT);
+        EXPECT_EQ(sort_index[idx], idx); // unbinned wavefront is the identity order
     }
 }
 
@@ -299,56 +353,101 @@ TEST(Kernels, ExtendPathsRecordsHitAndMiss)
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
 
     const int N = 2;
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}},  // hits
-                                                  Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}}),        // misses
-        .current_mat = deviceBufferFrom(std::vector<int>(N, VACUUM_MAT))};
+    WavefrontData wf = makeWavefront(
+        std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}},   // hits
+                         Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}},        // misses
+        std::vector<int>(N, VACUUM_MAT));
     PathVertexData paths = makePaths(
-        std::vector<TriangleIdentifier>(N, TriangleIdentifier::invalid()),
+        std::vector<TriangleIdentifier>(N, NO_HIT),
+        std::vector<int>(N, 1), // both paths enter the bounce alive
         std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
         std::vector<int>(N, 0), std::vector<float>(N, 0.f));
     DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(), N, casts.devicePtr(), /*depth=*/0);
+    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+                          aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/0);
     syncDevice();
 
     const auto ids = paths.ids.toHost();
     const auto t = paths.t.toHost();
+    const auto alive = paths.alive.toHost();
     const auto castCounts = casts.toHost();
 
-    EXPECT_TRUE(ids[0].valid());
+    // The hit records its ids and distance and stays alive.
+    EXPECT_EQ(alive[0], 1);
     EXPECT_EQ(ids[0].meshID, 0);
     EXPECT_EQ(ids[0].triangleID, 0);
     EXPECT_NEAR(t[0], 5.0f, 1e-4f);
-    EXPECT_FALSE(ids[1].valid());
+
+    // The miss is retired by clearing its alive flag.
+    EXPECT_EQ(alive[1], 0);
 
     // depth 0: every path casts a primary ray.
     EXPECT_EQ(castCounts[0], 1u);
     EXPECT_EQ(castCounts[1], 1u);
 }
 
+// The alive flag guards the kernel body even when a stale sort_index still
+// points at a terminated lane.
 TEST(Kernels, ExtendPathsCountsOnlyLivePaths)
 {
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
 
     const int N = 2;
     const Ray hit{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{hit, hit}),
-        .current_mat = deviceBufferFrom(std::vector<int>(N, VACUUM_MAT))};
+    WavefrontData wf = makeWavefront(std::vector<Ray>{hit, hit}, std::vector<int>(N, VACUUM_MAT));
     PathVertexData paths = makePaths(
-        std::vector<TriangleIdentifier>{TriangleIdentifier{.meshID = 0, .triangleID = 0}, // alive last depth
-                                        TriangleIdentifier::invalid()},                    // terminated last depth
+        std::vector<TriangleIdentifier>{TriangleIdentifier{.meshID = 0, .triangleID = 0}, NO_HIT},
+        std::vector<int>{1, 0}, // lane 0 alive, lane 1 terminated at the last depth
         std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
         std::vector<int>(N, 0), std::vector<float>(N, 0.f));
     DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(), N, casts.devicePtr(), /*depth=*/1);
+    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+                          aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/1);
     syncDevice();
 
     const auto castCounts = casts.toHost();
     EXPECT_EQ(castCounts[0], 1u); // live path counted
     EXPECT_EQ(castCounts[1], 0u); // dead path not counted
+}
+
+// With a compacted sort_index and a live count below the buffer size, the
+// kernel must touch exactly the selected lanes and leave the rest alone.
+TEST(Kernels, ExtendPathsFollowsCompactedSortIndex)
+{
+    DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
+
+    const int N = 3;
+    const Ray hit{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    // Lane 0 is dead, so binning compacts the live lanes 1 and 2 to the front.
+    WavefrontData wf = makeWavefront(std::vector<Ray>{hit, hit, hit},
+                                     std::vector<int>(N, VACUUM_MAT),
+                                     std::vector<int>{1, 2, 0});
+    PathVertexData paths = makePaths(
+        std::vector<TriangleIdentifier>(N, NO_HIT),
+        std::vector<int>{0, 1, 1},
+        std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
+        std::vector<int>(N, 0), std::vector<float>(N, 0.f));
+    DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
+    DeviceBuffer<int> aliveCount = makeAliveCount(2); // only two live paths
+
+    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+                          aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/1);
+    syncDevice();
+
+    const auto castCounts = casts.toHost();
+    const auto ids = paths.ids.toHost();
+    EXPECT_EQ(castCounts[0], 0u); // dead lane never reached by the compacted index
+    EXPECT_EQ(castCounts[1], 1u);
+    EXPECT_EQ(castCounts[2], 1u);
+
+    // The two live lanes recorded their hit; the dead one keeps its filler ids.
+    EXPECT_EQ(ids[0].meshID, NO_HIT.meshID);
+    EXPECT_EQ(ids[1].meshID, 0);
+    EXPECT_EQ(ids[2].meshID, 0);
 }
 
 TEST(Kernels, SampleBsdfDiffuseScattersIntoHemisphere)
@@ -358,16 +457,18 @@ TEST(Kernels, SampleBsdfDiffuseScattersIntoHemisphere)
         std::vector<Material>{Material{diffuse(/*reflectance=*/{0.5f, 0.25f, 0.125f, 0}, /*emission=*/{0, 0, 0, 0})}});
 
     const int N = 1;
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}}),
-        .current_mat = deviceBufferFrom(std::vector<int>{VACUUM_MAT})};
+    WavefrontData wf = makeWavefront(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}},
+                                     std::vector<int>{VACUUM_MAT});
     PathVertexData paths = makePaths(
         std::vector<TriangleIdentifier>{TriangleIdentifier{.meshID = 0, .triangleID = 0}},
+        std::vector<int>{1},
         std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{1, 1, 1, 0}},
         std::vector<int>{0}, std::vector<float>{0.f});
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
-    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(), materials.deviceSpan(), N);
+    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
+                                  materials.deviceSpan(), aliveCount.devicePtr());
     syncDevice();
 
     // Throughput picks up the reflectance (independent of the random direction).
@@ -394,16 +495,18 @@ TEST(Kernels, SampleBsdfTransparentMarksSpecular)
     DeviceBuffer<Material> materials = deviceBufferFrom(std::vector<Material>{Material{glass}});
 
     const int N = 1;
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}}),
-        .current_mat = deviceBufferFrom(std::vector<int>{VACUUM_MAT})}; // entering
+    WavefrontData wf = makeWavefront(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}},
+                                     std::vector<int>{VACUUM_MAT}); // entering
     PathVertexData paths = makePaths(
         std::vector<TriangleIdentifier>{TriangleIdentifier{.meshID = 0, .triangleID = 0}},
+        std::vector<int>{1},
         std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{1, 1, 1, 0}},
         std::vector<int>{0}, std::vector<float>{0.f});
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
-    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(), materials.deviceSpan(), N);
+    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
+                                  materials.deviceSpan(), aliveCount.devicePtr());
     syncDevice();
 
     // Whether the draw reflects or refracts, the transparent branch marks the
@@ -417,7 +520,7 @@ TEST(Kernels, SampleBsdfTransparentMarksSpecular)
     EXPECT_TRUE(medium == VACUUM_MAT || medium == 0);
 }
 
-TEST(Kernels, ShadeSkipsInvalidAndTransparentHits)
+TEST(Kernels, ShadeSkipsDeadAndTransparentHits)
 {
     TransparentMaterial glass{};
     glass.inside_medium.ior = 1.5f;
@@ -428,20 +531,21 @@ TEST(Kernels, ShadeSkipsInvalidAndTransparentHits)
 
     const int N = 2;
     const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{ray, ray}),
-        .current_mat = deviceBufferFrom(std::vector<int>(N, VACUUM_MAT))};
+    WavefrontData wf = makeWavefront(std::vector<Ray>{ray, ray}, std::vector<int>(N, VACUUM_MAT));
     PathVertexData paths = makePaths(
-        std::vector<TriangleIdentifier>{TriangleIdentifier::invalid(),                     // no hit
+        std::vector<TriangleIdentifier>{NO_HIT,                                            // no hit
                                         TriangleIdentifier{.meshID = 0, .triangleID = 0}}, // transparent hit
+        std::vector<int>{0, 1}, // lane 0 died on the miss, lane 1 is still alive
         std::vector<float>{0.f, 5.0f}, std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
         std::vector<int>(N, 0), std::vector<float>(N, 0.f));
     RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
     const ObjectsInfo info{.total_radiant_power = 1.0f};
     shade<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
-                    materials.deviceSpan(), lightTable.deviceSpan(), N, info, deviceView(out, Size2i{N, 1}));
+                    materials.deviceSpan(), lightTable.deviceSpan(), aliveCount.devicePtr(),
+                    info, deviceView(out, Size2i{N, 1}));
     syncDevice();
 
     const auto colors = out.colors.toHost();
@@ -458,20 +562,22 @@ TEST(Kernels, ShadeDiffuseAccumulatesEmission)
     DeviceBuffer<AliasEntry> lightTable = uploadLightTable(1);
 
     const int N = 1;
-    WavefrontData wf{
-        .rays = deviceBufferFrom(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}}),
-        .current_mat = deviceBufferFrom(std::vector<int>{VACUUM_MAT})};
+    WavefrontData wf = makeWavefront(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}},
+                                     std::vector<int>{VACUUM_MAT});
     PathVertexData paths = makePaths(
         std::vector<TriangleIdentifier>{TriangleIdentifier{.meshID = 0, .triangleID = 0}},
+        std::vector<int>{1},
         std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{1, 1, 1, 0}},
         std::vector<int>{1},     // prevSpecular: count emission directly (no MIS weight)
         std::vector<float>{0.f});
     RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+    DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
     const ObjectsInfo info{.total_radiant_power = 1.0f};
     callShadeDiffuseMaterial<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
-                                       materials.deviceSpan(), lightTable.deviceSpan(), N, info, deviceView(out, Size2i{N, 1}));
+                                       materials.deviceSpan(), lightTable.deviceSpan(),
+                                       aliveCount.devicePtr(), info, deviceView(out, Size2i{N, 1}));
     syncDevice();
 
     // prevSpecular contributes raw emission; NEE can only add non-negative light.
@@ -491,18 +597,20 @@ TEST(Kernels, DebugShadeColorsFirstHit)
 
     auto runMode = [&](DebugOptions mode, bool hit) {
         const int N = 1;
-        WavefrontData wf{
-            .rays = deviceBufferFrom(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}}),
-            .current_mat = deviceBufferFrom(std::vector<int>{VACUUM_MAT})};
+        // The debug path never runs the binning pass, so sort_index stays the
+        // identity permutation initCameraRays wrote.
+        WavefrontData wf = makeWavefront(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}},
+                                         std::vector<int>{VACUUM_MAT});
         PathVertexData paths = makePaths(
-            std::vector<TriangleIdentifier>{hit ? TriangleIdentifier{.meshID = 0, .triangleID = 0}
-                                                : TriangleIdentifier::invalid()},
+            std::vector<TriangleIdentifier>{hit ? TriangleIdentifier{.meshID = 0, .triangleID = 0} : NO_HIT},
+            std::vector<int>{hit ? 1 : 0},
             std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{0, 0, 0, 0}},
             std::vector<int>{0}, std::vector<float>{0.f});
         RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+        DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
         debugShade<<<1, N>>>(deviceView(paths), deviceView(wf), scene.span(), materials.deviceSpan(),
-                             mode, N, deviceView(out, Size2i{N, 1}));
+                             mode, aliveCount.devicePtr(), deviceView(out, Size2i{N, 1}));
         syncDevice();
         return out.colors.toHost()[0];
     };
@@ -567,6 +675,121 @@ TEST(DeviceVectorTest, MoveKeepsDeviceAllocation)
     EXPECT_EQ(moved.size(), 3u);
     EXPECT_EQ(moved.hostPtr()[0], 10);
     EXPECT_NE(moved.devicePtr(), nullptr);
+}
+
+// ==========================================================================
+// DeviceBuffer upload and the DeviceBinning stream-compaction pass that turns
+// the per-path alive flags into the compacted sort_index the wavefront kernels
+// are launched over.
+// ==========================================================================
+
+TEST(DeviceBufferTest, FromHostUploadsAndRoundTrips)
+{
+    const std::vector<int> host{5, -3, 17, 0};
+    DeviceBuffer<int> buffer = DeviceBuffer<int>::fromHost(host);
+
+    EXPECT_EQ(buffer.elementCount, 4);
+    EXPECT_EQ(buffer.toHost(), host);
+}
+
+TEST(DeviceBinningTest, StartsWithEveryLaneSelected)
+{
+    // The debug render path never calls execute(), so create() must leave the
+    // count at the full path count for the kernels' launch bound to be right.
+    const int N = 6;
+    DeviceBinning binning = DeviceBinning::create(N);
+
+    EXPECT_EQ(binning.num_selected.toHost()[0], N);
+    EXPECT_EQ(binning.identity_keys.elementCount, N);
+}
+
+TEST(DeviceBinningTest, CompactsIndicesOfFlaggedLanes)
+{
+    const int N = 8;
+    DeviceBinning binning = DeviceBinning::create(N);
+
+    // Lanes 1, 2, 5 and 7 are still alive.
+    DeviceBuffer<int> flags = deviceBufferFrom(std::vector<int>{0, 1, 1, 0, 0, 1, 0, 1});
+    DeviceBuffer<int> out = deviceBufferFrom(std::vector<int>(N, -1));
+
+    binning.execute(flags.devicePtr(), out.devicePtr());
+    syncDevice();
+
+    EXPECT_EQ(binning.num_selected.toHost()[0], 4);
+
+    // The live lane indices are packed to the front, in ascending order.
+    const auto indices = out.toHost();
+    EXPECT_EQ(indices[0], 1);
+    EXPECT_EQ(indices[1], 2);
+    EXPECT_EQ(indices[2], 5);
+    EXPECT_EQ(indices[3], 7);
+    EXPECT_EQ(indices[4], -1); // tail past num_selected is left untouched
+}
+
+TEST(DeviceBinningTest, AllAliveYieldsIdentityPermutation)
+{
+    const int N = 5;
+    DeviceBinning binning = DeviceBinning::create(N);
+
+    DeviceBuffer<int> flags = deviceBufferFrom(std::vector<int>(N, 1));
+    DeviceBuffer<int> out = deviceBufferFrom(std::vector<int>(N, -1));
+
+    binning.execute(flags.devicePtr(), out.devicePtr());
+    syncDevice();
+
+    EXPECT_EQ(binning.num_selected.toHost()[0], N);
+    const auto indices = out.toHost();
+    for (int i = 0; i < N; ++i) EXPECT_EQ(indices[i], i);
+}
+
+TEST(DeviceBinningTest, AllDeadSelectsNothing)
+{
+    const int N = 4;
+    DeviceBinning binning = DeviceBinning::create(N);
+
+    DeviceBuffer<int> flags = deviceBufferFrom(std::vector<int>(N, 0));
+    DeviceBuffer<int> out = deviceBufferFrom(std::vector<int>(N, -1));
+
+    binning.execute(flags.devicePtr(), out.devicePtr());
+    syncDevice();
+
+    // Every subsequent kernel launch then has a zero bound and does no work.
+    EXPECT_EQ(binning.num_selected.toHost()[0], 0);
+    EXPECT_EQ(out.toHost()[0], -1);
+}
+
+// The binning pass feeding extendPaths: only the lanes cub selected get cast.
+TEST(DeviceBinningTest, DrivesExtendPathsOverLiveLanesOnly)
+{
+    DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
+
+    const int N = 4;
+    const Ray hit{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
+    WavefrontData wf = makeWavefront(std::vector<Ray>(N, hit), std::vector<int>(N, VACUUM_MAT));
+    PathVertexData paths = makePaths(
+        std::vector<TriangleIdentifier>(N, NO_HIT),
+        std::vector<int>{0, 1, 0, 1}, // lanes 1 and 3 survived the last bounce
+        std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
+        std::vector<int>(N, 0), std::vector<float>(N, 0.f));
+    DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
+
+    DeviceBinning binning = DeviceBinning::create(N);
+    binning.execute(paths.alive.devicePtr(), wf.sort_index.devicePtr());
+
+    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+                          binning.num_selected.devicePtr(), casts.devicePtr(), /*depth=*/2);
+    syncDevice();
+
+    const auto castCounts = casts.toHost();
+    EXPECT_EQ(castCounts[0], 0u);
+    EXPECT_EQ(castCounts[1], 1u);
+    EXPECT_EQ(castCounts[2], 0u);
+    EXPECT_EQ(castCounts[3], 1u);
+
+    // Both live lanes hit the triangle, so they stay alive for the next bounce.
+    const auto alive = paths.alive.toHost();
+    EXPECT_EQ(alive[1], 1);
+    EXPECT_EQ(alive[3], 1);
 }
 
 // ==========================================================================

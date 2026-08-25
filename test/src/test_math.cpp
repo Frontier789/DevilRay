@@ -117,6 +117,27 @@ TEST(Vec4Test, MaxIgnoresWComponent)
     EXPECT_FLOAT_EQ((Vec4{-1, -5, -3, 0}.max()), -1.0f);
 }
 
+TEST(Vec4Test, To8bitColorPacksChannelsInRgbaByteOrder)
+{
+    EXPECT_EQ((Vec4{1, 0, 0, 0}.to8bitColor()), 0x000000FFu); // red   -> byte 0
+    EXPECT_EQ((Vec4{0, 1, 0, 0}.to8bitColor()), 0x0000FF00u); // green -> byte 1
+    EXPECT_EQ((Vec4{0, 0, 1, 0}.to8bitColor()), 0x00FF0000u); // blue  -> byte 2
+    EXPECT_EQ((Vec4{0, 0, 0, 1}.to8bitColor()), 0xFF000000u); // alpha -> byte 3
+
+    EXPECT_EQ((Vec4{0, 0, 0, 0}.to8bitColor()), 0x00000000u);
+    EXPECT_EQ((Vec4{1, 1, 1, 1}.to8bitColor()), 0xFFFFFFFFu);
+}
+
+TEST(Vec4Test, To8bitColorTruncatesAndClampsOutOfRange)
+{
+    // Scaling truncates rather than rounds: 0.5 * 255 = 127.5 -> 127.
+    EXPECT_EQ((Vec4{0.5f, 0, 0, 0}.to8bitColor()), 127u);
+
+    // Values outside [0, 1] saturate instead of wrapping.
+    EXPECT_EQ((Vec4{2.0f, -1.0f, 0, 0}.to8bitColor()), 0x000000FFu);
+    EXPECT_EQ((Vec4{-5.0f, 0, 0, 9.0f}.to8bitColor()), 0xFF000000u);
+}
+
 // --- AABB ---
 
 TEST(AABBTest, EmptyBoxIsInverted)
