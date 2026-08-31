@@ -180,7 +180,7 @@ __global__ void sampleBsdfDirection(
 
     const auto ray = wavefront.rays[idx];
     const auto pos = ray.p + ray.v * vertex.t[idx];
-    const auto n = surfaceNormal(object, ids.triangleID, ray.v);
+    const auto n = surfaceNormal(object, ids.triangleID, ray.v, pos);
 
     if (const auto material = std::get_if<DiffuseMaterial>(&materials[object.material]))
     {
@@ -235,7 +235,7 @@ inline HD void shadeDiffuseMaterial(
     const auto &ray = wavefront.rays[idx];
     const auto prevPos = ray.p;
     const auto pos = ray.p + ray.v * vertex.t[idx];
-    const auto n = surfaceNormal(object, ids.triangleID, ray.v);
+    const auto n = surfaceNormal(object, ids.triangleID, ray.v, pos);
 
     const auto diffuse_material = std::get_if<DiffuseMaterial>(&material);
 
@@ -337,7 +337,7 @@ __global__ void debugShade(
             case DebugOptions::BariCoords:
             {
                 const auto point = modelRay.p + modelRay.v * vertex.t[idx];
-                const auto bari = triangleBarycentric(triangle, point);
+                const auto bari = barycentricCoordinates(triangle, point);
                 color = Vec4{bari.x, bari.y, bari.z, 0};
                 break;
             }

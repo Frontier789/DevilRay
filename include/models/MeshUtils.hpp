@@ -4,39 +4,44 @@
 #include "tracing/Intersection.hpp"
 #include "tracing/TriangleMesh.hpp"
 
-inline HD Vec3 triangleNormal(const TriangleVertices &triangle)
+inline HD Vec3 triangleFaceNormal(const TriangleVertices &triangle)
 {
-    return (triangle.a - triangle.b).cross(triangle.a - triangle.c).normalized();
+    return (triangle.a - triangle.b).cross(triangle.a - triangle.c);
 }
 
-inline HD Vec3 triangleBarycentric(const TriangleVertices &triangle, const Vec3 &point)
+inline HD Vec3 barycentricCoordinates(const TriangleVertices &triangle, const Vec3 &hit)
 {
-    const auto n_f = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
+    const auto n_f = triangleFaceNormal(triangle);
     const auto sgn_area2 = n_f.dot(n_f);
 
-    const auto n_1 = (point - triangle.a).cross(triangle.c - triangle.a);
-    const auto n_2 = (triangle.b - triangle.a).cross(point - triangle.a);
+    auto n = n_f.normalized();
 
-    const auto w_b = n_f.dot(n_1) / sgn_area2;
-    const auto w_c = n_f.dot(n_2) / sgn_area2;
-    const auto w_a = 1 - w_b - w_c;
+    const auto n_1 = (hit - triangle.a).cross(triangle.c - triangle.a);
+    const auto n_2 = (triangle.b - triangle.a).cross(hit - triangle.a);
 
-    return Vec3{w_a, w_b, w_c};
+    const auto w_B = n_f.dot(n_1) / sgn_area2;
+    const auto w_C = n_f.dot(n_2) / sgn_area2;
+    const auto w_A = 1 - w_B - w_C;
+
+    return Vec3{w_A, w_B, w_C};
 }
 
-inline HD Vec3 surfaceNormal(const TriangleMesh &object, int triangleID, const Vec3 &ray_dir)
+inline HD Vec3 surfaceNormal(const TriangleMesh &object, int triangleID, const Vec3 &ray_dir, const Vec3 &hit)
 {
     const auto &triangle = object.triangles[triangleID];
+    const auto &M = object.model_to_world;
 
     const auto triangle_vertices = TriangleVertices{
-        .a = object.points[triangle.a.pi],
-        .b = object.points[triangle.b.pi],
-        .c = object.points[triangle.c.pi],
+        .a = M.applyToPoint(object.points[triangle.a.pi]),
+        .b = M.applyToPoint(object.points[triangle.b.pi]),
+        .c = M.applyToPoint(object.points[triangle.c.pi]),
     };
 
-    auto n = triangleNormal(triangle_vertices);
+    const auto bary = barycentricCoordinates(triangle_vertices, hit);
     const auto &inv_s = object.model_to_world.s.inv();
-    n = (n * inv_s).normalized();
+    auto n = ((object.normals[triangle.a.ni] * bary.x +
+               object.normals[triangle.b.ni] * bary.y +
+               object.normals[triangle.c.ni] * bary.z) * inv_s).normalized();
 
     if (n.dot(ray_dir) > 0) n = n * -1;
 
