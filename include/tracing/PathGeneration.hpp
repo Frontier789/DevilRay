@@ -181,7 +181,6 @@ __global__ void sampleBsdfDirection(
             .p = pos + n * 1e-5f,
             .v = w_out,
         };
-        wavefront.current_mat[idx] = VACUUM_MAT;
 
         vertex.bsdfPdfPrev[idx] = bsdf_pdf;
         vertex.prevSpecular[idx] = false;
