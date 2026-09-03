@@ -121,6 +121,7 @@ void Application::loadMeshes()
 
     auto suzanne = loadMeshAndPrint("models/bunny.obj");
     auto cube = loadMeshAndPrint("models/cube.obj");
+    auto ball = loadMeshAndPrint("models/ball.obj");
 
     // Create light panel mesh: NxN grid of quads (each as 2 triangles)
     const int N = 3;
@@ -162,6 +163,7 @@ void Application::loadMeshes()
     meshes = Meshes{
         .suzanne = std::move(suzanne),
         .cube = std::move(cube),
+        .ball = std::move(ball),
         .lightPanel = std::move(lightPanel),
     };
 }

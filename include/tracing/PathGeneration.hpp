@@ -289,6 +289,35 @@ __global__ void shade(
     }
 }
 
+__global__ void shadeDebug(
+    PathVertexDataDevice vertex,
+    WavefrontDataDevice wavefront,
+    std::span<const TriangleMesh> objects,
+    int path_count,
+    DebugOptions debug,
+    RenderBuffersDevice output
+)
+{
+    int idx = KERNEL_IDX(path_count);
+
+    const auto ids = vertex.ids[idx];
+    if (!ids.valid()) return;
+
+    const auto &object = objects[ids.meshID];
+
+    if (debug == DebugOptions::Normals)
+    {
+        if (vertex.ids[idx].valid())
+        {
+            const auto &ray = wavefront.rays[idx];
+            const auto pos = ray.p + ray.v * vertex.t[idx];
+            const auto n = surfaceNormal(object, ids.triangleID, ray.v, pos);
+
+            output.colors[idx] += Vec4::from((n + Vec3{1,1,1})/2, 0);
+        }
+    }
+}
+
 
 
 

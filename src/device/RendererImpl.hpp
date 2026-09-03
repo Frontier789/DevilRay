@@ -62,13 +62,21 @@ void Renderer::scheduleDeviceRender()
     initPaths<<<gridSize, blockSize>>>(vertex, path_count);
     initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
 
-    for (int depth = 0; depth < Buffers::maxPathLength; ++depth)
+    if (m_debug != DebugOptions::Off)
     {
         extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, path_count);
-        shade<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, light_table, path_count, m_scene.info, output);
-        sampleBsdfDirection<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, path_count);
+        shadeDebug<<<gridSize, blockSize>>>(vertex, wavefront, objects, path_count, m_debug, output);
     }
-
+    else
+    {
+        for (int depth = 0; depth < Buffers::maxPathLength; ++depth)
+        {
+            extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, path_count);
+            shade<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, light_table, path_count, m_scene.info, output);
+            sampleBsdfDirection<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, path_count);
+        }
+    }
+    
     accumulateSampleCount<<<gridSize, blockSize>>>(m_buffers.color.devicePtr(), path_count);
 
     CUDA_ERROR_CHECK();

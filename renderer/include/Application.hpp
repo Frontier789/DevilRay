@@ -15,6 +15,7 @@ struct Meshes
 {
     GpuTris suzanne;
     GpuTris cube;
+    GpuTris ball;
     GpuTris lightPanel;
 };
 

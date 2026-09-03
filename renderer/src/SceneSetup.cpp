@@ -138,13 +138,21 @@ Scene createScene(Meshes &meshes)
     }
 
     // addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 100, light_mid);
-
+    
     {
         auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
         mesh_object_monkey.material = blue;
-        mesh_object_monkey.setPosition(Vec3{0.0, -0.32, 2});
-        mesh_object_monkey.setScale(Vec3{0.35f,0.35f,0.35f});
+        mesh_object_monkey.setPosition(Vec3{0.1, -0.345, 2.3});
+        mesh_object_monkey.setScale(Vec3{0.3f,0.3f,0.3f});
         scene.objects.push_back(std::move(mesh_object_monkey));
+    }
+
+    {
+        auto mesh_view = viewGpuTris(meshes.ball);
+        mesh_view.material = glass;
+        mesh_view.setPosition(Vec3{-0.1, -0.25, 1.9});
+        mesh_view.setScale(Vec3{0.25f,0.25f,0.25f});
+        scene.objects.push_back(std::move(mesh_view));
     }
 
     // addQuad(Vec3{0,10,0}, Vec3{0,1,0}, Vec3{0,0,1}, 1000, light_mid);
