@@ -5,4 +5,5 @@ enum class DebugOptions : int {
     UVChecker = 1,
     BariCoords = 2,
     WindingOrder = 3,
+    Normal = 4,
 };

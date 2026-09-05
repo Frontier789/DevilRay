@@ -32,7 +32,7 @@ void Application::handleUiEvents()
         renderer->setCamera(cameraController.getCamera());
     }
 
-    constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder"};
+    constexpr const char* debug_names[] = {"Off", "UVChecker", "BariCoords", "WindingOrder", "Normal"};
     if (ImGui::Combo("Debug", reinterpret_cast<int*>(&renderOptions.debug), debug_names, IM_ARRAYSIZE(debug_names)))
     {
         renderer->setDebug(renderOptions.debug);

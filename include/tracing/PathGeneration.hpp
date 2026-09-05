@@ -320,8 +320,8 @@ __global__ void debugShade(
         const auto &object = objects[ids.meshID];
         const auto &material = materials[object.material];
 
-        const auto worldRay = wavefront.rays[wavefront.sort_index[idx]];
-        const auto modelRay = object.model_to_world.applyInverse(worldRay);
+        const auto world_ray = wavefront.rays[wavefront.sort_index[idx]];
+        const auto model_ray = object.model_to_world.applyInverse(world_ray);
 
         const auto &tri = object.triangles[ids.triangleID];
         const auto triangle = TriangleVertices{
@@ -329,6 +329,7 @@ __global__ void debugShade(
             .b = object.points[tri.b.pi],
             .c = object.points[tri.c.pi],
         };
+        const auto hit = world_ray.p + world_ray.v * vertex.t[idx];
 
         color = getDebugColor(material);
 
@@ -336,8 +337,10 @@ __global__ void debugShade(
         {
             case DebugOptions::BariCoords:
             {
-                const auto point = modelRay.p + modelRay.v * vertex.t[idx];
-                const auto bari = barycentricCoordinates(triangle, point);
+                const auto model_hit = model_ray.p + model_ray.v * vertex.t[idx];
+                const auto normal = triangleFaceNormal(triangle);
+
+                const auto bari = barycentricCoordinates(triangle, normal, model_hit);
                 color = Vec4{bari.x, bari.y, bari.z, 0};
                 break;
             }
@@ -345,9 +348,18 @@ __global__ void debugShade(
             {
                 constexpr auto clockWiseColor = Vec4{0.53, 0.82, 1.0, 0.0};
                 constexpr auto counterClockWiseColor = Vec4{1.0, 0.73, 0.47, 0.0};
-                const auto geom_normal = (triangle.a - triangle.b).cross(triangle.a - triangle.c);
-                const bool ccw = geom_normal.dot(modelRay.v) > 0;
+
+                const auto model_normal = triangleFaceNormal(triangle);
+                const bool ccw = model_normal.dot(model_ray.v) > 0;
+
                 color = ccw ? counterClockWiseColor : clockWiseColor;
+                break;
+            }
+            case DebugOptions::Normal:
+            {
+                const auto n = surfaceNormal(object, ids.triangleID, world_ray.v, hit);
+
+                color = Vec4::from((n + Vec3{1,1,1})/2, 0);
                 break;
             }
             case DebugOptions::UVChecker:
