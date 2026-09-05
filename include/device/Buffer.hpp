@@ -21,6 +21,16 @@ struct DeviceBuffer
         return host;
     }
 
+    void copyFromHost(const T *ptr, size_t count)
+    {
+        deviceData.copyFromHost(ptr, sizeof(T) * count);
+    }
+
+    void copyFromHost(const std::vector<T> &hostData)
+    {
+        deviceData.copyFromHost(hostData.data(), sizeof(T) * hostData.size());
+    }
+
     static DeviceBuffer<T> allocate(int numberOfElements)
     {
         DeviceMemoryManager data;

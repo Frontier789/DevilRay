@@ -87,6 +87,8 @@ void Renderer::scheduleDeviceRender()
 
     if (localDebug != DebugOptions::Off)
     {
+        m_binning.num_selected.copyFromHost(std::vector{path_count});
+
         initPaths<<<gridSize, blockSize>>>(vertex, path_count);
         initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
         extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, num_selected, casts, 0);
