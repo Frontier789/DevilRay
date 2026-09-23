@@ -49,6 +49,17 @@ Scene createScene(Meshes &meshes)
         scene.materials.push_back(material);
     }
 
+    const int sun = scene.materials.size();
+    {
+        auto material = DiffuseMaterial{
+            .emission = Vec4{300000,300000,300000},
+            .diffuse_reflectance = Vec4{1.0,1.0,1.0, 0.0},
+        };
+        material.debug_color = Vec4{0.9, 0.7, 0.5, 0.0},
+        scene.materials.push_back(material);
+    }
+
+
     const int  red = scene.materials.size();
     {
         auto material = DiffuseMaterial{
@@ -124,11 +135,16 @@ Scene createScene(Meshes &meshes)
         scene.objects.push_back(std::move(view));
     };
 
-    addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
-    addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
-    addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
-    addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
-    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
+    // addQuad(Vec3{0,0,2.5}, Vec3{0,0,-1}, Vec3{1,0,0}, 1, white);
+    // addQuad(Vec3{0.5,0,2}, Vec3{-1,0,0}, Vec3{0,1,0}, 1, red);
+    // addQuad(Vec3{-0.5,0,2}, Vec3{1,0,0}, Vec3{0,1,0}, 1, green);
+    // addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 1, white);
+    // addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
+
+
+    addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 100, white);
+
+    // addQuad(Vec3{1000,1000,100}, Vec3{0,1,0}, Vec3{0,0,1}, 0.1, sun);
 
     {
         auto lightPanel = viewGpuTris(meshes.lightPanel);
