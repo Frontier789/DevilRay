@@ -1,4 +1,15 @@
 cmake_minimum_required(VERSION 3.25.2)
+
+# CUDA toolchain selection. Both variables have to be set before the CUDA
+# language is enabled, and either can be overridden on the command line with
+# -DCMAKE_CUDA_COMPILER=... / -DCMAKE_CUDA_HOST_COMPILER=... .
+#
+# CMake's own nvcc discovery can land on a distro-packaged /usr/bin/nvcc that is
+# older than the toolkit actually on PATH, so prefer whatever `nvcc` PATH gives.
+if(NOT DEFINED CMAKE_CUDA_COMPILER)
+    find_program(CMAKE_CUDA_COMPILER nvcc)
+endif()
+
 project(devil_ray_lib LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -20,9 +31,10 @@ set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
 find_package(stb REQUIRED)
 find_package(exiv2 REQUIRED)
 
-option(BUILD_RENDERER    "Build the renderer application"    ON)
-option(BUILD_BBOX_VIEWER "Build the bbox viewer application" ON)
-option(BUILD_BENCHMARK   "Build the headless ray-cast benchmark" ON)
+option(BUILD_RENDERER     "Build the renderer application"        ON)
+option(BUILD_BBOX_VIEWER  "Build the bbox viewer application"     ON)
+option(BUILD_BENCHMARK    "Build the headless ray-cast benchmark" ON)
+option(BUILD_SAMPLE_IMAGE "Build the headless image sampler"      ON)
 
 if(BUILD_RENDERER OR BUILD_BBOX_VIEWER)
     find_package(glfw3 REQUIRED)
@@ -87,4 +99,7 @@ if(BUILD_BBOX_VIEWER)
 endif()
 if(BUILD_BENCHMARK)
     add_subdirectory(benchmark)
+endif()
+if(BUILD_SAMPLE_IMAGE)
+    add_subdirectory(sample_image)
 endif()

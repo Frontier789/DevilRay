@@ -18,7 +18,7 @@
 namespace
 {
     // The wavefront intersectTriangle returns only a hit distance; barycentric
-    // coordinates are recovered separately via triangleBarycentric. This adapter
+    // coordinates are recovered separately via barycentricCoordinates. This adapter
     // reunites them so the tests below keep exercising both.
     struct TriResult
     {
@@ -34,7 +34,9 @@ namespace
             return TriResult{.hit = false, .t = h.t, .bari = {0, 0, 0}};
 
         const Vec3 point = ray.p + ray.v * h.t;
-        return TriResult{.hit = true, .t = h.t, .bari = triangleBarycentric(tri, point)};
+        return TriResult{
+            .hit = true, .t = h.t,
+            .bari = barycentricCoordinates(tri, triangleFaceNormal(tri), point)};
     }
 }
 

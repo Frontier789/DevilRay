@@ -2,6 +2,7 @@
 
 #include "device/Array.hpp"
 #include "Utils.hpp"
+#include "Image.hpp"
 
 #include <span>
 
@@ -55,6 +56,13 @@ struct AliasTable
     DeviceArray<AliasEntry> entries;
 };
 
+struct AliasTableView
+{
+    const AliasEntry *entries;
+
+    int entry_count;
+};
+
 struct AliasSample
 {
     int index;
@@ -62,17 +70,17 @@ struct AliasSample
 };
 
 template<typename Rng>
-HD AliasSample sample(std::span<const AliasEntry> table, Rng &rng)
+HD AliasSample sample(const AliasTableView &table, Rng &rng)
 {
     const float r = rng.rnd();
-    float findex = r * table.size();
-    if (findex == table.size()) findex = table.size()-1;
+    float findex = r * table.entry_count;
+    if (findex == table.entry_count) findex = table.entry_count-1;
 
     const int index = static_cast<int>(findex);
 
     const float p = rng.rnd();
 
-    const auto &entry = table[index];
+    const auto &entry = table.entries[index];
 
     if (p <= entry.p_A) {
         return AliasSample{
@@ -88,6 +96,53 @@ HD AliasSample sample(std::span<const AliasEntry> table, Rng &rng)
 }
 
 AliasTable generateAliasTable(std::span<const float> importances);
+
+struct AliasImageTable
+{
+    DeviceArray<AliasEntry> pixel_entries;
+    DeviceArray<AliasEntry> row_entries;
+
+    Size2i image_size;
+};
+
+struct AliasImageTableView
+{
+    const AliasEntry *pixel_entries;
+    const AliasEntry *row_entries;
+
+    Size2i image_size;
+};
+
+struct AliasImageSample
+{
+    Vec2i pixel_coordinate;
+    float pdf;
+};
+
+template<typename Rng>
+HD AliasImageSample sample(const AliasImageTableView &table, Rng &rng)
+{
+    const auto s = table.image_size;
+
+    const auto row_table = AliasTableView{
+        .entries = table.row_entries,
+        .entry_count = s.height,
+    };
+    const auto row = sample(row_table, rng);
+
+    const auto col_table = AliasTableView{
+        .entries = table.pixel_entries + s.width * row.index,
+        .entry_count = s.width,
+    };
+    const auto col = sample(col_table, rng);
+
+    return AliasImageSample{
+        .pixel_coordinate = Vec2i{.x = col.index, .y = row.index},
+        .pdf = row.pdf * col.pdf,
+    };
+}
+
+AliasImageTable generateAliasTable(const ImageView1f &image);
 
 template<typename Rng>
 HD Vec3 uniformTriangleSample(const Vec3 &A, const Vec3 &B, const Vec3 &C, Rng &rng)

@@ -129,18 +129,23 @@ TEST(BoxIntersectionTest, CornerGrazeHits)
     EXPECT_FLOAT_EQ(*hit, 4.0f);
 }
 
-// --- triangleNormal ---
+// --- triangleFaceNormal ---
 
 TEST(TriangleNormalTest, MatchesCrossProductDirection)
 {
     const TriangleVertices tri{.a = {0, 0, 0}, .b = {1, 0, 0}, .c = {0, 1, 0}};
-    expectVec3Near(triangleNormal(tri), {0, 0, 1});
+    expectVec3Near(triangleFaceNormal(tri).normalized(), {0, 0, 1});
 }
 
-TEST(TriangleNormalTest, IsUnitLength)
+// triangleFaceNormal is deliberately left unnormalized: barycentricCoordinates
+// relies on its squared length being (2*area)^2, so the magnitude is part of the
+// contract, not an accident.
+TEST(TriangleNormalTest, MagnitudeIsTwiceTriangleArea)
 {
     const TriangleVertices tri{.a = {0, 0, 0}, .b = {2, 0, 0}, .c = {0, 0, 3}};
-    EXPECT_NEAR(triangleNormal(tri).length(), 1.0f, 1e-6f);
+    const float area = triangleArea(tri.a, tri.b, tri.c);
+    EXPECT_NEAR(area, 3.0f, 1e-6f);
+    EXPECT_NEAR(triangleFaceNormal(tri).length(), 2.0f * area, 1e-5f);
 }
 
 // --- intersectMesh (BBH traversal) ---
@@ -188,14 +193,16 @@ TEST(MeshIntersectionTest, NormalFlipsTowardIncomingRay)
     const Ray above{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
     const auto fromAbove = intersectMesh(above, mesh);
     ASSERT_TRUE(fromAbove.valid());
-    const auto nAbove = surfaceNormal(mesh, fromAbove.triangleID, above.v);
+    const auto nAbove = surfaceNormal(mesh, fromAbove.triangleID, above.v, above.p + above.v * fromAbove.t);
     expectVec3Near(nAbove, {0, 0, 1});
     EXPECT_LE(nAbove.dot(above.v), 0.0f);
 
     const Ray below{.p = {0.2f, 0.2f, -5}, .v = {0, 0, 1}};
     const auto fromBelow = intersectMesh(below, mesh);
     ASSERT_TRUE(fromBelow.valid());
-    expectVec3Near(surfaceNormal(mesh, fromBelow.triangleID, below.v), {0, 0, -1});
+    expectVec3Near(
+        surfaceNormal(mesh, fromBelow.triangleID, below.v, below.p + below.v * fromBelow.t),
+        {0, 0, -1});
 }
 
 TEST(MeshIntersectionTest, ReturnsClosestOfStackedTriangles)

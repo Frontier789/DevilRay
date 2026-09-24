@@ -1,9 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <chrono>
-#include <cmath>
 #include <thread>
 #include <vector>
+#include <cmath>
 
 #ifndef __CUDACC__
     #define __global__

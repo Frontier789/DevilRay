@@ -50,13 +50,13 @@ HD LightSample samplePointOnLights(
     std::span<const AliasEntry> light_table,
     Rng &rng)
 {
-    const auto [index, object_pdf] = sample(light_table, rng);
+    const auto [index, object_pdf] = sample(AliasTableView{.entries=light_table.data(), .entry_count=static_cast<int>(light_table.size())}, rng);
     const auto &object = objects[index];
     const auto mat = object.material;
 
     // printf("Rolled %d\n", index);
 
-    const auto tris_table = std::span{object.triangle_sampler, static_cast<size_t>(object.triangle_count)};
+    const auto tris_table = AliasTableView{.entries=object.triangle_sampler, .entry_count=object.triangle_count};
     const auto [i, triangle_pdf] = sample(tris_table, rng);
 
     const auto triangle = object.triangles[i];

@@ -112,13 +112,16 @@ namespace test
     }
 
     // Single triangle on the XY plane: A(0,0,0) B(1,0,0) C(0,1,0).
+    // Single-element members below use push_back rather than `= {...}`: at -O3
+    // (nvcc's host pass for .cu tests) GCC misreads vector::operator=(initializer_list)
+    // for a 1-element list as an out-of-bounds memcpy (-Wstringop-overread false positive).
     inline Mesh unitTriangleMesh()
     {
         Mesh mesh;
         mesh.name = "unit-triangle";
         mesh.points = {Vec3{0, 0, 0}, Vec3{1, 0, 0}, Vec3{0, 1, 0}};
-        mesh.normals = {Vec3{0, 0, 1}};
-        mesh.triangles = {Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}}};
+        mesh.normals.push_back(Vec3{0, 0, 1});
+        mesh.triangles.push_back(Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}});
         return mesh;
     }
 
@@ -129,8 +132,8 @@ namespace test
         Mesh mesh;
         mesh.name = "flat-triangle";
         mesh.points = {Vec3{-1, -1, z}, Vec3{3, -1, z}, Vec3{-1, 3, z}};
-        mesh.normals = {Vec3{0, 0, 1}};
-        mesh.triangles = {Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}}};
+        mesh.normals.push_back(Vec3{0, 0, 1});
+        mesh.triangles.push_back(Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}});
         return mesh;
     }
 
@@ -145,7 +148,7 @@ namespace test
             Vec3{half, half, 0},
             Vec3{-half, half, 0},
         };
-        mesh.normals = {Vec3{0, 0, 1}};
+        mesh.normals.push_back(Vec3{0, 0, 1});
         mesh.triangles = {
             Triangle{.a = {0, 0}, .b = {1, 0}, .c = {2, 0}},
             Triangle{.a = {0, 0}, .b = {2, 0}, .c = {3, 0}},
