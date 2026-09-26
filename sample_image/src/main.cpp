@@ -1,190 +1,159 @@
 #include <tracing/DistributionSamplers.hpp>
 #include <Image.hpp>
 
+#include <tools.hpp>
+#include <CommandLine.hpp>
+
 #include <iostream>
-#include <random>
 
-struct CpuRand
+namespace
 {
-    std::mt19937 rng{42};
-    std::uniform_real_distribution<float> dist{0,1};
-
-    float rnd()
+    std::vector<Vec2i> sample_points_on_image(Image1f &luminance, int point_count, CpuRand &rng)
     {
-        return dist(rng);
+        Timer t;
+        const auto alias_table = generateAliasTable(luminance.view());
+
+        const auto table_time = t.elapsedSeconds();
+        std::cout << "Built Alias Table in " << table_time*1000 << "ms" << std::endl;
+
+        const auto alias_table_view = AliasImageTableView{
+            .pixel_entries = alias_table.pixel_entries.hostPtr(),
+            .row_entries = alias_table.row_entries.hostPtr(),
+            .image_size = alias_table.image_size,
+        };
+
+        std::vector<Vec2i> points;
+        points.reserve(point_count);
+
+        for (int i=0;i<point_count;++i) {
+            points.push_back(sample(alias_table_view, rng).pixel_coordinate);
+        }
+
+        return points;
     }
-};
 
-template<typename T>
-T lerp(const T& start, const T& end, float t) {
-    return start * (1.0f - t) + end * t;
-}
+    Image<int> build_voronoi(const std::vector<Vec2i> &seeds, Size2i size)
+    {
+        auto closest_id = Image<int>::create(size, -1);
 
-template<typename T>
-void circle(Image<T>& image, Vec2i center, float radius, const T& color) {
-    if (radius <= 0.0f) return;
+        struct Update
+        {
+            Vec2i p;
+            int id;
+        };
 
-    int minX = std::max(0, static_cast<int>(std::floor(center.x - radius - 1.5f)));
-    int maxX = std::min(image.size.width - 1, static_cast<int>(std::ceil(center.x + radius + 1.5f)));
-    int minY = std::max(0, static_cast<int>(std::floor(center.y - radius - 1.5f)));
-    int maxY = std::min(image.size.height - 1, static_cast<int>(std::ceil(center.y + radius + 1.5f)));
+        std::vector<Update> updates;
+        for (int i=0;i<static_cast<int>(seeds.size());++i) {
+            updates.push_back(Update{seeds[i], i});
+        }
 
-    for (int y = minY; y <= maxY; ++y) {
-        float offsetY = y - center.y;
-        float offsetYSquared = offsetY * offsetY;
+        while (updates.size() > 0) {
+            std::vector<Update> next_updates;
 
-        for (int x = minX; x <= maxX; ++x) {
-            float offsetX = x - center.x;
-            float distanceFromCenter = std::sqrt(offsetX * offsetX + offsetYSquared);
-            float distanceToEdge = distanceFromCenter - radius;
+            for (const auto u : updates)
+            {
+                if (u.p.x < 0 || u.p.y < 0 ||
+                    u.p.x >= size.width || u.p.y >= size.height) continue;
 
-            float blendRatio = 0.0f;
-            if (distanceToEdge < -0.5f) {
-                blendRatio = 1.0f;
-            } else if (distanceToEdge < 0.5f) {
-                float progress = distanceToEdge + 0.5f;
-                blendRatio = 1.0f - (progress * progress * (3.0f - 2.0f * progress));
+                if (closest_id[u.p] != -1)
+                {
+                    const auto cid = closest_id[u.p];
+                    const Vec2f cp = seeds[cid];
+                    const Vec2f np = seeds[u.id];
+
+                    if ((cp - u.p).length() <= (np - u.p).length())
+                        continue;
+                }
+
+                closest_id[u.p] = u.id;
+                next_updates.push_back(Update{u.p + Vec2i{1,0}, u.id});
+                next_updates.push_back(Update{u.p + Vec2i{-1,0}, u.id});
+                next_updates.push_back(Update{u.p + Vec2i{0,1}, u.id});
+                next_updates.push_back(Update{u.p + Vec2i{0,-1}, u.id});
             }
 
-            if (blendRatio > 0.0f) {
-                Vec2i pixelPos{x, y};
-                if (blendRatio >= 1.0f) {
-                    image[pixelPos] = color;
-                } else {
-                    image[pixelPos] = lerp(image[pixelPos], color, blendRatio);
-                }
+            updates = std::move(next_updates);
+        }
+
+        return closest_id;
+    }
+
+    struct RegionStat
+    {
+        Vec4 sum = Vec4{0,0,0,0};
+        int pix_count = 0;
+
+        Vec4 mean() const { return sum / pix_count; }
+    };
+
+    std::vector<RegionStat> voronoi_stats(const Image<int> &closest_id, const Image4f &image, size_t region_count)
+    {
+        std::vector<RegionStat> region_stats(region_count, RegionStat{0,0});
+
+        for (std::size_t i=0;i<closest_id.pixels.size();++i) {
+            const auto id = closest_id.pixels[i];
+            if (id >= 0) {
+                region_stats[id].sum += image.pixels[i];
+                region_stats[id].pix_count += 1;
             }
         }
+
+        return region_stats;
+    }
+
+    Image4f voronoi_color(const Image<int> &closest_id, const std::vector<RegionStat> &region_stats)
+    {
+        auto img = Image4f::create(closest_id.size);
+
+        for (std::size_t i=0;i<closest_id.pixels.size();++i) {
+            const auto id = closest_id.pixels[i];
+            if (id >= 0) {
+                img.pixels[i] = region_stats[id].mean();
+            }
+        }
+
+        return img;
+    }
+
+    std::vector<uint32_t> image4f_to_u32(const Image4f &image)
+    {
+        std::vector<uint32_t> pixel_data;
+        pixel_data.reserve(image.pixels.size());
+
+        for (const auto &pixel : image.pixels) {
+            pixel_data.push_back(pixel.to8bitColor());
+        }
+
+        return pixel_data;
     }
 }
 
-int main()
+int main(int argc, char *argv[])
 {
-    const auto image_path = "sample_image/lady_small.jpg";
-
-    Timer t;
-    const auto image = loadHDR(image_path);
-
-    const auto load_time = t.elapsedSeconds();
-    std::cout << "Loaded image sized " << image.size.width << "x" << image.size.height << " in " << load_time*1000 << "ms" << std::endl;
-
+    const auto options = parseCommandLineOrExit(argc, argv);
+    
+    std::cout << "Loading " << options.image_path << std::endl;
+    const auto image = loadHDR(options.image_path);
     auto luminance = intensity(image);
 
-    t = Timer{};
-    const auto alias_table = generateAliasTable(luminance.view());
-
-    const auto table_time = t.elapsedSeconds();
-    std::cout << "Built Alias Table in " << table_time*1000 << "ms" << std::endl;
-
+    std::cout << "Sampling image" << std::endl;
     CpuRand rng;
-    const auto alias_table_view = AliasImageTableView{
-        .pixel_entries = alias_table.pixel_entries.hostPtr(),
-        .row_entries = alias_table.row_entries.hostPtr(),
-        .image_size = alias_table.image_size,
-    };
+    const auto seeds = sample_points_on_image(luminance, options.point_count, rng);
 
-    const auto s = luminance.size;
+    std::cout << "Building Voronoi" << std::endl;
+    const auto closest_id = build_voronoi(seeds, luminance.size);
+    const auto region_stats = voronoi_stats(closest_id, image, static_cast<int>(seeds.size()));
 
-    auto dots = Image1f::create(s, 0);
-    auto closest_id = Image<int>::create(s, -1);
+    std::cout << "Coloring Voronoi" << std::endl;
+    auto img = voronoi_color(closest_id, region_stats);
 
-    std::vector<Vec2i> seeds;
-
-    struct Update
-    {
-        Vec2i p;
-        int id;
-    };
-
-    std::vector<Update> updates;
-
-    for (int i=0;i<1300;++i) {
-        const auto s = sample(alias_table_view, rng);
-        seeds.push_back(s.pixel_coordinate);
-        updates.push_back(Update{s.pixel_coordinate, i});
-        dots[s.pixel_coordinate] = 1;
-    }
-
-    while (updates.size() > 0) {
-        std::vector<Update> next_updates;
-    
-        for (const auto u : updates)
-        {
-            if (u.p.x < 0 || u.p.y < 0 ||
-                u.p.x >= s.width || u.p.y >= s.height) continue;
-
-            if (closest_id[u.p] != -1)
-            {
-                const auto cid = closest_id[u.p];
-                const Vec2f cp = seeds[cid];
-                const Vec2f np = seeds[u.id];
-                
-                if ((cp - u.p).length() <= (np - u.p).length())
-                    continue;
-            }
-
-            closest_id[u.p] = u.id;
-            next_updates.push_back(Update{u.p + Vec2i{1,0}, u.id});
-            next_updates.push_back(Update{u.p + Vec2i{-1,0}, u.id});
-            next_updates.push_back(Update{u.p + Vec2i{0,1}, u.id});
-            next_updates.push_back(Update{u.p + Vec2i{0,-1}, u.id});
-        }
-    
-        updates = std::move(next_updates);
-    }
-
-    struct Stat
-    {
-        double sum = 0;
-        int pix_count = 0;
-    };
-
-    std::vector<Stat> region_stats(seeds.size(), Stat{0,0});
-    for (int i=0;i<s.area();++i) {
-        const auto p = Vec2i{.x=i%s.width, .y=i/s.width};
-
-        const auto id = closest_id[p];
-        if (id >= 0) {
-            region_stats[id].sum += luminance[p];
-            region_stats[id].pix_count += 1;
+    if (options.plot_points) {
+        for (const auto p : seeds) {
+            circle(img, p, 3, Vec4{0.5,0.8,0.95,1});
         }
     }
 
-    auto img = Image4f::create(s);
-    for (int y=0;y<s.height;++y)
-    for (int x=0;x<s.width;++x)
-    {
-        const auto p = Vec2i{x,y};
-        const auto id = closest_id[p];
-
-        if (id >= 0) {
-            const auto f = static_cast<float>(region_stats[id].sum / region_stats[id].pix_count);
-            img[p] = Vec4{f,f,f,1};
-        }
-    }
-
-    for (const auto p : seeds) {
-        circle(img, p, 3, Vec4{0.5,0.6,0.9,1});
-    }
-
-    // std::vector<uint32_t> region_colors(seeds.size(), 0);
-    // for (auto &c : region_colors) c = Vec4{rng.rnd(),rng.rnd(),rng.rnd(),1}.to8bitColor();
-
-    std::vector<uint32_t> pixel_data(s.area(), 0);
-
-    for (int i=0;i<s.area();++i) {
-        const auto p = Vec2i{.x=i%s.width, .y=i/s.width};
-
-        pixel_data[i] = img[p].to8bitColor();
-    }
-    savePNG("voronoi.png", pixel_data, s);
-
-    for (int i=0;i<s.area();++i) {
-        const auto p = Vec2i{.x=i%s.width, .y=i/s.width};
-
-        const auto f = dots[p];
-        pixel_data[i] = Vec4{f,f,f,1}.to8bitColor();
-    }
-    savePNG("sample_points.png", pixel_data, s);
-
+    const auto output = "voronoi.png";
+    std::cout << "Saving " << output << std::endl;
+    savePNG(output, image4f_to_u32(img), img.size);
 }
