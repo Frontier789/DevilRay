@@ -16,3 +16,7 @@ test_output
 
 # Blender backup files
 **/*.blend[0-9]
+
+# Images in the root
+*.png
+*.jpg

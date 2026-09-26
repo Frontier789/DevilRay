@@ -11,26 +11,44 @@ void savePNG(
     Size2i resolution
 );
 
-struct Image4f
+template<typename T>
+struct ImageView
 {
-    std::vector<Vec4> pixels;
+    T *pixels;
 
     Size2i size;
 };
 
-struct Image1f
+using ImageView1f = ImageView<float>;
+
+template<typename T>
+struct Image
 {
-    std::vector<float> pixels;
+    std::vector<T> pixels;
 
     Size2i size;
+
+    T &operator[](Vec2i p) { return pixels[p.x + size.width * p.y]; }
+
+    static Image<T> create(Size2i s, T def_val = T{})
+    {
+        return Image<T>{
+            .pixels = std::vector<T>(s.area(), def_val),
+            .size = s
+        };
+    }
+
+    ImageView<T> view() {
+        return ImageView<T>{
+            .pixels = pixels.data(),
+            .size = size,
+        };
+    }
 };
 
-struct ImageView1f
-{
-    float *pixels;
+using Image4f = Image<Vec4>;
+using Image1f = Image<float>;
 
-    Size2i size;
-};
 
 Image4f loadHDR(const std::string &fileName);
 Image1f intensity(const Image4f &image);

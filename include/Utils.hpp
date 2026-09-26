@@ -154,6 +154,14 @@ struct Vec2
     constexpr Vec2 operator*(const T &f) const {return Vec2{x*f, y*f};}
     constexpr Vec2 operator/(const T &f) const {return Vec2{x/f, y/f};}
 
+    constexpr float length() const {
+        return std::sqrt(x*x + y*y);
+    }
+
+    constexpr float length_squared() const {
+        return x*x + y*y;
+    }
+
     template<typename U>
     constexpr operator Vec2<U>() const
     {
