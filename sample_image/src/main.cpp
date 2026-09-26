@@ -4,6 +4,8 @@
 #include <tools.hpp>
 #include <CommandLine.hpp>
 
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 
 namespace
@@ -115,13 +117,22 @@ namespace
         return img;
     }
 
+    constexpr float display_gamma = 2.2f;
+
+    Vec4 linear_to_display(const Vec4 &linear)
+    {
+        const auto encode = [](float channel) { return std::pow(std::max(channel, 0.0f), 1.0f / display_gamma); };
+
+        return Vec4{encode(linear.x), encode(linear.y), encode(linear.z), linear.w};
+    }
+
     std::vector<uint32_t> image4f_to_u32(const Image4f &image)
     {
         std::vector<uint32_t> pixel_data;
         pixel_data.reserve(image.pixels.size());
 
         for (const auto &pixel : image.pixels) {
-            pixel_data.push_back(pixel.to8bitColor());
+            pixel_data.push_back(linear_to_display(pixel).to8bitColor());
         }
 
         return pixel_data;
