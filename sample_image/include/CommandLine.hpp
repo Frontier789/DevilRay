@@ -15,9 +15,11 @@
 struct CommandLineOptions
 {
     std::string image_path;
+    std::string output_path = "voronoi.png";
     int point_count = 1300;
     bool plot_points = false;
     bool help_requested = false;
+    bool sample_details = false;
 };
 
 class CommandLineError : public std::runtime_error
@@ -32,15 +34,16 @@ inline void printHelp(std::string_view program_name, std::ostream &out = std::co
 
     out << "Usage: " << program_name << " [options] <image_path>\n"
         << "\n"
-        << "Samples points from the image proportionally to its luminance and writes\n"
-        << "voronoi.png and sample_points.png into the working directory.\n"
+        << "Samples points from the image and creates a voronoi representation based on that.\n"
         << "\n"
         << "Arguments:\n"
         << "  <image_path>            Image file to sample\n"
         << "\n"
         << "Options:\n"
         << "  -n, --point-count <N>   Number of points to sample (default: " << defaults.point_count << ")\n"
-        << "  -p, --plot-points       Draw the sampled points onto voronoi.png\n"
+        << "  -p, --plot-points       Draw the sampled points onto the output image\n"
+        << "  -d, --details           Sample points based on details\n"
+        << "  -o, --output            Specify the output image (default: " << defaults.output_path << ")\n"
         << "  -h, --help              Show this help and exit\n";
 }
 
@@ -117,10 +120,18 @@ inline CommandLineOptions parseCommandLine(int argc, char *argv[])
         {
             options.plot_points = true;
         }
+        else if (matchesOption(*argument, "-d", "--details"))
+        {
+            options.sample_details = true;
+        }
         else if (matchesOption(*argument, "-n", "--point-count"))
         {
             const auto option_name = *argument;
             options.point_count = parsePositiveInteger(takeOptionValue(argument, arguments.end()), option_name);
+        }
+        else if (matchesOption(*argument, "-o", "--output"))
+        {
+            options.output_path = *++argument;
         }
         else if (looksLikeOption(*argument))
         {
@@ -138,7 +149,7 @@ inline CommandLineOptions parseCommandLine(int argc, char *argv[])
 
     if (!image_path.has_value())
         throw CommandLineError("Missing image path");
-
+    
     requireExistingFile(*image_path);
     options.image_path = *image_path;
 

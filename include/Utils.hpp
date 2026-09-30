@@ -130,6 +130,14 @@ struct Vec4
         return Vec3{x, y, z};
     }
 
+    constexpr Vec4 with_alpha(const float a) const {
+        return Vec4{x, y, z, a};
+    }
+
+    constexpr Vec4 abs() const {
+        return Vec4{std::abs(x), std::abs(y), std::abs(z), std::abs(w)};
+    }
+
     constexpr uint32_t to8bitColor() const
     {
         const uint32_t red   = static_cast<uint32_t>(std::clamp<float>(x, 0, 1) * 255) << 0;
@@ -147,6 +155,8 @@ struct Vec2
     T x;
     T y;
 
+    using type=T;
+
     constexpr Vec2 operator+(const Vec2 &v) const {return Vec2{x+v.x, y+v.y};}
     constexpr Vec2 operator-(const Vec2 &v) const {return Vec2{x-v.x, y-v.y};}
     constexpr Vec2 operator/(const Vec2 &v) const {return Vec2{x/v.x, y/v.y};}
@@ -162,10 +172,25 @@ struct Vec2
         return x*x + y*y;
     }
 
+    template<typename F>
+    constexpr auto map(F f) -> Vec2<decltype(f(x))>
+    {
+        return Vec2<decltype(f(x))>{
+            .x = f(x),
+            .y = f(y),
+        };
+    }
+
+    template<typename U>
+    constexpr U as() const
+    {
+        return U(static_cast<U::type>(x), static_cast<U::type>(y));
+    }
+
     template<typename U>
     constexpr operator Vec2<U>() const
     {
-        return Vec2<U>(static_cast<U>(x), static_cast<U>(y));
+        return as<Vec2<U>>();
     }
 };
 
@@ -179,8 +204,14 @@ struct Size2
     T height;
 
     constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
+    constexpr Size2 operator*(const T &v) const {return Size2{width * v, height * v};}
     constexpr T area() const {return width * height;}
     constexpr Vec2<T> toVec() const { return Vec2<T>{.x = width, .y = height}; }
+
+    constexpr bool valid_index(const Vec2<T> &p) const
+    {
+        return p.x >= T{0} && p.y >= T{0} && p.x < width && p.y < height;
+    }
 };
 
 using Size2i = Size2<int>;
