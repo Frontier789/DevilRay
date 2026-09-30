@@ -29,6 +29,7 @@ struct Image
     Size2i size;
 
     T &operator[](Vec2i p) { return pixels[p.x + size.width * p.y]; }
+    const T &operator[](Vec2i p) const { return pixels[p.x + size.width * p.y]; }
 
     static Image<T> create(Size2i s, T def_val = T{})
     {

@@ -179,9 +179,7 @@ struct Size2
     T height;
 
     constexpr Size2 operator/(const T &v) const {return Size2{width / v, height / v};}
-
     constexpr T area() const {return width * height;}
-
     constexpr Vec2<T> toVec() const { return Vec2<T>{.x = width, .y = height}; }
 };
 

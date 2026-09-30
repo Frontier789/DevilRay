@@ -92,7 +92,7 @@ namespace
     {
         std::vector<RegionStat> region_stats(region_count, RegionStat{0,0});
 
-        for (std::size_t i=0;i<closest_id.pixels.size();++i) {
+        for (size_t i=0;i<closest_id.pixels.size();++i) {
             const auto id = closest_id.pixels[i];
             if (id >= 0) {
                 region_stats[id].sum += image.pixels[i];
@@ -107,7 +107,7 @@ namespace
     {
         auto img = Image4f::create(closest_id.size);
 
-        for (std::size_t i=0;i<closest_id.pixels.size();++i) {
+        for (size_t i=0;i<closest_id.pixels.size();++i) {
             const auto id = closest_id.pixels[i];
             if (id >= 0) {
                 img.pixels[i] = region_stats[id].mean();
