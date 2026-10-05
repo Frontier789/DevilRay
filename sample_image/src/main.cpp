@@ -27,9 +27,13 @@ namespace
         std::vector<Vec2i> points;
         points.reserve(point_count);
 
+        t = Timer();
+
         for (int i=0;i<point_count;++i) {
             points.push_back(sample(alias_table_view, rng).pixel_coordinate);
         }
+
+        std::cout << "Sampled " << point_count << " in " << t.elapsedSeconds()*1000 << "ms" << std::endl;
 
         return points;
     }
@@ -267,8 +271,10 @@ int main(int argc, char *argv[])
 
     if (options.sample_details)
     {
+        const auto black = Vec4{0,0,0,1};
+
         Timer t;
-        const auto det = scale_up_to(set_frame(blur(details(scale_down(image,2))), 3, Vec4{0,0,0,1}),image.size);
+        const auto det = scale_up_to(set_frame(blur(details(scale_down(image,2))), 3, black), image.size);
         luminance = intensity(det);
 
         std::cout << "Extracting details took " << t.elapsedSeconds()*1000 << "ms" << std::endl;
