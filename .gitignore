@@ -18,5 +18,5 @@ test_output
 **/*.blend[0-9]
 
 # Images in the root
-*.png
-*.jpg
+/*.png
+/*.jpg
