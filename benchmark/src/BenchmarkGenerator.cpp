@@ -3,10 +3,10 @@
 BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
 {
     auto randStates = CudaRandom(ray_count);
-    auto tris = GpuTris{convertMeshToTris(mesh, false)};
+    auto tris = TriangleMesh{convertMeshToTris(mesh, false)};
 
     auto stats = DeviceArray<benchmark::HitTests>(ray_count, benchmark::HitTests{});
-    auto gpu_tris = viewGpuTris(tris);
+    auto gpu_tris = tris.view();
     const auto bounds = calculateMeshBounds(mesh);
 
     stats.ensureDeviceAllocation();

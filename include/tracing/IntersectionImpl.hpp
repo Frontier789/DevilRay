@@ -123,7 +123,7 @@ constexpr int farChild(const Ray& ray, uint32_t depth, int current_node, const B
 
 template<Benchmark B>
 HD void intersectTris(
-    const Ray &ray_model, const TriangleMesh &mesh,
+    const Ray &ray_model, const TriangleMeshView &mesh,
     int tris_begin, int tris_end,
     MeshHit &best,
     B &benchmark
@@ -152,7 +152,7 @@ HD void intersectTris(
 }
 
 template<Benchmark B>
-HD MeshHit intersectMeshImpl(const Ray &ray_world, const TriangleMesh &mesh, B &benchmark)
+HD MeshHit intersectMeshImpl(const Ray &ray_world, const TriangleMeshView &mesh, B &benchmark)
 {
     auto best = MeshHit::missed();
     
@@ -229,14 +229,14 @@ HD MeshHit intersectMeshImpl(const Ray &ray_world, const TriangleMesh &mesh, B &
     return best;
 }
 
-HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMesh &mesh)
+HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMeshView &mesh)
 {
     benchmark::Skip skip_benchmarks;
     return intersectMeshImpl(ray_world, mesh, skip_benchmarks);
 }
 
 template<Benchmark B>
-HD SceneHit intersectSceneImpl(const Ray &ray_world, const std::span<const TriangleMesh> &meshes, B &benchmark)
+HD SceneHit intersectSceneImpl(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes, B &benchmark)
 {
     auto best = SceneHit::missed();
 
@@ -257,19 +257,19 @@ HD SceneHit intersectSceneImpl(const Ray &ray_world, const std::span<const Trian
     return best;
 }
 
-HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMesh> &meshes)
+HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes)
 {
     benchmark::Skip skip_benchmarks;
     return intersectSceneImpl(ray_world, meshes, skip_benchmarks);
 }
 
-HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMesh> &meshes, benchmark::HitTests &benchmark)
+HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes, benchmark::HitTests &benchmark)
 {
     return intersectSceneImpl(ray_world, meshes, benchmark);
 }
 
 template<Benchmark B>
-HD bool occludedSceneImpl(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects, B &benchmark)
+HD bool occludedSceneImpl(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects, B &benchmark)
 {
     const auto distance = (p1 - p0).length();
     const auto v = (p1 - p0) / distance;
@@ -282,13 +282,13 @@ HD bool occludedSceneImpl(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> object
     return hit.t < distance - 1e-5 * 2;
 }
 
-HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects)
+HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects)
 {
     benchmark::Skip skip_benchmarks;
     return occludedSceneImpl(p0, p1, objects, skip_benchmarks);
 }
 
-HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects, benchmark::HitTests &benchmark)
+HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects, benchmark::HitTests &benchmark)
 {
     return occludedSceneImpl(p0, p1, objects, benchmark);
 }

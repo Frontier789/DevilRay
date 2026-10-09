@@ -51,16 +51,34 @@ struct AliasEntry
     int B;
 };
 
-struct AliasTable
-{
-    DeviceArray<AliasEntry> entries;
-};
-
 struct AliasTableView
 {
     const AliasEntry *entries;
 
     int entry_count;
+};
+
+struct AliasTable
+{
+    DeviceArray<AliasEntry> entries;
+
+    AliasTableView view()
+    {
+        entries.ensureDeviceAllocation();
+
+        return AliasTableView{
+            .entries = entries.devicePtr(),
+            .entry_count = static_cast<int>(entries.size()),
+        };
+    }
+
+    AliasTableView hostView() const
+    {
+        return AliasTableView{
+            .entries = entries.hostPtr(),
+            .entry_count = static_cast<int>(entries.size()),
+        };
+    }
 };
 
 struct AliasSample
@@ -97,20 +115,41 @@ HD AliasSample sample(const AliasTableView &table, Rng &rng)
 
 AliasTable generateAliasTable(std::span<const float> importances);
 
-struct AliasImageTable
-{
-    DeviceArray<AliasEntry> pixel_entries;
-    DeviceArray<AliasEntry> row_entries;
-
-    Size2i image_size;
-};
-
 struct AliasImageTableView
 {
     const AliasEntry *pixel_entries;
     const AliasEntry *row_entries;
 
     Size2i image_size;
+};
+
+struct AliasImageTable
+{
+    DeviceArray<AliasEntry> pixel_entries;
+    DeviceArray<AliasEntry> row_entries;
+
+    Size2i image_size;
+
+    AliasImageTableView view()
+    {
+        pixel_entries.ensureDeviceAllocation();
+        row_entries.ensureDeviceAllocation();
+
+        return AliasImageTableView{
+            .pixel_entries = pixel_entries.devicePtr(),
+            .row_entries = row_entries.devicePtr(),
+            .image_size = image_size,
+        };
+    }
+
+    AliasImageTableView hostView() const
+    {
+        return AliasImageTableView{
+            .pixel_entries = pixel_entries.hostPtr(),
+            .row_entries = row_entries.hostPtr(),
+            .image_size = image_size,
+        };
+    }
 };
 
 struct AliasImageSample

@@ -23,7 +23,7 @@
 #include "tracing/Material.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/LightSampling.hpp"
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "models/Mesh.hpp"
 
 template<typename DrawCallback>

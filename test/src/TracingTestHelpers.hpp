@@ -56,7 +56,7 @@ namespace test
         }
     };
 
-    // Owns a mesh and its acceleration structure, and exposes a TriangleMesh whose
+    // Owns a mesh and its acceleration structure, and exposes a TriangleMeshView whose
     // pointers reference host memory so the intersection code runs on the CPU.
     struct HostObject
     {
@@ -66,19 +66,19 @@ namespace test
         Transform transform{};
         int material = 0;
 
-        TriangleMesh view()
+        TriangleMeshView hostView()
         {
-            TriangleMesh object{};
+            TriangleMeshView object{};
             object.points = mesh.points.data();
             object.normals = mesh.normals.data();
             object.triangles = mesh.triangles.data();
             object.triangle_count = static_cast<int>(mesh.triangles.size());
             object.model_to_world = transform;
             object.material = material;
-            object.triangle_sampler = triangle_sampler.entries.hostPtr();
+            object.triangle_sampler = triangle_sampler.hostView();
             object.surface_area = 0;
             object.base_surface_area = 0;
-            object.bbh = BBHGpuView{std::span<const BBHNode>{bbh.nodes.hostPtr(), bbh.nodes.size()}};
+            object.bbh = bbh.hostView();
             return object;
         }
     };

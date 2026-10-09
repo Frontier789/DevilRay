@@ -136,7 +136,7 @@ TEST(BarycentricCoordinatesTest, GoesNegativeOutsideTriangle)
 TEST(SurfaceNormalTest, PicksVertexNormalAtEachVertex)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{0, 0, 0}), kNormalA);
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{1, 0, 0}), kNormalB);
@@ -148,7 +148,7 @@ TEST(SurfaceNormalTest, PicksVertexNormalAtEachVertex)
 TEST(SurfaceNormalTest, BlendsVertexNormalsAtCentroid)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const float k = 1.0f / std::sqrt(3.0f);
     expectVec3Near(
@@ -159,7 +159,7 @@ TEST(SurfaceNormalTest, BlendsVertexNormalsAtCentroid)
 TEST(SurfaceNormalTest, IsAlwaysNormalized)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     for (float u = 0.0f; u <= 1.0f; u += 0.125f)
     {
@@ -176,7 +176,7 @@ TEST(SurfaceNormalTest, IsAlwaysNormalized)
 TEST(SurfaceNormalTest, FlipsInterpolatedNormalTowardIncomingRay)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const Vec3 rayFromBelow{0, 0, 1};
     const Vec3 hit{1 / 3.0f, 1 / 3.0f, 0};
@@ -191,7 +191,7 @@ TEST(SurfaceNormalTest, ConstantVertexNormalsReproduceFaceNormal)
 {
     const Vec3 flat{0, 0, 1};
     HostObject object = makeHostObject(smoothTriangleMesh(flat, flat, flat));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{0.25f, 0.25f, 0}), flat);
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{0, 1, 0}), flat);
@@ -204,7 +204,7 @@ TEST(SurfaceNormalTest, AppliesInverseScaleToInterpolatedNormal)
     const Vec3 tilted = Vec3{1, 0, 1}.normalized();
     HostObject object = makeHostObject(smoothTriangleMesh(tilted, tilted, tilted));
     object.transform = Transform{.s = {2, 1, 1}, .p = {0, 0, 0}};
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     // Centroid of the scaled triangle A(0,0,0) B(2,0,0) C(0,1,0).
     const Vec3 hit{2 / 3.0f, 1 / 3.0f, 0};
@@ -219,7 +219,7 @@ TEST(SurfaceNormalTest, UsesWorldSpaceHitUnderTranslation)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
     object.transform = Transform{.s = {1, 1, 1}, .p = {10, -3, 0}};
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{10, -3, 0}), kNormalA);
     expectVec3Near(surfaceNormal(mesh, 0, kRayFromAbove, Vec3{11, -3, 0}), kNormalB);
@@ -231,7 +231,7 @@ TEST(SurfaceNormalTest, UsesWorldSpaceHitUnderTranslation)
 TEST(SurfaceNormalTest, MatchesInterpolationAtMeshHitPoint)
 {
     HostObject object = makeHostObject(smoothTriangleMesh(kNormalA, kNormalB, kNormalC));
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const Ray ray{.p = {0.5f, 0.25f, 4}, .v = {0, 0, -1}};
     const auto hit = intersectMesh(ray, mesh);

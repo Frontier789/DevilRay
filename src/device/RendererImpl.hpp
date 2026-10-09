@@ -58,22 +58,11 @@ void Renderer::scheduleDeviceRender()
 
     const auto objects = m_scene.objects.deviceSpan();
     const auto materials = m_scene.materials.deviceSpan();
-    const auto light_table = m_light_sampler.entries.deviceSpan();
+    const auto light_table = m_light_sampler.view();
 
-    WavefrontDataDevice wavefront{
-        .rays = m_wavefront.rays.devicePtr(),
-        .current_mat = m_wavefront.current_mat.devicePtr(),
-        .sort_index = m_wavefront.sort_index.devicePtr(),
-    };
-    PathVertexDataDevice vertex{
-        .t = m_pathVertices.t.devicePtr(),
-        .bsdfPdfPrev = m_pathVertices.bsdfPdfPrev.devicePtr(),
-        .throughput = m_pathVertices.throughput.devicePtr(),
-        .prevSpecular = m_pathVertices.prevSpecular.devicePtr(),
-        .ids = m_pathVertices.ids.devicePtr(),
-        .alive = m_pathVertices.alive.devicePtr(),
-    };
-    RenderBuffersDevice output{
+    const auto wavefront = m_wavefront.view();
+    const auto vertex = m_pathVertices.view();
+    RenderBuffersView output{
         .colors = m_buffers.color.devicePtr(),
         .resolution = m_resolution,
     };

@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "DebugOptions.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "models/BBH.hpp"

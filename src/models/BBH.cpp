@@ -114,12 +114,19 @@ BBH generateSimpleBBH(Mesh &mesh)
     };
 }
 
-BBHGpuView createBBHGpuView(BBH &bbh)
+BBHView BBH::view()
 {
-    bbh.nodes.ensureDeviceAllocation();
+    nodes.ensureDeviceAllocation();
 
-    return BBHGpuView{
-        .nodes = bbh.nodes.deviceSpan()
+    return BBHView{
+        .nodes = nodes.deviceSpan()
+    };
+}
+
+BBHView BBH::hostView() const
+{
+    return BBHView{
+        .nodes = std::span<const BBHNode>{nodes.hostPtr(), nodes.size()}
     };
 }
 

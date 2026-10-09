@@ -28,7 +28,7 @@ constexpr float VACUUM_IOR = 1.0f;
 HD Vec4 checkerPattern(const Vec2f &uv, int checker_count, Vec4 dark, Vec4 bright);
 
 __global__ void initPaths(
-    PathVertexDataDevice vertex, int path_count
+    PathVertexDataView vertex, int path_count
 )
 {
     const int idx = KERNEL_IDX(path_count);
@@ -40,7 +40,7 @@ __global__ void initPaths(
 }
 
 __global__ void initCameraRays(
-    WavefrontDataDevice wavefront,
+    WavefrontDataView wavefront,
     PixelSampling pixel_sampling,
     Camera camera,
     curandState *rand_states
@@ -61,9 +61,9 @@ __global__ void initCameraRays(
 }
 
 __global__ void extendPaths(
-    WavefrontDataDevice wavefront,
-    PathVertexDataDevice vertex,
-    std::span<const TriangleMesh> objects,
+    WavefrontDataView wavefront,
+    PathVertexDataView vertex,
+    std::span<const TriangleMeshView> objects,
     int *alive_count,
     uint32_t *casts,
     int depth
@@ -162,10 +162,10 @@ inline HD Vec3 reflectOrRefractRay(
 }
 
 __global__ void sampleBsdfDirection(
-    PathVertexDataDevice vertex,
-    WavefrontDataDevice wavefront,
+    PathVertexDataView vertex,
+    WavefrontDataView wavefront,
     curandState *rand_states,
-    std::span<const TriangleMesh> objects,
+    std::span<const TriangleMeshView> objects,
     std::span<const Material> materials,
     int *alive_count
 )
@@ -218,18 +218,18 @@ __global__ void sampleBsdfDirection(
 // // // // // // SHADE // // // // // // 
 
 inline HD void shadeDiffuseMaterial(
-    PathVertexDataDevice vertex,
-    WavefrontDataDevice wavefront,
+    PathVertexDataView vertex,
+    WavefrontDataView wavefront,
     const TriangleIdentifier &ids,
     const Material &material,
     int idx,
-    const TriangleMesh &object,
+    const TriangleMeshView &object,
     CudaRng &rng,
-    std::span<const TriangleMesh> objects,
+    std::span<const TriangleMeshView> objects,
     std::span<const Material> materials,
-    std::span<const AliasEntry> light_table,
+    AliasTableView light_table,
     ObjectsInfo info,
-    RenderBuffersDevice output
+    RenderBuffersView output
 )
 {
     const auto &ray = wavefront.rays[idx];
@@ -265,15 +265,15 @@ inline HD void shadeDiffuseMaterial(
 }
 
 __global__ void shade(
-    PathVertexDataDevice vertex,
-    WavefrontDataDevice wavefront,
+    PathVertexDataView vertex,
+    WavefrontDataView wavefront,
     curandState *rand_states,
-    std::span<const TriangleMesh> objects,
+    std::span<const TriangleMeshView> objects,
     std::span<const Material> materials,
-    std::span<const AliasEntry> light_table,
+    AliasTableView light_table,
     int *alive_count,
     ObjectsInfo info,
-    RenderBuffersDevice output
+    RenderBuffersView output
 )
 {
     const int thread_idx = KERNEL_IDX(*alive_count);
@@ -301,13 +301,13 @@ __global__ void shade(
 }
 
 __global__ void debugShade(
-    PathVertexDataDevice vertex,
-    WavefrontDataDevice wavefront,
-    std::span<const TriangleMesh> objects,
+    PathVertexDataView vertex,
+    WavefrontDataView wavefront,
+    std::span<const TriangleMeshView> objects,
     std::span<const Material> materials,
     DebugOptions debug,
     int *alive_count,
-    RenderBuffersDevice output
+    RenderBuffersView output
 )
 {
     int idx = KERNEL_IDX(*alive_count);

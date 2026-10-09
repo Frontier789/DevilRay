@@ -2,7 +2,6 @@
 
 #include "tracing/Material.hpp"
 #include "tracing/TriangleMesh.hpp"
-#include "tracing/GpuTris.hpp"
 #include "device/Vector.hpp"
 
 #include <list>
@@ -19,9 +18,9 @@ struct Scene
 
     ObjectsInfo info;
 
-    DeviceVector<TriangleMesh> objects{{}};
+    DeviceVector<TriangleMeshView> objects{{}};
     DeviceVector<Material> materials{{}};
 
-    std::list<GpuTris> mesh_storage;
+    std::list<TriangleMesh> mesh_storage;
 };
 

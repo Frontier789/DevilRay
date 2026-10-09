@@ -72,8 +72,8 @@ When adding tests:
   directly on the CPU without any GPU scaffolding. Prefer that.
 - `test/src/TracingTestHelpers.hpp` has the shared fixtures: `Vec3`/`Vec4` near-comparisons,
   a deterministic RNG, a scripted RNG that replays fixed values, small hand-built meshes,
-  and `HostObject`, which owns a mesh plus its BBH and hands out a `TriangleMesh` view
-  whose pointers reference host memory.
+  and `HostObject`, which owns a mesh plus its BBH and hands out a `TriangleMeshView`
+  (via `hostView()`) whose pointers reference host memory.
 - A CTest entry reported as **Not Run** means its binary failed to build — CTest still
   prints a pass percentage for the rest, so a broken target can hide in a green-looking
   summary. Treat the build log as the source of truth.
@@ -124,6 +124,14 @@ the header, raw CUDA in the shim.
 
 Wrap CUDA calls with `CUDA_ERROR_CHECK()` (`include/device/DevUtils.hpp`).
 
+Anything that owns device memory follows the **owner / `View`** pattern: `Foo` is the CPU
+object (owns the containers above, may cache derived data) and `FooView` is a plain
+trivially-copyable struct of non-owning pointers that is safe to pass to any kernel.
+`Foo::view()` uploads whatever is still missing and returns the device view;
+`Foo::hostView()` (where CPU code needs one) returns the same shape over host pointers
+without touching CUDA. Pairs: `AliasTable`, `AliasImageTable`, `BBH`, `TriangleMesh`,
+`PathVertexData`, `WavefrontData`, `RenderBuffers`, `Image`.
+
 ### Render loop
 
 `Renderer` (`include/Renderer.hpp`) is the orchestrator. Its setters are mutex-guarded
@@ -142,8 +150,8 @@ looping to `Buffers::maxPathLength`:
 Per-path state is **structure-of-arrays** across `DeviceBuffer`s — `PathVertexData`
 (`include/tracing/Path.hpp`: `t`, throughput, previous BSDF pdf, specular flag, hit ids,
 alive flag) and `WavefrontData` (`include/tracing/Wavefront.hpp`: rays, current material,
-sort index). Each struct has a mirrored `...Device` plain-pointer view that is what actually
-gets passed to kernels.
+sort index). Each struct has a mirrored `...View` plain-pointer view, produced by `view()`,
+that is what actually gets passed to kernels.
 
 Between bounces, `DeviceBinning` (`include/device/Binning.hpp`, `src/device/Binning.cu`)
 uses CUB stream compaction to gather still-alive paths into `sort_index`, so later kernels
@@ -160,17 +168,18 @@ then a triangle within the mesh, then a point on that triangle. Materials are a
 
 ### Geometry & acceleration
 
-`Mesh` (host, `include/models/Mesh.hpp`) → `GpuTris` (device-resident triangle data, owned
-by `Scene::mesh_storage` as a `std::list` so device pointers stay stable) → `TriangleMesh`
-(the GPU view: raw `points`/`normals`/`triangles` pointers, `model_to_world` `Transform`,
-material index, per-triangle alias sampler, and a `BBHGpuView`). A `TriangleMesh` holds
+`Mesh` (host, `include/models/Mesh.hpp`) → `TriangleMesh` (device-resident triangle data,
+owned by `Scene::mesh_storage` as a `std::list` so device pointers stay stable) →
+`TriangleMeshView` (the GPU view from `TriangleMesh::view()`: raw
+`points`/`normals`/`triangles` pointers, `model_to_world` `Transform`, material index, an
+`AliasTableView` over triangle areas, and a `BBHView`). A `TriangleMeshView` holds
 **pointers into** that storage, which must outlive it.
 
 `BBH` (`include/models/BBH.hpp`, `src/models/BBH.cpp`) is the bounding-box hierarchy; nodes
 carry `left_child`/`right_child` plus `parent_index`. `generateSimpleBBH` builds it — note
 it **reorders the mesh's triangles**, so anything derived from triangle order (such as an
-area-weighted sampler) must be built afterwards. `createBBHGpuView` exposes nodes to the
-GPU; `getBoxesOnDepth` feeds the bbox viewer.
+area-weighted sampler) must be built afterwards. `BBH::view()` exposes nodes to the GPU;
+`getBoxesOnDepth` feeds the bbox viewer.
 
 Intersection entry points are declared in `include/tracing/Intersection.hpp`
 (`intersectTriangle`, `intersectMesh`, `intersectScene`, `occludedScene`) and return small

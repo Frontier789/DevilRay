@@ -103,7 +103,7 @@ void Application::createWindow()
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 }
 
-GpuTris loadMeshAndPrint(const std::string &file)
+TriangleMesh loadMeshAndPrint(const std::string &file)
 {
     auto mesh = loadMesh(file);
     normalizeMeshSize(mesh);

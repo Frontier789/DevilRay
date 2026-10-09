@@ -8,7 +8,7 @@
 #include "TracingTestHelpers.hpp"
 
 #include "tracing/IntersectionImpl.hpp"
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/CameraRay.hpp"
 #include "device/Array.hpp"
@@ -135,56 +135,33 @@ TEST(ReflectOrRefractRayTest, TotalInternalReflectionAtGrazingExit)
 // Device-resident scene: owns the GPU triangle storage and exposes it as a span.
 struct DeviceScene
 {
-    GpuTris tris;
-    TriangleMesh host_view;
-    DeviceBuffer<TriangleMesh> objects;
+    TriangleMesh tris;
+    TriangleMeshView host_view;
+    DeviceBuffer<TriangleMeshView> objects;
 
-    std::span<const TriangleMesh> span() { return objects.deviceSpan(); }
+    std::span<const TriangleMeshView> span() { return objects.deviceSpan(); }
 };
 
 namespace
 {
-    PathVertexDataDevice deviceView(PathVertexData &p)
-    {
-        return PathVertexDataDevice{
-            .t = p.t.devicePtr(), .bsdfPdfPrev = p.bsdfPdfPrev.devicePtr(),
-            .throughput = p.throughput.devicePtr(), .prevSpecular = p.prevSpecular.devicePtr(),
-            .ids = p.ids.devicePtr(), .alive = p.alive.devicePtr()};
-    }
-
-    WavefrontDataDevice deviceView(WavefrontData &w)
-    {
-        return WavefrontDataDevice{.rays = w.rays.devicePtr(), .current_mat = w.current_mat.devicePtr(),
-                                   .sort_index = w.sort_index.devicePtr()};
-    }
-
-    RenderBuffersDevice deviceView(RenderBuffers &o, Size2i resolution)
-    {
-        return RenderBuffersDevice{.colors = o.colors.devicePtr(), .resolution = resolution};
-    }
-
     // Uploads a mesh (with per-triangle light sampler) to the device and keeps
     // the backing storage alive for as long as the returned object lives.
     DeviceScene uploadScene(Mesh mesh, int material)
     {
-        GpuTris tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/true);
-        TriangleMesh view = viewGpuTris(tris);
+        TriangleMesh tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/true);
+        TriangleMeshView view = tris.view();
         view.material = material;
         view.model_to_world = Transform{.s = {1, 1, 1}, .p = {0, 0, 0}};
 
-        auto objects = DeviceBuffer<TriangleMesh>::allocate(1);
-        objects.deviceData.copyFromHost(&view, sizeof(TriangleMesh));
+        auto objects = DeviceBuffer<TriangleMeshView>::allocate(1);
+        objects.deviceData.copyFromHost(&view, sizeof(TriangleMeshView));
 
         return DeviceScene{.tris = std::move(tris), .host_view = view, .objects = std::move(objects)};
     }
 
-    // Device-resident, uniformly weighted alias table over `objectCount` lights.
-    DeviceBuffer<AliasEntry> uploadLightTable(int objectCount)
+    AliasTable makeUniformLightTable(int objectCount)
     {
-        AliasTable table = generateAliasTable(std::vector<float>(objectCount, 1.0f));
-        const std::vector<AliasEntry> entries(table.entries.hostPtr(),
-                                              table.entries.hostPtr() + table.entries.size());
-        return deviceBufferFrom(entries);
+        return generateAliasTable(std::vector<float>(objectCount, 1.0f));
     }
 
     void syncDevice()
@@ -262,9 +239,9 @@ namespace
 // The prologue mirrors shade's: the launch bound is read from device memory and
 // the lane is reached through the binning pass' compacted sort_index.
 __global__ void callShadeDiffuseMaterial(
-    PathVertexDataDevice vertex, WavefrontDataDevice wavefront, curandState *rand_states,
-    std::span<const TriangleMesh> objects, std::span<const Material> materials,
-    std::span<const AliasEntry> light_table, int *alive_count, ObjectsInfo info, RenderBuffersDevice output)
+    PathVertexDataView vertex, WavefrontDataView wavefront, curandState *rand_states,
+    std::span<const TriangleMeshView> objects, std::span<const Material> materials,
+    AliasTableView light_table, int *alive_count, ObjectsInfo info, RenderBuffersView output)
 {
     const int thread_idx = KERNEL_IDX(*alive_count);
     const int idx = wavefront.sort_index[thread_idx];
@@ -297,7 +274,7 @@ TEST(Kernels, InitPathsSetsInitialState)
         std::vector<float>(N, 0.f), std::vector<Vec4>(N, Vec4{9, 9, 9, 9}),
         std::vector<int>(N, -1), std::vector<float>(N, -1.f));
 
-    initPaths<<<1, N>>>(deviceView(paths), N);
+    initPaths<<<1, N>>>(paths.view(), N);
     syncDevice();
 
     const auto throughput = paths.throughput.toHost();
@@ -329,7 +306,7 @@ TEST(Kernels, InitCameraRaysMatchesHostCameraRay)
                      .sort_index = deviceBufferFrom(std::vector<int>(N, -1))};
     CudaRandom rng(N); // Center sampling ignores the rng, so this stays deterministic.
 
-    initCameraRays<<<1, N>>>(deviceView(wf), PixelSampling::Center, cam, rng.devicePtr());
+    initCameraRays<<<1, N>>>(wf.view(), PixelSampling::Center, cam, rng.devicePtr());
     syncDevice();
 
     const auto rays = wf.rays.toHost();
@@ -365,7 +342,7 @@ TEST(Kernels, ExtendPathsRecordsHitAndMiss)
     DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+    extendPaths<<<1, N>>>(wf.view(), paths.view(), scene.span(),
                           aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/0);
     syncDevice();
 
@@ -405,7 +382,7 @@ TEST(Kernels, ExtendPathsCountsOnlyLivePaths)
     DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+    extendPaths<<<1, N>>>(wf.view(), paths.view(), scene.span(),
                           aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/1);
     syncDevice();
 
@@ -434,7 +411,7 @@ TEST(Kernels, ExtendPathsFollowsCompactedSortIndex)
     DeviceBuffer<uint32_t> casts = deviceBufferFrom(std::vector<uint32_t>(N, 0u));
     DeviceBuffer<int> aliveCount = makeAliveCount(2); // only two live paths
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+    extendPaths<<<1, N>>>(wf.view(), paths.view(), scene.span(),
                           aliveCount.devicePtr(), casts.devicePtr(), /*depth=*/1);
     syncDevice();
 
@@ -467,7 +444,7 @@ TEST(Kernels, SampleBsdfDiffuseScattersIntoHemisphere)
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
-    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
+    sampleBsdfDirection<<<1, N>>>(paths.view(), wf.view(), rng.devicePtr(), scene.span(),
                                   materials.deviceSpan(), aliveCount.devicePtr());
     syncDevice();
 
@@ -505,7 +482,7 @@ TEST(Kernels, SampleBsdfTransparentMarksSpecular)
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
-    sampleBsdfDirection<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
+    sampleBsdfDirection<<<1, N>>>(paths.view(), wf.view(), rng.devicePtr(), scene.span(),
                                   materials.deviceSpan(), aliveCount.devicePtr());
     syncDevice();
 
@@ -527,7 +504,7 @@ TEST(Kernels, ShadeSkipsDeadAndTransparentHits)
 
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
     DeviceBuffer<Material> materials = deviceBufferFrom(std::vector<Material>{Material{glass}});
-    DeviceBuffer<AliasEntry> lightTable = uploadLightTable(1);
+    AliasTable lightTable = makeUniformLightTable(1);
 
     const int N = 2;
     const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
@@ -538,14 +515,14 @@ TEST(Kernels, ShadeSkipsDeadAndTransparentHits)
         std::vector<int>{0, 1}, // lane 0 died on the miss, lane 1 is still alive
         std::vector<float>{0.f, 5.0f}, std::vector<Vec4>(N, Vec4{1, 1, 1, 0}),
         std::vector<int>(N, 0), std::vector<float>(N, 0.f));
-    RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+    RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0})), .resolution = Size2i{N, 1}};
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
     const ObjectsInfo info{.total_radiant_power = 1.0f};
-    shade<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
-                    materials.deviceSpan(), lightTable.deviceSpan(), aliveCount.devicePtr(),
-                    info, deviceView(out, Size2i{N, 1}));
+    shade<<<1, N>>>(paths.view(), wf.view(), rng.devicePtr(), scene.span(),
+                    materials.deviceSpan(), lightTable.view(), aliveCount.devicePtr(),
+                    info, out.view());
     syncDevice();
 
     const auto colors = out.colors.toHost();
@@ -559,7 +536,7 @@ TEST(Kernels, ShadeDiffuseAccumulatesEmission)
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
     DeviceBuffer<Material> materials = deviceBufferFrom(
         std::vector<Material>{Material{diffuse(/*reflectance=*/{0.5f, 0.5f, 0.5f, 0}, emission)}});
-    DeviceBuffer<AliasEntry> lightTable = uploadLightTable(1);
+    AliasTable lightTable = makeUniformLightTable(1);
 
     const int N = 1;
     WavefrontData wf = makeWavefront(std::vector<Ray>{Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}},
@@ -570,14 +547,14 @@ TEST(Kernels, ShadeDiffuseAccumulatesEmission)
         std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{1, 1, 1, 0}},
         std::vector<int>{1},     // prevSpecular: count emission directly (no MIS weight)
         std::vector<float>{0.f});
-    RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+    RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0})), .resolution = Size2i{N, 1}};
     DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
     CudaRandom rng(N);
     const ObjectsInfo info{.total_radiant_power = 1.0f};
-    callShadeDiffuseMaterial<<<1, N>>>(deviceView(paths), deviceView(wf), rng.devicePtr(), scene.span(),
-                                       materials.deviceSpan(), lightTable.deviceSpan(),
-                                       aliveCount.devicePtr(), info, deviceView(out, Size2i{N, 1}));
+    callShadeDiffuseMaterial<<<1, N>>>(paths.view(), wf.view(), rng.devicePtr(), scene.span(),
+                                       materials.deviceSpan(), lightTable.view(),
+                                       aliveCount.devicePtr(), info, out.view());
     syncDevice();
 
     // prevSpecular contributes raw emission; NEE can only add non-negative light.
@@ -606,11 +583,11 @@ TEST(Kernels, DebugShadeColorsFirstHit)
             std::vector<int>{hit ? 1 : 0},
             std::vector<float>{5.0f}, std::vector<Vec4>{Vec4{0, 0, 0, 0}},
             std::vector<int>{0}, std::vector<float>{0.f});
-        RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0}))};
+        RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0})), .resolution = Size2i{N, 1}};
         DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-        debugShade<<<1, N>>>(deviceView(paths), deviceView(wf), scene.span(), materials.deviceSpan(),
-                             mode, aliveCount.devicePtr(), deviceView(out, Size2i{N, 1}));
+        debugShade<<<1, N>>>(paths.view(), wf.view(), scene.span(), materials.deviceSpan(),
+                             mode, aliveCount.devicePtr(), out.view());
         syncDevice();
         return out.colors.toHost()[0];
     };
@@ -776,7 +753,7 @@ TEST(DeviceBinningTest, DrivesExtendPathsOverLiveLanesOnly)
     DeviceBinning binning = DeviceBinning::create(N);
     binning.execute(paths.alive.devicePtr(), wf.sort_index.devicePtr());
 
-    extendPaths<<<1, N>>>(deviceView(wf), deviceView(paths), scene.span(),
+    extendPaths<<<1, N>>>(wf.view(), paths.view(), scene.span(),
                           binning.num_selected.devicePtr(), casts.devicePtr(), /*depth=*/2);
     syncDevice();
 
@@ -793,22 +770,110 @@ TEST(DeviceBinningTest, DrivesExtendPathsOverLiveLanesOnly)
 }
 
 // ==========================================================================
-// GpuTris device view: viewGpuTris allocates the mesh on the device, so it
-// belongs with the GPU tests rather than the host-only scene tests.
+// Device views: view() uploads the owning object and hands back plain pointers,
+// so these belong with the GPU tests rather than the host-only ones.
 // ==========================================================================
 
-TEST(ViewGpuTrisTest, WiresUpDevicePointersAndSurfaceArea)
+TEST(DeviceViews, TriangleMeshViewWiresUpDevicePointersAndSurfaceArea)
 {
-    GpuTris quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
-    const TriangleMesh view = viewGpuTris(quad);
+    TriangleMesh quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
+    const TriangleMeshView view = quad.view();
 
     EXPECT_EQ(view.triangle_count, 2);
-    EXPECT_NE(view.points, nullptr);
-    EXPECT_NE(view.normals, nullptr);
-    EXPECT_NE(view.triangles, nullptr);
-    EXPECT_NE(view.triangle_sampler, nullptr);
+    EXPECT_EQ(view.points, quad.points.devicePtr());
+    EXPECT_EQ(view.normals, quad.normals.devicePtr());
+    EXPECT_EQ(view.triangles, quad.triangles.devicePtr());
+    EXPECT_EQ(view.triangle_sampler.entries, quad.triangle_sampler.entries.devicePtr());
+    EXPECT_EQ(view.triangle_sampler.entry_count, 2);
     EXPECT_FALSE(view.bbh.isEmpty());
 
     EXPECT_NEAR(view.base_surface_area, 4.0f, 1e-5f);
     EXPECT_FLOAT_EQ(view.surface_area, view.base_surface_area);
+}
+
+TEST(DeviceViews, AliasTableViewPointsAtUploadedEntries)
+{
+    AliasTable table = generateAliasTable(std::vector<float>{1.0f, 3.0f});
+    const AliasEntry expectedFirst = table.entries.hostPtr()[0];
+
+    const AliasTableView view = table.view();
+
+    EXPECT_EQ(view.entry_count, 2);
+    ASSERT_NE(view.entries, nullptr);
+    EXPECT_EQ(view.entries, table.entries.devicePtr());
+
+    table.entries.hostPtr()[0] = AliasEntry{.p_A = -1, .pdf_A = -1, .pdf_B = -1, .A = -1, .B = -1};
+    table.entries.updateHostData();
+    EXPECT_FLOAT_EQ(table.entries.hostPtr()[0].p_A, expectedFirst.p_A);
+    EXPECT_EQ(table.entries.hostPtr()[0].A, expectedFirst.A);
+}
+
+TEST(DeviceViews, AliasImageTableViewPointsAtUploadedEntries)
+{
+    const Size2i size{4, 2};
+    auto luminance = Image1f::create(size, 1.0f);
+    AliasImageTable table = generateAliasTable(luminance.view());
+
+    const AliasImageTableView view = table.view();
+
+    EXPECT_EQ(view.image_size.width, size.width);
+    EXPECT_EQ(view.image_size.height, size.height);
+    EXPECT_EQ(view.pixel_entries, table.pixel_entries.devicePtr());
+    EXPECT_EQ(view.row_entries, table.row_entries.devicePtr());
+    EXPECT_NE(view.pixel_entries, nullptr);
+    EXPECT_NE(view.row_entries, nullptr);
+}
+
+TEST(DeviceViews, BBHViewPointsAtUploadedNodes)
+{
+    Mesh mesh = test::squareMeshXY(1.0f);
+    BBH bbh = generateSimpleBBH(mesh);
+
+    const BBHView view = bbh.view();
+
+    EXPECT_EQ(view.nodes.data(), bbh.nodes.devicePtr());
+    EXPECT_EQ(view.nodes.size(), bbh.nodes.size());
+    EXPECT_FALSE(view.isEmpty());
+}
+
+TEST(DeviceViews, PathVertexDataViewExposesEveryBuffer)
+{
+    PathVertexData paths = makePaths(
+        std::vector<TriangleIdentifier>{NO_HIT}, std::vector<int>{0}, std::vector<float>{0.f},
+        std::vector<Vec4>{Vec4{1, 1, 1, 0}}, std::vector<int>{0}, std::vector<float>{0.f});
+
+    const PathVertexDataView view = paths.view();
+
+    EXPECT_EQ(view.t, paths.t.devicePtr());
+    EXPECT_EQ(view.bsdfPdfPrev, paths.bsdfPdfPrev.devicePtr());
+    EXPECT_EQ(view.throughput, paths.throughput.devicePtr());
+    EXPECT_EQ(view.prevSpecular, paths.prevSpecular.devicePtr());
+    EXPECT_EQ(view.ids, paths.ids.devicePtr());
+    EXPECT_EQ(view.alive, paths.alive.devicePtr());
+}
+
+TEST(DeviceViews, WavefrontDataViewExposesEveryBuffer)
+{
+    WavefrontData wavefront = makeWavefront(
+        std::vector<Ray>{Ray{.p = {0, 0, 0}, .v = {0, 0, 1}}}, std::vector<int>{VACUUM_MAT});
+
+    const WavefrontDataView view = wavefront.view();
+
+    EXPECT_EQ(view.rays, wavefront.rays.devicePtr());
+    EXPECT_EQ(view.current_mat, wavefront.current_mat.devicePtr());
+    EXPECT_EQ(view.sort_index, wavefront.sort_index.devicePtr());
+}
+
+TEST(DeviceViews, RenderBuffersViewCarriesResolution)
+{
+    RenderBuffers buffers{
+        .colors = deviceBufferFrom(std::vector<Vec4>(6, Vec4{0, 0, 0, 0})),
+        .resolution = Size2i{3, 2},
+    };
+
+    const RenderBuffersView view = buffers.view();
+
+    EXPECT_EQ(view.colors, buffers.colors.devicePtr());
+    EXPECT_EQ(view.resolution.width, 3);
+    EXPECT_EQ(view.resolution.height, 2);
 }

@@ -1,6 +1,6 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 
 namespace
 {
-    // GpuTris is move-only and has no default constructor, so a small unit cube
+    // TriangleMesh is move-only and has no default constructor, so a small unit cube
     // mesh is produced fresh for each test that needs one.
     Mesh tetrahedronMesh()
     {
@@ -25,7 +25,7 @@ namespace
         return mesh;
     }
 
-    float meshSurfaceArea(const GpuTris &tris)
+    float meshSurfaceArea(const TriangleMesh &tris)
     {
         float total = 0;
         const auto *points = tris.points.hostPtr();
@@ -42,7 +42,7 @@ TEST(ConvertMeshToTrisTest, CopiesGeometryAndBuildsStructures)
     const size_t pointCount = mesh.points.size();
     const size_t triangleCount = mesh.triangles.size();
 
-    GpuTris tris = convertMeshToTris(mesh);
+    TriangleMesh tris = convertMeshToTris(mesh);
 
     EXPECT_EQ(tris.points.size(), pointCount);
     EXPECT_EQ(tris.triangles.size(), triangleCount);
@@ -53,13 +53,13 @@ TEST(ConvertMeshToTrisTest, CopiesGeometryAndBuildsStructures)
 TEST(ConvertMeshToTrisTest, SkipsSamplerWhenDisabled)
 {
     Mesh mesh = tetrahedronMesh();
-    GpuTris tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/false);
+    TriangleMesh tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/false);
     EXPECT_EQ(tris.triangle_sampler.entries.size(), 0u);
 }
 
 TEST(CreateQuadMeshTest, ProducesAxisAlignedSquare)
 {
-    GpuTris quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
+    TriangleMesh quad = createQuadMesh(Vec3{0, 0, 0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 2.0f);
 
     ASSERT_EQ(quad.points.size(), 4u);
     ASSERT_EQ(quad.triangles.size(), 2u);

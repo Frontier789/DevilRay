@@ -1,5 +1,5 @@
 #include "Utils.hpp"
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include "DebugOptions.hpp"
 #include "tracing/PixelSampling.hpp"
 #include "Renderer.hpp"
@@ -13,9 +13,9 @@
 
 struct Meshes
 {
-    GpuTris suzanne;
-    GpuTris cube;
-    GpuTris lightPanel;
+    TriangleMesh suzanne;
+    TriangleMesh cube;
+    TriangleMesh lightPanel;
 };
 
 struct OGLObjects

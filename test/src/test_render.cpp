@@ -1,7 +1,7 @@
 #include "Utils.hpp"
 #include "Renderer.hpp"
 
-#include "tracing/GpuTris.hpp"
+#include "tracing/TriangleMesh.hpp"
 #include <gtest/gtest.h>
 #include <stb_image.h>
 
@@ -88,7 +88,7 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     {
         scene.mesh_storage.push_back(createQuadMesh(
             Vec3{0, 0, 1.0}, Vec3{0, 0, -1}, Vec3{1, 0, 0}, 1000.0));
-        auto receiver = viewGpuTris(scene.mesh_storage.back());
+        auto receiver = scene.mesh_storage.back().view();
         receiver.material = white_mat_idx;
         scene.objects.push_back(std::move(receiver));
     }
@@ -98,7 +98,7 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     {
         scene.mesh_storage.push_back(createQuadMesh(
             Vec3{0, 0, -1.0}, Vec3{0, 0, 1}, Vec3{1, 0, 0}, 1000.0));
-        auto source = viewGpuTris(scene.mesh_storage.back());
+        auto source = scene.mesh_storage.back().view();
         source.material = light_mat_idx;
         scene.objects.push_back(std::move(source));
     }
@@ -193,7 +193,7 @@ TEST(RendererTest, DebugRenderSquare) {
     {
         scene.mesh_storage.push_back(createQuadMesh(
             Vec3{0, 0, 1.0}, Vec3{0, 0, -1}, Vec3{1, 0, 0}, 1.0));
-        auto obj = viewGpuTris(scene.mesh_storage.back());
+        auto obj = scene.mesh_storage.back().view();
         obj.material = white_mat_idx;
         scene.objects.push_back(std::move(obj));
     }
@@ -289,8 +289,8 @@ TEST(RendererTest, TriangleSceneRender) {
     }
 
     // 3. Build triangle meshes
-    // GpuTris must stay alive so the device pointers remain valid.
-    std::vector<GpuTris> trisStorage;
+    // TriangleMesh must stay alive so the device pointers remain valid.
+    std::vector<TriangleMesh> trisStorage;
 
     auto addTriangle = [&](const Vec3 &a, const Vec3 &b, const Vec3 &c, int mat_idx) {
         Mesh mesh;
@@ -310,7 +310,7 @@ TEST(RendererTest, TriangleSceneRender) {
         });
 
         trisStorage.push_back(convertMeshToTris(mesh));
-        auto obj = viewGpuTris(trisStorage.back());
+        auto obj = trisStorage.back().view();
         obj.material = mat_idx;
         scene.objects.push_back(std::move(obj));
     };

@@ -155,7 +155,7 @@ TEST(TriangleNormalTest, MagnitudeIsTwiceTriangleArea)
 TEST(MeshIntersectionTest, HitsSingleTriangle)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
     const auto hit = intersectMesh(ray, mesh);
@@ -167,7 +167,7 @@ TEST(MeshIntersectionTest, HitsSingleTriangle)
 TEST(MeshIntersectionTest, MissReturnsInvalid)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const auto hit = intersectMesh(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, mesh);
     EXPECT_FALSE(hit.valid());
@@ -177,7 +177,7 @@ TEST(MeshIntersectionTest, AppliesModelToWorldTranslation)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
     object.transform = Transform{.s = {1, 1, 1}, .p = {10, 0, 0}};
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const Ray ray{.p = {10.2f, 0.2f, 5}, .v = {0, 0, -1}};
     const auto hit = intersectMesh(ray, mesh);
@@ -188,7 +188,7 @@ TEST(MeshIntersectionTest, AppliesModelToWorldTranslation)
 TEST(MeshIntersectionTest, NormalFlipsTowardIncomingRay)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const TriangleMesh mesh = object.view();
+    const TriangleMeshView mesh = object.hostView();
 
     const Ray above{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
     const auto fromAbove = intersectMesh(above, mesh);
@@ -221,7 +221,7 @@ TEST(MeshIntersectionTest, ReturnsClosestOfStackedTriangles)
 
     HostObject object = makeHostObject(std::move(mesh));
     const Ray ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}};
-    const auto hit = intersectMesh(ray, object.view());
+    const auto hit = intersectMesh(ray, object.hostView());
     ASSERT_TRUE(hit.valid());
     EXPECT_NEAR(hit.t, 5.0f, 1e-5f);
     EXPECT_NEAR((ray.p + ray.v * hit.t).z, 0.0f, 1e-5f);
@@ -234,7 +234,7 @@ TEST(MeshIntersectionTest, TraversalMatchesBruteForce)
     const Mesh meshCopy = mesh; // makeHostObject reorders triangles; keep originals for brute force
 
     HostObject object = makeHostObject(std::move(mesh));
-    const TriangleMesh view = object.view();
+    const TriangleMeshView view = object.hostView();
 
     test::DeterministicRng rayRng{7};
     for (int i = 0; i < 25; ++i)
@@ -269,7 +269,7 @@ TEST(SceneIntersectionTest, ReturnsNearestObject)
     far.material = 22;
     far.transform = Transform{.s = {1, 1, 1}, .p = {0, 0, -3}};
 
-    const std::array<TriangleMesh, 2> objects{near.view(), far.view()};
+    const std::array<TriangleMeshView, 2> objects{near.hostView(), far.hostView()};
 
     const auto hit = intersectScene(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, objects);
     ASSERT_TRUE(hit.valid());
@@ -279,7 +279,7 @@ TEST(SceneIntersectionTest, ReturnsNearestObject)
 
 TEST(SceneIntersectionTest, EmptySceneMisses)
 {
-    const auto hit = intersectScene(Ray{.p = {0, 0, 0}, .v = {0, 0, -1}}, std::span<const TriangleMesh>{});
+    const auto hit = intersectScene(Ray{.p = {0, 0, 0}, .v = {0, 0, -1}}, std::span<const TriangleMeshView>{});
     EXPECT_FALSE(hit.valid());
 }
 
@@ -288,7 +288,7 @@ TEST(SceneIntersectionTest, EmptySceneMisses)
 TEST(BenchmarkCountsTest, SingleTriangleHitCountsOneOfEach)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const std::array<TriangleMesh, 1> objects{object.view()};
+    const std::array<TriangleMeshView, 1> objects{object.hostView()};
 
     benchmark::HitTests counts{};
     const auto hit = intersectSceneBenchmark(Ray{.p = {0.2f, 0.2f, 5}, .v = {0, 0, -1}}, objects, counts);
@@ -301,7 +301,7 @@ TEST(BenchmarkCountsTest, SingleTriangleHitCountsOneOfEach)
 TEST(BenchmarkCountsTest, MissingBoxSkipsTriangleTests)
 {
     HostObject object = makeHostObject(unitTriangleMesh());
-    const std::array<TriangleMesh, 1> objects{object.view()};
+    const std::array<TriangleMeshView, 1> objects{object.hostView()};
 
     benchmark::HitTests counts{};
     const auto hit = intersectSceneBenchmark(Ray{.p = {5, 5, 5}, .v = {0, 0, -1}}, objects, counts);
@@ -315,8 +315,8 @@ TEST(BenchmarkCountsTest, HierarchyPrunesTriangleTests)
 {
     test::DeterministicRng rng;
     HostObject object = makeHostObject(scatteredTriangleMesh(rng, 64));
-    const TriangleMesh mesh = object.view();
-    const std::array<TriangleMesh, 1> objects{mesh};
+    const TriangleMeshView mesh = object.hostView();
+    const std::array<TriangleMeshView, 1> objects{mesh};
 
     benchmark::HitTests counts{};
     intersectSceneBenchmark(Ray{.p = {0, 0, 5}, .v = {0, 0, -1}}, objects, counts);
@@ -330,8 +330,8 @@ TEST(BenchmarkCountsTest, SkipAndCountingTraversalAgree)
 {
     test::DeterministicRng rng;
     HostObject object = makeHostObject(scatteredTriangleMesh(rng, 32));
-    const TriangleMesh mesh = object.view();
-    const std::array<TriangleMesh, 1> objects{mesh};
+    const TriangleMeshView mesh = object.hostView();
+    const std::array<TriangleMeshView, 1> objects{mesh};
 
     const Ray ray{.p = {0.3f, -0.2f, 5}, .v = {0, 0, -1}};
     const auto plain = intersectScene(ray, objects);

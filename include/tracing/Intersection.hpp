@@ -41,10 +41,10 @@ struct TriangleVertices
 };
 
 HD TriangleHit intersectTriangle(const Ray &ray_model, const TriangleVertices &triangle);
-HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMesh &mesh);
-HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMesh> &meshes);
-HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMesh> &meshes, benchmark::HitTests &benchmark);
+HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMeshView &mesh);
+HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes);
+HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes, benchmark::HitTests &benchmark);
 
-HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects);
-HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMesh> objects, benchmark::HitTests &benchmark);
+HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects);
+HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects, benchmark::HitTests &benchmark);
 

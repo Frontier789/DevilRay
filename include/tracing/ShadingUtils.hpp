@@ -46,18 +46,17 @@ struct LightSample
 #pragma nv_exec_check_disable
 template<typename Rng>
 HD LightSample samplePointOnLights(
-    std::span<const TriangleMesh> objects,
-    std::span<const AliasEntry> light_table,
+    std::span<const TriangleMeshView> objects,
+    AliasTableView light_table,
     Rng &rng)
 {
-    const auto [index, object_pdf] = sample(AliasTableView{.entries=light_table.data(), .entry_count=static_cast<int>(light_table.size())}, rng);
+    const auto [index, object_pdf] = sample(light_table, rng);
     const auto &object = objects[index];
     const auto mat = object.material;
 
     // printf("Rolled %d\n", index);
 
-    const auto tris_table = AliasTableView{.entries=object.triangle_sampler, .entry_count=object.triangle_count};
-    const auto [i, triangle_pdf] = sample(tris_table, rng);
+    const auto [i, triangle_pdf] = sample(object.triangle_sampler, rng);
 
     const auto triangle = object.triangles[i];
     const auto A = object.points[triangle.a.pi];
@@ -89,7 +88,7 @@ inline HD Vec4 evaluateDirectLighting(
     const Vec4 &diffuse_reflectance,
     const LightSample &light_sample,
     const Vec4 &light_emission,
-    std::span<const TriangleMesh> objects
+    std::span<const TriangleMeshView> objects
 )
 {
     if (occludedScene(surface_pos, light_sample.p, objects))

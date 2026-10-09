@@ -21,19 +21,21 @@ struct BBHNode
     }
 };
 
-struct BBH
-{
-    int depth;
-    DeviceVector<BBHNode> nodes;
-};
-
-struct BBHGpuView
+struct BBHView
 {
     std::span<const BBHNode> nodes;
 
     constexpr bool isEmpty() const { return nodes.size() == 0; }
 };
 
+struct BBH
+{
+    int depth;
+    DeviceVector<BBHNode> nodes;
+
+    BBHView view();
+    BBHView hostView() const;
+};
+
 BBH generateSimpleBBH(Mesh &mesh);
-BBHGpuView createBBHGpuView(BBH &bbh);
 std::vector<BBHNode> getBoxesOnDepth(const BBH &bbh, int depth);

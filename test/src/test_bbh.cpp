@@ -168,3 +168,15 @@ TEST(BBHTest, GetBoxesOnDepthZeroIsRootBox)
     EXPECT_FLOAT_EQ(root[0].box.min.x, rootBox.min.x);
     EXPECT_FLOAT_EQ(root[0].box.max.x, rootBox.max.x);
 }
+
+TEST(BBHTest, HostViewExposesAllHostNodes)
+{
+    Mesh mesh = spreadTriangleMesh(8);
+    const BBH bbh = generateSimpleBBH(mesh);
+
+    const BBHView view = bbh.hostView();
+
+    EXPECT_EQ(view.nodes.data(), bbh.nodes.hostPtr());
+    EXPECT_EQ(view.nodes.size(), bbh.nodes.size());
+    EXPECT_FALSE(view.isEmpty());
+}

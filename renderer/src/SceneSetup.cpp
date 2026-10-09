@@ -119,7 +119,7 @@ Scene createScene(Meshes &meshes)
 
     auto addQuad = [&](Vec3 center, Vec3 normal, Vec3 right, float size, int mat) {
         scene.mesh_storage.push_back(createQuadMesh(center, normal, right, size));
-        auto view = viewGpuTris(scene.mesh_storage.back());
+        auto view = scene.mesh_storage.back().view();
         view.material = mat;
         scene.objects.push_back(std::move(view));
     };
@@ -131,7 +131,7 @@ Scene createScene(Meshes &meshes)
     addQuad(Vec3{0,-0.5,2}, Vec3{0,1,0}, Vec3{0,0,1}, 1, white);
 
     {
-        auto lightPanel = viewGpuTris(meshes.lightPanel);
+        auto lightPanel = meshes.lightPanel.view();
         lightPanel.material = light_mid;
         lightPanel.setPosition(Vec3{0, 0.4999f, 2});
         scene.objects.push_back(std::move(lightPanel));
@@ -140,7 +140,7 @@ Scene createScene(Meshes &meshes)
     // addQuad(Vec3{0,0.5,2}, Vec3{0,-1,0}, Vec3{0,0,1}, 100, light_mid);
 
     {
-        auto mesh_object_monkey = viewGpuTris(meshes.suzanne);
+        auto mesh_object_monkey = meshes.suzanne.view();
         mesh_object_monkey.material = blue;
         mesh_object_monkey.setPosition(Vec3{0.0, -0.3175, 2});
         mesh_object_monkey.setScale(Vec3{0.35f,0.35f,0.35f});
@@ -150,7 +150,7 @@ Scene createScene(Meshes &meshes)
     // addQuad(Vec3{0,10,0}, Vec3{0,1,0}, Vec3{0,0,1}, 1000, light_mid);
 
     // {
-    //     auto mesh_object_cube = viewGpuTris(meshes.cube);
+    //     auto mesh_object_cube = meshes.cube.view();
     //     mesh_object_cube.material = blue;
     //     mesh_object_cube.setPosition(Vec3{0.0, 0.2f, 2});
     //     mesh_object_cube.setScale(Vec3{0.05f,0.05f,0.05f});
@@ -163,7 +163,7 @@ Scene createScene(Meshes &meshes)
     //     std::uniform_real_distribution<float> pz( 1.8f, 2.2f);
 
     //     for (int i = 0; i < 10; ++i) {
-    //         auto cube = viewGpuTris(meshes.cube);
+    //         auto cube = meshes.cube.view();
     //         cube.material = light_low;
     //         cube.setPosition(Vec3{px(rng), py(rng), pz(rng)});
     //         cube.setScale(Vec3{0.01f, 0.01f, 0.01f});
@@ -172,7 +172,7 @@ Scene createScene(Meshes &meshes)
     // }
 
     // {
-    //     auto mesh_object_cube = viewGpuTris(meshes.cube);
+    //     auto mesh_object_cube = meshes.cube.view();
     //     mesh_object_cube.material = green;
     //     mesh_object_cube.setPosition(Vec3{0.0, 0.0, 2.0});
     //     mesh_object_cube.setScale(Vec3{0.1f,0.1f,0.1f});
@@ -180,7 +180,7 @@ Scene createScene(Meshes &meshes)
     // }
 
     // {
-    //     auto mesh_object_cube = viewGpuTris(meshes.cube);
+    //     auto mesh_object_cube = meshes.cube.view();
     //     mesh_object_cube.material = gray;
     //     mesh_object_cube.setPosition(Vec3{0.0, -0.5, 2.0});
     //     mesh_object_cube.setScale(Vec3{0.25f,0.25f,0.25f});

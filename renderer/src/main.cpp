@@ -24,7 +24,6 @@
 #include "tracing/Camera.hpp"
 #include "tracing/TriangleMesh.hpp"
 #include "tracing/LightSampling.hpp"
-#include "tracing/GpuTris.hpp"
 #include "models/Mesh.hpp"
 
 /*

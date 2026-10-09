@@ -66,7 +66,6 @@ add_library(${PROJECT_NAME}
             src/Renderer.cpp
             src/RunningAverage.cpp
             src/Scene.cpp
-            src/GpuTris.cpp
             src/models/Mesh.cpp
             src/models/BBH.cpp
             src/device/implementation.cu

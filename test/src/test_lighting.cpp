@@ -96,7 +96,7 @@ TEST(DirectLightingTest, UnoccludedMatchesRenderingEquation)
 
     const auto result = evaluateDirectLighting(
         surfacePos, surfaceNormal, reflectance, light, emission,
-        std::span<const TriangleMesh>{});
+        std::span<const TriangleMeshView>{});
 
     const float brdf = 0.8f / pi;
     const float geometric = 1.0f * 1.0f / 4.0f;
@@ -110,7 +110,7 @@ TEST(DirectLightingTest, BackFacingSurfaceContributesNothing)
 
     const auto result = evaluateDirectLighting(
         {0, 0, 0}, {0, 0, -1}, {0.8f, 0.8f, 0.8f, 0}, light, {1, 1, 1, 0},
-        std::span<const TriangleMesh>{});
+        std::span<const TriangleMeshView>{});
 
     test::expectVec4Near(result, {0, 0, 0, 0});
 }
@@ -118,7 +118,7 @@ TEST(DirectLightingTest, BackFacingSurfaceContributesNothing)
 TEST(DirectLightingTest, OccluderBlocksContribution)
 {
     HostObject occluder = makeHostObject(test::flatTriangleAtZ(1.0f));
-    const std::array<TriangleMesh, 1> objects{occluder.view()};
+    const std::array<TriangleMeshView, 1> objects{occluder.hostView()};
 
     const LightSample light{.p = {0, 0, 2}, .n = {0, 0, -1}, .mat = 0, .pdf = 0.5f};
 
@@ -137,15 +137,15 @@ TEST(SamplePointOnLightsTest, SamplesLieOnEmitterWithCorrectPdf)
     constexpr float totalArea = (2 * half) * (2 * half);
 
     HostObject light = makeHostObject(test::squareMeshXY(half), /*withTriangleSampler=*/true);
-    const std::array<TriangleMesh, 1> objects{light.view()};
+    const std::array<TriangleMeshView, 1> objects{light.hostView()};
 
     const AliasTable objectTable = generateAliasTable(std::vector<float>{1.0f});
-    const std::span<const AliasEntry> lightTable{objectTable.entries.hostPtr(), objectTable.entries.size()};
+    const AliasTableView lightTable = objectTable.hostView();
 
     DeterministicRng rng;
     for (int i = 0; i < 2000; ++i)
     {
-        const auto sample = samplePointOnLights(std::span<const TriangleMesh>{objects}, lightTable, rng);
+        const auto sample = samplePointOnLights(std::span<const TriangleMeshView>{objects}, lightTable, rng);
 
         EXPECT_NEAR(sample.p.z, 0.0f, 1e-5f);
         EXPECT_LE(std::abs(sample.p.x), half + 1e-5f);

@@ -20,7 +20,7 @@ HD Ray generateRay(Vec3 center, float radius, CudaRng &rng)
 
 __global__ void runRaycasts(
     curandState *rand_states, benchmark::HitTests *stats, int ray_count,
-    const TriangleMesh tris,
+    const TriangleMeshView tris,
     Vec3 center, float radius
 )
 {
@@ -31,7 +31,7 @@ __global__ void runRaycasts(
 
     const auto ray = generateRay(center, radius, rng);
 
-    const std::span<const TriangleMesh> meshes{&tris, 1};
+    const std::span<const TriangleMeshView> meshes{&tris, 1};
     const auto intersection = intersectSceneBenchmark(ray, meshes, stats[idx]);
 
     if (intersection.valid())
@@ -42,7 +42,7 @@ __global__ void runRaycasts(
 
 void benchmarkRayCast(
     CudaRandom &rand_states, benchmark::HitTests *stats, int ray_count,
-    const TriangleMesh &tris, Vec3 center, float radius
+    const TriangleMeshView &tris, Vec3 center, float radius
 )
 {
     dim3 dimBlock(32, 1);

@@ -18,11 +18,7 @@ namespace
         const auto table_time = t.elapsedSeconds();
         std::cout << "Built Alias Table in " << table_time*1000 << "ms" << std::endl;
 
-        const auto alias_table_view = AliasImageTableView{
-            .pixel_entries = alias_table.pixel_entries.hostPtr(),
-            .row_entries = alias_table.row_entries.hostPtr(),
-            .image_size = alias_table.image_size,
-        };
+        const auto alias_table_view = alias_table.hostView();
 
         std::vector<Vec2i> points;
         points.reserve(point_count);

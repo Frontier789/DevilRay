@@ -1,3 +1,5 @@
+#include "TracingTestHelpers.hpp"
+
 #include "tracing/DistributionSamplers.hpp"
 
 #include <gtest/gtest.h>
@@ -226,4 +228,66 @@ TEST(AliasTableGen, StressTest) {
     // We trust that VerifyTableFidelity uses double precision for accumulation
     // to handle the summation of tiny and large weights correctly.
     VerifyTableFidelity(input, table, 1e-3f);
+}
+
+TEST(AliasTableViewTest, HostViewPointsAtHostEntries)
+{
+    const AliasTable table = generateAliasTable(std::vector<float>{1.0f, 2.0f, 3.0f});
+
+    const AliasTableView view = table.hostView();
+
+    EXPECT_EQ(view.entries, table.entries.hostPtr());
+    EXPECT_EQ(view.entry_count, 3);
+}
+
+TEST(AliasTableViewTest, HostViewOfEmptyTableHasNoEntries)
+{
+    const AliasTable table = generateAliasTable(std::vector<float>{});
+
+    EXPECT_EQ(table.hostView().entry_count, 0);
+}
+
+TEST(AliasTableViewTest, HostViewSamplesOnlyNonZeroImportances)
+{
+    const AliasTable table = generateAliasTable(std::vector<float>{0.0f, 1.0f, 0.0f});
+    const AliasTableView view = table.hostView();
+
+    test::DeterministicRng rng;
+    for (int i = 0; i < 200; ++i)
+    {
+        const auto drawn = sample(view, rng);
+
+        EXPECT_EQ(drawn.index, 1);
+        EXPECT_FLOAT_EQ(drawn.pdf, 1.0f);
+    }
+}
+
+TEST(AliasImageTableViewTest, HostViewPointsAtHostEntriesAndKeepsImageSize)
+{
+    auto luminance = Image1f::create(Size2i{4, 3}, 1.0f);
+    const AliasImageTable table = generateAliasTable(luminance.view());
+
+    const AliasImageTableView view = table.hostView();
+
+    EXPECT_EQ(view.pixel_entries, table.pixel_entries.hostPtr());
+    EXPECT_EQ(view.row_entries, table.row_entries.hostPtr());
+    EXPECT_EQ(view.image_size.width, 4);
+    EXPECT_EQ(view.image_size.height, 3);
+}
+
+TEST(AliasImageTableViewTest, HostViewSamplesTheOnlyBrightPixel)
+{
+    auto luminance = Image1f::create(Size2i{4, 3}, 0.0f);
+    luminance[Vec2i{.x = 2, .y = 1}] = 5.0f;
+    const AliasImageTable table = generateAliasTable(luminance.view());
+    const AliasImageTableView view = table.hostView();
+
+    test::DeterministicRng rng;
+    for (int i = 0; i < 200; ++i)
+    {
+        const auto drawn = sample(view, rng);
+
+        EXPECT_EQ(drawn.pixel_coordinate.x, 2);
+        EXPECT_EQ(drawn.pixel_coordinate.y, 1);
+    }
 }

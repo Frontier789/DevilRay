@@ -42,7 +42,7 @@ inline HD Vec3 barycentricCoordinates(const TriangleVertices &triangle, const Ve
 //     return Vec3{w_A, w_B, w_C};
 // }
 
-inline HD Vec3 surfaceNormal(const TriangleMesh &object, int triangleID, const Vec3 &ray_dir, const Vec3 &hit)
+inline HD Vec3 surfaceNormal(const TriangleMeshView &object, int triangleID, const Vec3 &ray_dir, const Vec3 &hit)
 {
     const auto &triangle = object.triangles[triangleID];
     const auto &M = object.model_to_world;
