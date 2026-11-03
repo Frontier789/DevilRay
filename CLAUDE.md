@@ -34,11 +34,10 @@ Notes:
 
 - `CMAKE_CUDA_ARCHITECTURES` is `native`, so the build targets the GPU in the machine.
   Set it explicitly to cross-compile for another card.
-- The top-level `CMakeLists.txt` resolves the CUDA toolchain before enabling the CUDA
-  language: it prefers the `nvcc` on `PATH` (CMake's own search can find an older
-  distro-packaged one) and pins `CMAKE_CUDA_HOST_COMPILER`, because nvcc hard-errors on
-  host compilers newer than it supports. Override either with
-  `-DCMAKE_CUDA_COMPILER=...` / `-DCMAKE_CUDA_HOST_COMPILER=...`.
+- The top-level `CMakeLists.txt` prefers the `nvcc` on `PATH` over CMake's own search (which
+  can find an older distro-packaged one) before enabling the CUDA language; override with
+  `-DCMAKE_CUDA_COMPILER=...`. It does not pin a host compiler: if nvcc rejects the default
+  one as too new, pass `-DCMAKE_CUDA_HOST_COMPILER=...`.
 - `BUILD_*` options gate each app (all default ON); `devil_ray_lib` and the tests always build.
 - Building CUDA sources is slow, and CMake reuses cached objects aggressively. Never read a
   passing test run as proof unless the build that produced it actually recompiled — check
@@ -51,27 +50,32 @@ in `test/CMakeLists.txt` through two helpers:
 
 - `add_test_dr(<name>)` — CPU-only unit tests; `gtest_discover_tests` registers each case
   as its own CTest entry.
-- `add_shared_gpu_test_dr(<name> <source>)` — registers the whole binary as a single CTest
-  entry so tests touching the CUDA runtime share one context initialization instead of
-  paying it per case. Use this for anything that launches kernels or actually allocates
-  device memory. Note the device containers allocate lazily, so their host-only behaviour
-  can still be tested per-case (see `test_device.cpp`).
+- `add_shared_gpu_test_dr(<name> <sources>...)` — registers the whole binary as a single
+  CTest entry so tests touching the CUDA runtime share one context initialization instead
+  of paying it per case. Use this for anything that launches kernels or actually allocates
+  device memory, and add new GPU tests to an existing binary's source list rather than
+  creating another one. Note the device containers allocate lazily, so their host-only
+  behaviour can still be tested per-case (see `test_device.cpp`).
 
 ```sh
 ctest --preset conan-release --output-on-failure           # everything
-ctest --preset conan-release -R <target> -V                # one target
-build/Release/test/<target> --gtest_filter='Suite.Case'    # one case
+ctest --preset conan-release -R <Suite[.Case]> -V          # CPU tests: entries are named Suite.Case
+ctest --preset conan-release -R '^test_render$' -V         # GPU binaries: one entry named after the target
+build/Release/test/<target> --gtest_filter='Suite.Case'    # one case of any target
 ```
 
 Tests run with the working directory set to the repo root, so asset and reference-image
-paths inside tests are repo-relative.
+paths inside tests are repo-relative. Files a test writes (rendered images, generated OBJ
+files) go under `test_output/`, which is gitignored.
 
 When adding tests:
 
 - Most tracing code is `HD` (see below), so the host build of a function can be tested
   directly on the CPU without any GPU scaffolding. Prefer that.
-- `test/src/TracingTestHelpers.hpp` has the shared fixtures: `Vec3`/`Vec4` near-comparisons,
-  a deterministic RNG, a scripted RNG that replays fixed values, small hand-built meshes,
+- `test/src/VectorAssertions.hpp` has the `Vec3`/`Vec4` near-comparisons and nothing heavy;
+  include it when that is all a test needs.
+- `test/src/TracingTestHelpers.hpp` (which includes it) has the shared fixtures: a
+  deterministic RNG, a scripted RNG that replays fixed values, small hand-built meshes,
   and `HostObject`, which owns a mesh plus its BBH and hands out a `TriangleMeshView`
   (via `hostView()`) whose pointers reference host memory.
 - A CTest entry reported as **Not Run** means its binary failed to build — CTest still
@@ -86,11 +90,14 @@ When adding tests:
   the CUDA kernels. Everything else links it.
 - **`devil_ray_renderer`** (`renderer/`) — interactive GLFW + OpenGL + ImGui front-end
   showing the progressive render.
-- **`devil_ray_bbox_viewer`** (`bbox_viewer/`) — GUI for visualizing the bounding-box
-  hierarchy and running intersection-cost benchmarks.
+- **`devil_ray_bbox_viewer`** (`bbox_viewer/`) — GUI for inspecting the bounding-box
+  hierarchy: draws the boxes at a chosen depth and can restrict the shown triangles to one
+  box.
 - **`devil_ray_benchmark`** (`benchmark/`) — headless CLI that casts random rays at a mesh
   and reports triangle/bbox test counts.
-- **`sample_image`** (`sample_image/`) — headless image sampler (scaffold).
+- **`sample_image`** (`sample_image/`) — headless CLI that draws points from an image with an
+  `AliasImageTable` (weighted by luminance, or by fine detail with `-d`) and renders them as
+  a Voronoi mosaic. Its option parsing is the header-only `sample_image/include/CommandLine.hpp`.
 
 ### Host/device split
 
@@ -130,15 +137,17 @@ trivially-copyable struct of non-owning pointers that is safe to pass to any ker
 `Foo::view()` uploads whatever is still missing and returns the device view;
 `Foo::hostView()` (where CPU code needs one) returns the same shape over host pointers
 without touching CUDA. Pairs: `AliasTable`, `AliasImageTable`, `BBH`, `TriangleMesh`,
-`PathVertexData`, `WavefrontData`, `RenderBuffers`, `Image`.
+`PathVertexData`, `WavefrontData`, `RenderBuffers`. `Image` / `ImageView` have the same
+shape but are host-only (`Image::view()` points at host pixels).
 
 ### Render loop
 
 `Renderer` (`include/Renderer.hpp`) is the orchestrator. Its setters are mutex-guarded
 because rendering runs on a background thread (`Application::renderWorker` in
 `renderer/src/RenderThread.cpp`) while the GUI thread reads the latest frame; a
-needs-clearing flag resets accumulation when inputs change. `scheduleCpuRender()` is
-intentionally unimplemented (throws) — rendering is GPU-only.
+needs-clearing flag resets accumulation when the camera, scene, debug mode or pixel
+sampling change (output options only change the final encoding, so they do not).
+`scheduleCpuRender()` is intentionally unimplemented (throws) — rendering is GPU-only.
 
 Tracing is a **wavefront** path tracer, not a megakernel: `scheduleDeviceRender()`
 (`src/device/RendererImpl.hpp`) launches a sequence of 1D kernels over one thread per path,
@@ -183,7 +192,10 @@ area-weighted sampler) must be built afterwards. `BBH::view()` exposes nodes to 
 
 Intersection entry points are declared in `include/tracing/Intersection.hpp`
 (`intersectTriangle`, `intersectMesh`, `intersectScene`, `occludedScene`) and return small
-hit structs rather than optionals. Cost can be instrumented via the `Benchmark` concept
+hit structs rather than optionals. They are `inline` and defined in
+`include/tracing/IntersectionImpl.hpp`, so a translation unit that calls them (directly or
+through `ShadingUtils.hpp`) must include that header; the compiler warns "inline function
+used but never defined" if it does not. Cost can be instrumented via the `Benchmark` concept
 (`include/tracing/Benchmark.hpp`): the `...Benchmark` variants take `benchmark::HitTests` to
 count triangle/bbox tests, or `benchmark::Skip` for zero overhead in production.
 

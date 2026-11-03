@@ -12,7 +12,9 @@
 /// These test were ai generated with ///
 /// Google's Gemini 3, then reviewed  ///
 /// And corrected here and there by   ///
-/// hand.                             ///
+/// hand. Some tests were later added ///
+/// or rewritten by Claude, reviewed  ///
+/// by hand before committing.        ///
 /////////////////////////////////////////
 
 namespace {
@@ -58,10 +60,6 @@ namespace {
         }
     }
 }
-
-// =========================================================================
-// 3. Google Tests
-// =========================================================================
 
 TEST(AliasTableGen, EmptyInput) {
     std::vector<float> input = {};
@@ -135,15 +133,18 @@ TEST(AliasTableGen, ZeroImportanceSum_ReturnsUniform) {
     }
 }
 
-TEST(AliasTableGen, NegativeValues) {
-    // The Alias method mathematically assumes positive weights.
-    // However, we should ensure the code doesn't crash or hang.
-    // If the implementation doesn't filter negatives, it produces undefined probabilities.
-    // This test ensures stability (no infinite loops/crashes).
-    std::vector<float> input = {-5.0f, 10.0f};
+TEST(AliasTableGen, NegativeImportanceIsTreatedAsZero) {
+    const std::vector<float> input = {-5.0f, 10.0f};
+    const std::vector<float> importancesAfterClamping = {0.0f, 10.0f};
 
-    // Just checking it doesn't crash
-    EXPECT_NO_FATAL_FAILURE(generateAliasTable(input));
+    const AliasTable table = generateAliasTable(input);
+    VerifyTableFidelity(importancesAfterClamping, table);
+
+    const AliasTableView view = table.hostView();
+    test::DeterministicRng rng;
+    for (int i = 0; i < 200; ++i) {
+        EXPECT_EQ(sample(view, rng).index, 1);
+    }
 }
 
 TEST(AliasTableGen, ManyItems) {
@@ -182,10 +183,6 @@ TEST(AliasTableGen, FloatingPointPrecisionStub) {
     VerifyTableFidelity(input, table);
 }
 
-// Corner Case: The "Robin Hood" necessity
-// Some inputs cause a cascade where a priority queue performs better than a stack,
-// but the stack (std::vector) implementation is standard.
-// We verify that the output is still mathematically valid regardless of internal pairing.
 TEST(AliasTableGen, AlternatingHighLow) {
     std::vector<float> input = {0.1f, 10.0f, 0.1f, 10.0f, 0.1f, 10.0f};
     AliasTable table = generateAliasTable(input);
@@ -194,8 +191,8 @@ TEST(AliasTableGen, AlternatingHighLow) {
 
 TEST(AliasTableGen, StressTest) {
     // 1. Setup
-    constexpr size_t N = 200000;
-    std::vector<float> input(N);
+    constexpr size_t entry_count = 200000;
+    std::vector<float> input(entry_count);
 
     // Use a fixed seed for reproducibility
     std::mt19937 rng(42);
@@ -206,7 +203,7 @@ TEST(AliasTableGen, StressTest) {
     // with a few large "wealthy" items.
     std::lognormal_distribution<float> dist(0.0f, 1.0f);
 
-    for(size_t i = 0; i < N; ++i) {
+    for(size_t i = 0; i < entry_count; ++i) {
         input[i] = dist(rng);
     }
 
@@ -218,10 +215,10 @@ TEST(AliasTableGen, StressTest) {
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> ms = end - start;
 
-    std::cout << "[          ] 1M Lognormal entries generated in " << ms.count() << " ms" << std::endl;
+    std::cout << "[          ] " << entry_count << " lognormal entries generated in " << ms.count() << " ms" << std::endl;
 
     // 3. Validation
-    ASSERT_EQ(table.entries.size(), N);
+    ASSERT_EQ(table.entries.size(), entry_count);
 
     // Verify fidelity.
     // Note: Lognormal distributions can have extreme dynamic range.

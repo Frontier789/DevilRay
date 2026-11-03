@@ -33,8 +33,8 @@ class Renderer
 
     uint64_t m_totalCasts;
 
-    Camera m_camera;
-    DebugOptions m_debug;
+    Camera m_camera{};
+    DebugOptions m_debug = DebugOptions::Off;
     OutputOptions m_output_options;
     PixelSampling m_pixel_sampling;
     Size2i m_resolution;
@@ -61,7 +61,7 @@ public:
 
     void setDebug(DebugOptions dbg);
     void setCamera(Camera cam);
-    void setScene(Scene scn) { m_scene = std::move(scn); calculateLightWeights(); }
+    void setScene(Scene scn) { m_scene = std::move(scn); calculateLightWeights(); clear(); }
     void setPixelSampling(PixelSampling sampling);
     void setOutputOptions(OutputOptions options);
 

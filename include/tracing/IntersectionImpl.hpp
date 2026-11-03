@@ -16,7 +16,7 @@ struct BoxInterval
     float exit_time;
 };
 
-HD BoxInterval findBoxInterval(const float min, const float max, const float p, const float v)
+inline HD BoxInterval findBoxInterval(const float min, const float max, const float p, const float v)
 {
     const auto t_min = (min - p) / v;
     const auto t_max = (max - p) / v;
@@ -27,7 +27,7 @@ HD BoxInterval findBoxInterval(const float min, const float max, const float p, 
     };
 }
 
-HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
+inline HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
 {
     const auto interval_x = findBoxInterval(box.min.x, box.max.x, ray.p.x, ray.v.x);
     const auto interval_y = findBoxInterval(box.min.y, box.max.y, ray.p.y, ray.v.y);
@@ -44,7 +44,7 @@ HD std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray)
 }
 
 
-HD TriangleHit intersectTriangle(const Ray &ray_model, const TriangleVertices &triangle)
+inline HD TriangleHit intersectTriangle(const Ray &ray_model, const TriangleVertices &triangle)
 {
     const auto &ray = ray_model;
 
@@ -229,7 +229,7 @@ HD MeshHit intersectMeshImpl(const Ray &ray_world, const TriangleMeshView &mesh,
     return best;
 }
 
-HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMeshView &mesh)
+inline HD MeshHit intersectMesh(const Ray &ray_world, const TriangleMeshView &mesh)
 {
     benchmark::Skip skip_benchmarks;
     return intersectMeshImpl(ray_world, mesh, skip_benchmarks);
@@ -257,13 +257,13 @@ HD SceneHit intersectSceneImpl(const Ray &ray_world, const std::span<const Trian
     return best;
 }
 
-HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes)
+inline HD SceneHit intersectScene(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes)
 {
     benchmark::Skip skip_benchmarks;
     return intersectSceneImpl(ray_world, meshes, skip_benchmarks);
 }
 
-HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes, benchmark::HitTests &benchmark)
+inline HD SceneHit intersectSceneBenchmark(const Ray &ray_world, const std::span<const TriangleMeshView> &meshes, benchmark::HitTests &benchmark)
 {
     return intersectSceneImpl(ray_world, meshes, benchmark);
 }
@@ -282,13 +282,13 @@ HD bool occludedSceneImpl(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> ob
     return hit.t < distance - 1e-5 * 2;
 }
 
-HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects)
+inline HD bool occludedScene(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects)
 {
     benchmark::Skip skip_benchmarks;
     return occludedSceneImpl(p0, p1, objects, skip_benchmarks);
 }
 
-HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects, benchmark::HitTests &benchmark)
+inline HD bool occludedSceneBenchmark(Vec3 p0, Vec3 p1, std::span<const TriangleMeshView> objects, benchmark::HitTests &benchmark)
 {
     return occludedSceneImpl(p0, p1, objects, benchmark);
 }

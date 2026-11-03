@@ -8,7 +8,7 @@
 #include "TracingTestHelpers.hpp"
 
 #include "models/MeshUtils.hpp"
-#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
 
 #include <gtest/gtest.h>
 

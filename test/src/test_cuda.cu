@@ -180,9 +180,8 @@ namespace
         return m;
     }
 
-    // TriangleIdentifier no longer carries a validity sentinel; path liveness
-    // lives in PathVertexData::alive, so a lane that never hit anything just
-    // holds filler ids that the kernels must not read.
+    // Path liveness lives in PathVertexData::alive, so a lane that never hit
+    // anything just holds filler ids that the kernels must not read.
     constexpr TriangleIdentifier NO_HIT{.meshID = -1, .triangleID = -1};
 
     PathVertexData makePaths(const std::vector<TriangleIdentifier> &ids,

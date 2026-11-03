@@ -1,5 +1,5 @@
 
-#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
 #include "models/MeshUtils.hpp"
 
 #include <gtest/gtest.h>
@@ -12,7 +12,9 @@
 /// These test were ai generated with ///
 /// Google's Gemini 3, then reviewed  ///
 /// And corrected here and there by   ///
-/// hand.                             ///
+/// hand. Some tests were later       ///
+/// edited by Claude, reviewed by     ///
+/// hand before committing.           ///
 /////////////////////////////////////////
 
 namespace
@@ -116,12 +118,9 @@ TEST_F(IntersectionTest, DegenerateTriangleFails) {
 }
 
 TEST_F(IntersectionTest, NoBackfaceCulling) {
-    // Ray hits from "underneath" (Z = -1, pointing UP to Z=0)
-    // Most renderers/engines treat this as a miss if culling is enabled
-    Ray ray{{0.2f, 0.2f, -1.0f}, {0.0f, 0.0f, 1.0f}};
-    auto result = hitTriangle(ray, unitTri);
+    Ray rayFromBelowTheTriangle{{0.2f, 0.2f, -1.0f}, {0.0f, 0.0f, 1.0f}};
+    auto result = hitTriangle(rayFromBelowTheTriangle, unitTri);
 
-    // Adjust this expectation based on whether your function allows backfaces
     ASSERT_TRUE(result.hit);
     ExpectValidNumbers(result);
 }
@@ -174,11 +173,10 @@ TEST_F(IntersectionTest, ExtremelyThinTriangle) {
 }
 
 TEST_F(IntersectionTest, MultipleAngleSanityCheck) {
-    // A point we know is inside the triangle
-    constexpr Vec3 targetInside{0.2f, 0.2f, 0.0f};
-    constexpr float expectedU = 0.2f;
-    constexpr float expectedV = 0.2f;
-    constexpr float expectedW = 0.6f;
+    constexpr Vec3 targetInside{0.1f, 0.3f, 0.0f};
+    constexpr float expectedWeightOfA = 0.6f;
+    constexpr float expectedWeightOfB = 0.1f;
+    constexpr float expectedWeightOfC = 0.3f;
 
     // A point we know is outside the triangle
     constexpr Vec3 targetOutside{5.0f, 5.0f, 0.0f};
@@ -208,9 +206,9 @@ TEST_F(IntersectionTest, MultipleAngleSanityCheck) {
             EXPECT_NEAR(resultHit.t, 1.0f, 1e-4f);
 
             EXPECT_NEAR(resultHit.bari.x + resultHit.bari.y + resultHit.bari.z, 1.0f, 1e-5f);
-            EXPECT_NEAR(resultHit.bari.x, expectedW, 1e-4f);
-            EXPECT_NEAR(resultHit.bari.y, expectedU, 1e-4f);
-            EXPECT_NEAR(resultHit.bari.z, expectedV, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.x, expectedWeightOfA, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.y, expectedWeightOfB, 1e-4f);
+            EXPECT_NEAR(resultHit.bari.z, expectedWeightOfC, 1e-4f);
         }
 
         // 2. TEST VALID MISSES

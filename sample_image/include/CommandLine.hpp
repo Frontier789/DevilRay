@@ -131,7 +131,7 @@ inline CommandLineOptions parseCommandLine(int argc, char *argv[])
         }
         else if (matchesOption(*argument, "-o", "--output"))
         {
-            options.output_path = *++argument;
+            options.output_path = takeOptionValue(argument, arguments.end());
         }
         else if (looksLikeOption(*argument))
         {

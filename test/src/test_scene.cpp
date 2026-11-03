@@ -1,5 +1,7 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
+#include "VectorAssertions.hpp"
+
 #include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
@@ -9,8 +11,6 @@
 
 namespace
 {
-    // TriangleMesh is move-only and has no default constructor, so a small unit cube
-    // mesh is produced fresh for each test that needs one.
     Mesh tetrahedronMesh()
     {
         Mesh mesh;
@@ -55,6 +55,38 @@ TEST(ConvertMeshToTrisTest, SkipsSamplerWhenDisabled)
     Mesh mesh = tetrahedronMesh();
     TriangleMesh tris = convertMeshToTris(mesh, /*generateTriangleSampler=*/false);
     EXPECT_EQ(tris.triangle_sampler.entries.size(), 0u);
+}
+
+TEST(TriangleMeshViewTest, UniformScaleScalesSurfaceAreaQuadratically)
+{
+    constexpr float base_area = 4.0f;
+    constexpr float uniform_scale = 3.0f;
+    TriangleMeshView view{};
+    view.surface_area = base_area;
+    view.base_surface_area = base_area;
+
+    view.setScale(Vec3{uniform_scale, uniform_scale, uniform_scale});
+
+    EXPECT_NEAR(view.surface_area, base_area * uniform_scale * uniform_scale, 1e-4f);
+    EXPECT_FLOAT_EQ(view.base_surface_area, base_area);
+    test::expectVec3Near(view.model_to_world.s, {uniform_scale, uniform_scale, uniform_scale});
+}
+
+TEST(TriangleMeshViewTest, PositionAndScaleDoNotDisturbEachOther)
+{
+    TriangleMeshView positioned_then_scaled{};
+    positioned_then_scaled.setPosition(Vec3{1, 2, 3});
+    positioned_then_scaled.setScale(Vec3{2, 2, 2});
+
+    TriangleMeshView scaled_then_positioned{};
+    scaled_then_positioned.setScale(Vec3{2, 2, 2});
+    scaled_then_positioned.setPosition(Vec3{1, 2, 3});
+
+    for (const auto &view : {positioned_then_scaled, scaled_then_positioned})
+    {
+        test::expectVec3Near(view.model_to_world.p, {1, 2, 3});
+        test::expectVec3Near(view.model_to_world.s, {2, 2, 2});
+    }
 }
 
 TEST(CreateQuadMeshTest, ProducesAxisAlignedSquare)

@@ -14,6 +14,8 @@
 /// Parts of these test were ai generated with ///
 /// Google's Gemini 3, then reviewed and       ///
 /// corrected here and there by hand.          ///
+/// Some tests were later edited by Claude,    ///
+/// reviewed by hand before committing.        ///
 ///                                            ///
 //////////////////////////////////////////////////
 
@@ -323,17 +325,19 @@ TEST(RendererTest, TriangleSceneRender) {
         emissive_mat
     );
 
-    // Procedurally generate a half sphere with 20 triangles
-    // 4 longitude segments × (1 cap band + 2 quad bands) = 4 + 8 + 8 = 20
+    constexpr int nLon = 6;
+    constexpr int nLat = 5;
+    constexpr int capTriangleCount = nLon;
+    constexpr int quadStripTriangleCount = (nLat - 1) * nLon * 2;
+    constexpr int halfSphereTriangleCount = capTriangleCount + quadStripTriangleCount;
+    constexpr int emissiveTriangleCount = 1;
+
+    // Procedurally generate a half sphere
     {
-        constexpr int nLon = 6;
-        constexpr int nLat = 5;
         constexpr float radius = 0.5f;
         const Vec3 center{0.0f, 0.0f, 1.2f};
-        constexpr float pi = std::numbers::pi_v<float>;
 
-        // Alternating colors per quadrant
-        const int colors[3] = {red_mat, green_mat, blue_mat};
+        const int materialByLongitude[3] = {red_mat, green_mat, blue_mat};
 
         auto spherePoint = [&](float theta, float phi) -> Vec3 {
             return Vec3{
@@ -350,7 +354,7 @@ TEST(RendererTest, TriangleSceneRender) {
             for (int lon = 0; lon < nLon; ++lon) {
                 const float phi0 = static_cast<float>(lon) / nLon * 2.0f * pi;
                 const float phi1 = static_cast<float>(lon + 1) / nLon * 2.0f * pi;
-                const int mat = colors[lon % 3];
+                const int mat = materialByLongitude[lon % 3];
 
                 if (lat == 0) {
                     // Cap triangle: pole to two points on next latitude ring
@@ -373,6 +377,8 @@ TEST(RendererTest, TriangleSceneRender) {
             }
         }
     }
+
+    ASSERT_EQ(trisStorage.size(), static_cast<size_t>(emissiveTriangleCount + halfSphereTriangleCount));
 
     renderer.setScene(std::move(scene));
 

@@ -2,7 +2,7 @@
 
 #include "TracingTestHelpers.hpp"
 
-#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
 #include "tracing/Benchmark.hpp"
 #include "models/MeshUtils.hpp"
 
@@ -12,16 +12,6 @@
 #include <limits>
 #include <optional>
 #include <span>
-
-// Defined in IntersectionImpl.hpp and compiled into the library, but not exposed
-// through a public header, so we declare the signatures we exercise here.
-struct BoxInterval
-{
-    float enter_time;
-    float exit_time;
-};
-BoxInterval findBoxInterval(float min, float max, float p, float v);
-std::optional<float> testBoxIntersection(const AABB &box, const Ray &ray);
 
 using test::expectVec3Near;
 using test::HostObject;

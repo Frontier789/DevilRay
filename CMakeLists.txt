@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.25.2)
 
-# CUDA toolchain selection. Both variables have to be set before the CUDA
-# language is enabled, and either can be overridden on the command line with
-# -DCMAKE_CUDA_COMPILER=... / -DCMAKE_CUDA_HOST_COMPILER=... .
-#
 # CMake's own nvcc discovery can land on a distro-packaged /usr/bin/nvcc that is
 # older than the toolkit actually on PATH, so prefer whatever `nvcc` PATH gives.
+# This has to happen before the CUDA language is enabled, and an explicit
+# -DCMAKE_CUDA_COMPILER=... still wins.
+
 if(NOT DEFINED CMAKE_CUDA_COMPILER)
     find_program(CMAKE_CUDA_COMPILER nvcc)
 endif()

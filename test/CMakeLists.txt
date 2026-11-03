@@ -30,11 +30,12 @@ endfunction()
 
 # Registers the whole GoogleTest binary as a single CTest entry so its cases run
 # in one process. Tests that touch the CUDA runtime then share a single context
-# init instead of paying it per case. SOURCE may be a .cpp or .cu.
-function(add_shared_gpu_test_dr TEST_NAME SOURCE)
+# init instead of paying it per case. Sources may be .cpp or .cu, and several can
+# share one binary (and so one CUDA context).
+function(add_shared_gpu_test_dr TEST_NAME)
   add_executable(
     ${TEST_NAME}
-    ${SOURCE}
+    ${ARGN}
   )
   target_link_libraries(
     ${TEST_NAME}
@@ -60,7 +61,12 @@ add_test_dr(test_camera)
 add_test_dr(test_scene)
 add_test_dr(test_device)
 add_test_dr(test_running_average)
+add_test_dr(test_image)
+add_test_dr(test_camera_controller)
+
+add_test_dr(test_command_line)
+target_include_directories(test_command_line PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../sample_image/include)
 
 # GPU tests: one process each, so the CUDA context is initialized only once.
 add_shared_gpu_test_dr(test_cuda    src/test_cuda.cu)
-add_shared_gpu_test_dr(test_render  src/test_render.cpp)
+add_shared_gpu_test_dr(test_render  src/test_render.cpp src/test_render_accumulation.cpp)

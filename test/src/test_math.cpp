@@ -1,21 +1,20 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
+#include "VectorAssertions.hpp"
+
 #include "Utils.hpp"
 
 #include <gtest/gtest.h>
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <sstream>
+#include <thread>
+#include <vector>
 
-namespace
-{
-    void expectVec3Near(const Vec3 &actual, const Vec3 &expected, float tol = 1e-5f)
-    {
-        EXPECT_NEAR(actual.x, expected.x, tol);
-        EXPECT_NEAR(actual.y, expected.y, tol);
-        EXPECT_NEAR(actual.z, expected.z, tol);
-    }
-}
+using test::expectVec3Near;
 
 // --- Vec3 ---
 
@@ -136,6 +135,170 @@ TEST(Vec4Test, To8bitColorTruncatesAndClampsOutOfRange)
     // Values outside [0, 1] saturate instead of wrapping.
     EXPECT_EQ((Vec4{2.0f, -1.0f, 0, 0}.to8bitColor()), 0x000000FFu);
     EXPECT_EQ((Vec4{-5.0f, 0, 0, 9.0f}.to8bitColor()), 0xFF000000u);
+}
+
+TEST(Vec4Test, ConversionsToAndFromVec3)
+{
+    const auto fromVec3 = Vec4::from(Vec3{1, 2, 3}, 4.0f);
+    test::expectVec4Near(fromVec3, {1, 2, 3, 4});
+    expectVec3Near(fromVec3.xyz(), {1, 2, 3});
+}
+
+TEST(Vec4Test, WithAlphaReplacesOnlyW)
+{
+    test::expectVec4Near(Vec4{1, 2, 3, 4}.with_alpha(9.0f), {1, 2, 3, 9});
+}
+
+TEST(Vec4Test, AbsAppliesToEveryComponentIncludingW)
+{
+    test::expectVec4Near(Vec4{-1, 2, -3, -4}.abs(), {1, 2, 3, 4});
+}
+
+// --- Vec2 ---
+
+TEST(Vec2Test, ArithmeticOperators)
+{
+    constexpr Vec2f a{1, 2};
+    constexpr Vec2f b{4, 8};
+
+    EXPECT_EQ((a + b).x, 5);
+    EXPECT_EQ((a + b).y, 10);
+    EXPECT_EQ((b - a).x, 3);
+    EXPECT_EQ((b - a).y, 6);
+    EXPECT_EQ((a * b).x, 4);
+    EXPECT_EQ((a * b).y, 16);
+    EXPECT_EQ((b / a).x, 4);
+    EXPECT_EQ((b / a).y, 4);
+    EXPECT_EQ((a * 3.0f).y, 6);
+    EXPECT_EQ((b / 2.0f).x, 2);
+}
+
+TEST(Vec2Test, LengthAndSquaredLength)
+{
+    constexpr Vec2f threeFourFive{3, 4};
+
+    EXPECT_FLOAT_EQ(threeFourFive.length(), 5.0f);
+    EXPECT_FLOAT_EQ(threeFourFive.length_squared(), 25.0f);
+}
+
+TEST(Vec2Test, MapAppliesFunctionToBothComponentsAndMayChangeType)
+{
+    const auto floored = Vec2f{1.5f, -2.5f}.map([](float v) { return std::floor(v); });
+    EXPECT_EQ(floored.x, 1.0f);
+    EXPECT_EQ(floored.y, -3.0f);
+
+    const Vec2i truncated = Vec2f{1.5f, -2.5f}.map([](float v) { return static_cast<int>(v); });
+    EXPECT_EQ(truncated.x, 1);
+    EXPECT_EQ(truncated.y, -2);
+}
+
+TEST(Vec2Test, AsConvertsComponentTypeByTruncation)
+{
+    const auto ints = Vec2f{2.9f, -2.9f}.as<Vec2i>();
+    EXPECT_EQ(ints.x, 2);
+    EXPECT_EQ(ints.y, -2);
+
+    const auto floats = Vec2i{3, 4}.as<Vec2f>();
+    EXPECT_EQ(floats.x, 3.0f);
+    EXPECT_EQ(floats.y, 4.0f);
+}
+
+TEST(Vec2Test, ImplicitlyConvertsBetweenComponentTypes)
+{
+    const Vec2f floats = Vec2i{3, 4};
+    EXPECT_EQ(floats.x, 3.0f);
+    EXPECT_EQ(floats.y, 4.0f);
+}
+
+// --- Size2 ---
+
+TEST(Size2Test, AreaAndVectorForm)
+{
+    constexpr Size2i size{4, 3};
+
+    EXPECT_EQ(size.area(), 12);
+    EXPECT_EQ(size.toVec().x, 4);
+    EXPECT_EQ(size.toVec().y, 3);
+}
+
+TEST(Size2Test, ScalarMultiplicationAndDivisionScaleBothSides)
+{
+    constexpr Size2i size{8, 6};
+
+    EXPECT_EQ((size * 2).width, 16);
+    EXPECT_EQ((size * 2).height, 12);
+    EXPECT_EQ((size / 2).width, 4);
+    EXPECT_EQ((size / 2).height, 3);
+}
+
+TEST(Size2Test, ValidIndexCoversExactlyTheHalfOpenRectangle)
+{
+    constexpr Size2i size{4, 3};
+
+    EXPECT_TRUE(size.valid_index(Vec2i{0, 0}));
+    EXPECT_TRUE(size.valid_index(Vec2i{3, 2}));
+
+    EXPECT_FALSE(size.valid_index(Vec2i{4, 0}));
+    EXPECT_FALSE(size.valid_index(Vec2i{0, 3}));
+    EXPECT_FALSE(size.valid_index(Vec2i{-1, 0}));
+    EXPECT_FALSE(size.valid_index(Vec2i{0, -1}));
+}
+
+// --- Stream output ---
+
+TEST(StreamOutputTest, VectorsAndSizesPrintTheirComponents)
+{
+    const auto printed = [](const auto &value) {
+        std::ostringstream stream;
+        stream << value;
+        return stream.str();
+    };
+
+    EXPECT_EQ(printed(Vec3{1, 2, 3}), "(1, 2, 3)");
+    EXPECT_EQ(printed(Vec4{1, 2, 3, 4}), "(1, 2, 3, 4)");
+    EXPECT_EQ(printed(Vec2i{5, 6}), "(5, 6)");
+    EXPECT_EQ(printed(Size2i{7, 8}), "(7, 8)");
+}
+
+// --- Timer ---
+
+TEST(TimerTest, ElapsedTimeCoversAtLeastTheSleptDuration)
+{
+    using namespace std::chrono_literals;
+    constexpr auto slept = 5ms;
+
+    const Timer timer;
+    std::this_thread::sleep_for(slept);
+
+    EXPECT_GE(timer.elapsedSeconds(), std::chrono::duration<float>(slept).count());
+}
+
+// --- parallel_for ---
+
+namespace
+{
+    std::vector<int> visitCountsOfParallelFor(int range)
+    {
+        std::vector<std::atomic<int>> visits(range);
+        parallel_for(range, [&](int i) { ++visits[i]; });
+
+        return std::vector<int>(visits.begin(), visits.end());
+    }
+}
+
+TEST(ParallelForTest, VisitsEveryIndexExactlyOnce)
+{
+    for (const int range : {1, 3, 1000})
+    {
+        const auto visits = visitCountsOfParallelFor(range);
+
+        EXPECT_EQ(visits, std::vector<int>(range, 1)) << "range=" << range;
+    }
+}
+
+TEST(ParallelForTest, EmptyRangeNeverCallsTheFunction)
+{
+    EXPECT_TRUE(visitCountsOfParallelFor(0).empty());
 }
 
 // --- AABB ---

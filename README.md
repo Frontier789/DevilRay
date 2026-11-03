@@ -39,6 +39,7 @@ I use AI tools for multiple purposes throughout this project:
 
 1. **Idea discovery**: When I face a problem I'm not knowledgeable in, I sometimes ask an AI assistant about the established algorithms and where to find more information about them.
 2. **Tests**: Tests are super important to ensure the whole project doesn't go crumbling down when I update any part of it. However, my goal with this project is to learn about algorithms and math, so I use AI code generation often to write tests.
+3. **Tooling**: Glue code around the actual rendering, such as the command-line parsing of the helper tools.
 
 I review and fix all AI-generated code before committing it, which seems to be essential, given the glaring mistakes even the best models tend to make every now and then.
 

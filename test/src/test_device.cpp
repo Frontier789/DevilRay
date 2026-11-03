@@ -4,6 +4,7 @@
 // device memory, so they don't need a CUDA device and run per-case. The cases
 // that do touch the GPU live in test_cuda.cu, sharing one CUDA context.
 
+#include "Buffers.hpp"
 #include "device/Array.hpp"
 #include "device/Vector.hpp"
 
@@ -38,4 +39,31 @@ TEST(DeviceVectorTest, TracksHostSize)
 
     vector.push_back(4);
     EXPECT_EQ(vector.size(), 4u);
+}
+
+TEST(BuffersTest, TotalCastsSumsEveryPixelAndResetClearsThem)
+{
+    Buffers buffers(Size2i{4, 2});
+    ASSERT_EQ(buffers.casts.size(), 8u);
+    EXPECT_EQ(buffers.totalCasts(), 0u);
+
+    buffers.casts.hostPtr()[0] = 2;
+    buffers.casts.hostPtr()[7] = 5;
+    buffers.color.hostPtr()[3] = Vec4{1, 1, 1, 1};
+    EXPECT_EQ(buffers.totalCasts(), 7u);
+
+    buffers.reset();
+
+    EXPECT_EQ(buffers.totalCasts(), 0u);
+    EXPECT_EQ(buffers.color.hostPtr()[3].w, 0.0f);
+}
+
+TEST(BuffersTest, TotalCastsDoesNotOverflowThirtyTwoBits)
+{
+    Buffers buffers(Size2i{2, 1});
+    constexpr uint32_t nearly_full = 0xF0000000u;
+    buffers.casts.hostPtr()[0] = nearly_full;
+    buffers.casts.hostPtr()[1] = nearly_full;
+
+    EXPECT_EQ(buffers.totalCasts(), 2 * static_cast<uint64_t>(nearly_full));
 }

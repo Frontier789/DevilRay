@@ -2,7 +2,7 @@
 
 #include "TracingTestHelpers.hpp"
 
-#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
 #include "tracing/Scene.hpp"
 #include "tracing/LightSampling.hpp"
 #include "tracing/ShadingUtils.hpp"
@@ -57,31 +57,27 @@ TEST(MisWeightedEmissionTest, ZeroPdfNonSpecularContributesNothing)
     test::expectVec4Near(result, {0, 0, 0, 0});
 }
 
-// --- NEE / BSDF pdf components used for emission MIS ---
-// The wavefront path splits the megakernel's computeNextBounceMisPdfs into a
-// stored bsdf pdf (cosineWeightedHemispherePdf, recorded at the sampling vertex)
-// and computeNeePdf, evaluated at the emitter. This exercises both.
+// --- computeNeePdf ---
 
-TEST(NextBounceMisPdfsTest, MatchesAnalyticFormula)
+TEST(ComputeNeePdfTest, EmitterPowerShareTimesSolidAngleConversion)
 {
-    const Material emitter = emissiveMaterial(0.5f);
+    constexpr float emission = 0.5f;
+    constexpr float total_radiant_power = 10.0f;
+    constexpr float distance_to_emitter = 2.0f;
+    constexpr float cosine_at_emitter = 1.0f;
 
+    const Material emitter = emissiveMaterial(emission);
     const Vec3 vertexPos{0, 0, 0};
-    const Vec3 vertexNormal{0, 0, 1};
-    const Vec3 nextPos{0, 0, 2};
-    const Vec3 nextNormal{0, 0, -1};
-    const ObjectsInfo info{.total_radiant_power = 10.0f};
+    const Vec3 emitterPos{0, 0, distance_to_emitter};
+    const Vec3 emitterNormalFacingVertex{0, 0, -1};
+    const ObjectsInfo info{.total_radiant_power = total_radiant_power};
 
-    const float nee_pdf = computeNeePdf(vertexPos, nextPos, nextNormal, emitter, info);
-    const float bsdf_pdf = cosineWeightedHemispherePdf(vertexPos, nextPos, vertexNormal);
+    const float nee_pdf = computeNeePdf(vertexPos, emitterPos, emitterNormalFacingVertex, emitter, info);
 
-    const float radiantExitanceLuminance = luminance(radiantExitance(emitter));
-    const float expectedNee =
-        radiantExitanceLuminance / info.total_radiant_power * areaToSolidAngle(vertexPos, nextPos, nextNormal);
-
-    EXPECT_NEAR(bsdf_pdf, cosineWeightedHemispherePdf(vertexPos, nextPos, vertexNormal), 1e-6f);
-    EXPECT_NEAR(nee_pdf, expectedNee, 1e-6f);
-    EXPECT_NEAR(bsdf_pdf, 1.0f / pi, 1e-6f);
+    const float radiant_exitance_of_lambertian_emitter = emission * pi;
+    const float emitter_power_share = radiant_exitance_of_lambertian_emitter / total_radiant_power;
+    const float area_to_solid_angle = distance_to_emitter * distance_to_emitter / cosine_at_emitter;
+    EXPECT_NEAR(nee_pdf, emitter_power_share * area_to_solid_angle, 1e-6f);
 }
 
 // --- evaluateDirectLighting ---
@@ -153,5 +149,33 @@ TEST(SamplePointOnLightsTest, SamplesLieOnEmitterWithCorrectPdf)
         EXPECT_NEAR(std::abs(sample.n.z), 1.0f, 1e-5f);
         EXPECT_NEAR(sample.pdf, 1.0f / totalArea, 1e-5f);
         EXPECT_EQ(sample.mat, light.material);
+    }
+}
+
+TEST(SamplePointOnLightsTest, ScaledAndTranslatedEmitterIsSampledInWorldSpace)
+{
+    constexpr float model_half = 1.0f;
+    constexpr float uniform_scale = 3.0f;
+    const Vec3 translation{10, 0, 0};
+
+    constexpr float world_half = model_half * uniform_scale;
+    constexpr float world_area = (2 * world_half) * (2 * world_half);
+
+    HostObject light = makeHostObject(test::squareMeshXY(model_half), /*withTriangleSampler=*/true);
+    light.transform = Transform{.s = {uniform_scale, uniform_scale, uniform_scale}, .p = translation};
+    const std::array<TriangleMeshView, 1> objects{light.hostView()};
+
+    const AliasTable objectTable = generateAliasTable(std::vector<float>{1.0f});
+    const AliasTableView lightTable = objectTable.hostView();
+
+    DeterministicRng rng;
+    for (int i = 0; i < 2000; ++i)
+    {
+        const auto drawn = samplePointOnLights(std::span<const TriangleMeshView>{objects}, lightTable, rng);
+
+        EXPECT_LE(std::abs(drawn.p.x - translation.x), world_half + 1e-4f);
+        EXPECT_LE(std::abs(drawn.p.y - translation.y), world_half + 1e-4f);
+        EXPECT_NEAR(drawn.p.z, translation.z, 1e-4f);
+        EXPECT_NEAR(drawn.pdf, 1.0f / world_area, 1e-5f);
     }
 }

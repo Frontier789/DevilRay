@@ -1,3 +1,5 @@
+// Parts of this file are AI-generated tests (Claude), reviewed by hand before committing.
+
 #include <gtest/gtest.h>
 
 #include "models/Matrix.hpp"
@@ -18,6 +20,14 @@ TEST(MatrixTest, MultiplicationByIdentity) {
     for(int i = 0; i < 4; ++i)
         for(int j = 0; j < 4; ++j)
             EXPECT_EQ(result.values[i][j], m.values[i][j]);
+}
+
+TEST(MatrixTest, IdentityIsDiagonal) {
+    const auto id = Matrix4x4f::identity();
+
+    for(int r = 0; r < 4; ++r)
+        for(int c = 0; c < 4; ++c)
+            EXPECT_FLOAT_EQ(id.values[r][c], r == c ? 1.0f : 0.0f);
 }
 
 // --- Translation Tests ---
@@ -61,6 +71,31 @@ TEST(MatrixTest, RotationZeroAngle) {
     Vec3 result = rot.applyToPosition(pos);
 
     ExpectVec3Eq(result, 1.0f, 2.0f, 3.0f);
+}
+
+TEST(MatrixTest, ApplyToDirectionRotates) {
+    auto rot = Matrix4x4f::rotation({0, 0, 1}, pi / 2);
+
+    Vec3 result = rot.applyToDirection({1, 0, 0});
+
+    ExpectVec3Eq(result, 0.0f, 1.0f, 0.0f);
+}
+
+// --- Offset Tests ---
+
+TEST(MatrixTest, GetOffsetReturnsTranslationColumn) {
+    Vec3 translation = Matrix4x4f::translation({7, -3, 11}).getOffset();
+    Vec3 identity_offset = Matrix4x4f::identity().getOffset();
+
+    ExpectVec3Eq(translation, 7.0f, -3.0f, 11.0f);
+    ExpectVec3Eq(identity_offset, 0.0f, 0.0f, 0.0f);
+}
+
+TEST(MatrixTest, GetOffsetAfterComposition) {
+    auto a = Matrix4x4f::translation({1, 2, 3});
+    auto b = Matrix4x4f::translation({4, 5, 6});
+
+    ExpectVec3Eq((a * b).getOffset(), 5.0f, 7.0f, 9.0f);
 }
 
 // --- Edge Cases & Transformation Application ---
