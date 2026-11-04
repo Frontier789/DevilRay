@@ -2,9 +2,11 @@
 
 #include "tracing/Material.hpp"
 #include "tracing/TriangleMesh.hpp"
+#include "tracing/EnvironmentMap.hpp"
 #include "device/Vector.hpp"
 
 #include <list>
+#include <optional>
 
 struct ObjectsInfo
 {
@@ -22,5 +24,7 @@ struct Scene
     DeviceVector<Material> materials{{}};
 
     std::list<TriangleMesh> mesh_storage;
+
+    std::optional<EnvironmentMap> environment_map{};
 };
 

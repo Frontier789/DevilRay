@@ -60,6 +60,7 @@ add_library(${PROJECT_NAME}
             src/CameraController.cpp
             src/DistributionSamplers.cpp
             src/Utils.cpp
+            src/EnvironmentMap.cpp
             src/Image.cpp
             src/ImageMetadata.cpp
             src/Renderer.cpp
@@ -69,9 +70,9 @@ add_library(${PROJECT_NAME}
             src/models/BBH.cpp
             src/device/implementation.cu
             src/device/Binning.cu
+            src/device/CudaTimer.cu
             src/device/DevUtils.cu
             src/device/DeviceMemory.cu
-            src/device/CudaTimer.cu
             src/tracing/TriangleMesh.cpp)
 
 target_link_libraries(${PROJECT_NAME}

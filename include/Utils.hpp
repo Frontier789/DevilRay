@@ -192,6 +192,14 @@ struct Vec2
     {
         return as<Vec2<U>>();
     }
+
+    constexpr Vec2 min(const Vec2 &limits)
+    {
+        return Vec2{
+            .x = std::min(x, limits.x),
+            .y = std::min(y, limits.y),
+        };
+    }
 };
 
 using Vec2i = Vec2<int>;
@@ -211,6 +219,11 @@ struct Size2
     constexpr bool valid_index(const Vec2<T> &p) const
     {
         return p.x >= T{0} && p.y >= T{0} && p.x < width && p.y < height;
+    }
+
+    constexpr int linear_index(const Vec2<T> &p) const
+    {
+        return p.y * width + p.x;
     }
 };
 
@@ -316,6 +329,32 @@ inline constexpr float cosineWeightedHemisphereDirPdf(Vec3 direction, Vec3 norma
 inline constexpr float cosineWeightedHemispherePdf(Vec3 current_vertex_position, Vec3 next_vertex_position, Vec3 normal)
 {
     const auto dir = (next_vertex_position - current_vertex_position).normalized();
-    
+
     return cosineWeightedHemisphereDirPdf(dir, normal);
+}
+
+struct SphericalAngles
+{
+    float azimuth;
+    float elevation;
+
+    constexpr Vec2f toVec() const {
+        return Vec2f{
+            .x = azimuth,
+            .y = elevation,
+        };
+    }
+};
+
+inline constexpr SphericalAngles directionToSphericalAngles(const Vec3 &direction)
+{
+    const auto &d = direction;
+
+    const float elevation = std::atan2(d.y, std::sqrt(d.x*d.x + d.z*d.z));
+
+    float azimuth = std::atan2(d.x, d.z);
+    if (azimuth < 0.0f) azimuth += 2*pi;
+    if (azimuth >= 2*pi) azimuth = 0.0f;
+
+    return SphericalAngles{.azimuth = azimuth, .elevation = elevation};
 }

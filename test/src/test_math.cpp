@@ -378,3 +378,139 @@ TEST(GeometryHelpers, CosineWeightedHemispherePdfIsZeroBelowHorizon)
 {
     EXPECT_FLOAT_EQ(cosineWeightedHemispherePdf({0, 0, 0}, {0, 0, -1}, {0, 0, 1}), 0.0f);
 }
+
+// --- Spherical angles ---
+
+namespace
+{
+    Vec3 directionFromSphericalAngles(float azimuth, float elevation)
+    {
+        return Vec3{
+            std::cos(elevation) * std::sin(azimuth),
+            std::sin(elevation),
+            std::cos(elevation) * std::cos(azimuth),
+        };
+    }
+}
+
+TEST(SphericalAnglesTest, AxisAndDiagonalDirectionsLandOnTheExpectedAngles)
+{
+    struct Case
+    {
+        Vec3 direction;
+        float azimuth;
+        float elevation;
+    };
+
+    const Case cases[] = {
+        {{0, 0, 1}, 0.0f, 0.0f},
+        {{1, 0, 0}, pi / 2, 0.0f},
+        {{0, 0, -1}, pi, 0.0f},
+        {{-1, 0, 0}, 1.5f * pi, 0.0f},
+        {Vec3{1, 1, 0}.normalized(), pi / 2, pi / 4},
+        {Vec3{0, -1, 1}.normalized(), 0.0f, -pi / 4},
+    };
+
+    for (const auto &[direction, azimuth, elevation] : cases)
+    {
+        const auto angles = directionToSphericalAngles(direction);
+
+        SCOPED_TRACE(testing::Message() << "direction=" << direction);
+        EXPECT_NEAR(angles.azimuth, azimuth, 1e-6f);
+        EXPECT_NEAR(angles.elevation, elevation, 1e-6f);
+    }
+}
+
+TEST(SphericalAnglesTest, PolesHaveAnExactElevationAndAFiniteAzimuth)
+{
+    for (const float zero : {0.0f, -0.0f})
+    {
+        const auto north = directionToSphericalAngles(Vec3{zero, 1, zero});
+        const auto south = directionToSphericalAngles(Vec3{zero, -1, zero});
+
+        EXPECT_FLOAT_EQ(north.elevation, pi / 2);
+        EXPECT_FLOAT_EQ(south.elevation, -pi / 2);
+
+        for (const auto &angles : {north, south})
+        {
+            EXPECT_TRUE(std::isfinite(angles.azimuth));
+            EXPECT_GE(angles.azimuth, 0.0f);
+            EXPECT_LT(angles.azimuth, 2 * pi);
+        }
+    }
+}
+
+TEST(SphericalAnglesTest, RoundTripsThroughTheInverseParameterization)
+{
+    constexpr int elevation_steps = 16;
+    constexpr int azimuth_steps = 32;
+
+    for (int i = 1; i < elevation_steps; ++i)
+    {
+        for (int j = 0; j < azimuth_steps; ++j)
+        {
+            const float elevation = pi * i / elevation_steps - pi / 2;
+            const float azimuth = 2 * pi * j / azimuth_steps;
+
+            const auto angles = directionToSphericalAngles(directionFromSphericalAngles(azimuth, elevation));
+
+            SCOPED_TRACE(testing::Message() << "azimuth=" << azimuth << " elevation=" << elevation);
+            EXPECT_NEAR(angles.azimuth, azimuth, 1e-5f);
+            EXPECT_NEAR(angles.elevation, elevation, 1e-5f);
+        }
+    }
+}
+
+TEST(SphericalAnglesTest, AnglesStayInTheirRangesForAllSignAndZeroCombinations)
+{
+    const float values[] = {-1.0f, -0.5f, -0.1f, -0.0f, 0.0f, 0.1f, 0.5f, 1.0f};
+
+    for (const float x : values)
+    {
+        for (const float y : values)
+        {
+            for (const float z : values)
+            {
+                if (x == 0.0f && y == 0.0f && z == 0.0f) continue;
+
+                const Vec3 direction{x, y, z};
+                const auto angles = directionToSphericalAngles(direction);
+
+                SCOPED_TRACE(testing::Message() << "direction=" << direction);
+                EXPECT_GE(angles.azimuth, 0.0f);
+                EXPECT_LT(angles.azimuth, 2 * pi);
+                EXPECT_GE(angles.elevation, -pi / 2);
+                EXPECT_LE(angles.elevation, pi / 2);
+            }
+        }
+    }
+}
+
+TEST(SphericalAnglesTest, TinyNegativeXFoldsToZeroAzimuthInsteadOfAFullTurn)
+{
+    const auto angles = directionToSphericalAngles(Vec3{-1e-9f, 0, 1});
+
+    EXPECT_GE(angles.azimuth, 0.0f);
+    EXPECT_LT(angles.azimuth, 2 * pi);
+    EXPECT_NEAR(angles.azimuth, 0.0f, 1e-6f);
+}
+
+TEST(SphericalAnglesTest, ResolvesElevationsTooCloseToThePoleForAsin)
+{
+    const auto north = directionToSphericalAngles(Vec3{1e-4f, 1.0f, 0}.normalized());
+    const auto south = directionToSphericalAngles(Vec3{1e-4f, -1.0f, 0}.normalized());
+
+    EXPECT_NEAR(north.elevation, pi / 2 - 1e-4f, 5e-7f);
+    EXPECT_NEAR(south.elevation, -pi / 2 + 1e-4f, 5e-7f);
+}
+
+TEST(SphericalAnglesTest, IsScaleInvariant)
+{
+    const Vec3 d{0.3f, -0.5f, 0.8f};
+
+    const auto unit = directionToSphericalAngles(d.normalized());
+    const auto scaled = directionToSphericalAngles(d * 7.0f);
+
+    EXPECT_NEAR(scaled.azimuth, unit.azimuth, 1e-6f);
+    EXPECT_NEAR(scaled.elevation, unit.elevation, 1e-6f);
+}

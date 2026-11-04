@@ -300,7 +300,37 @@ __global__ void shade(
     }
 }
 
-__global__ void debugShade(
+__global__ void shadeEnvironment(
+    PathVertexDataView vertex,
+    WavefrontDataView wavefront,
+    curandState *rand_states,
+    EnvironmentMapView env_map,
+    int *alive_count,
+    RenderBuffersView output
+)
+{
+    const int thread_idx = KERNEL_IDX(*alive_count);
+    const int idx = wavefront.sort_index[thread_idx];
+    const auto missed_all_geometry = !vertex.alive[idx];
+    if (!missed_all_geometry) return;
+
+    const auto ray = wavefront.rays[idx];
+    const auto v = ray.v;
+    const auto &img = env_map.panorama_image;
+
+    const auto angles = directionToSphericalAngles(v);
+    const auto normalized_image_coords = Vec2f{angles.azimuth, pi/2 - angles.elevation} / Vec2f{pi*2, pi};
+    const auto image_coords = normalized_image_coords * img.size.toVec();
+
+    const auto pixel_coords = image_coords.as<Vec2i>().min(img.size.toVec() - Vec2i{1,1});
+    const auto pixel_index = img.size.linear_index(pixel_coords);
+
+    const auto pixel_color = img.pixels[pixel_index];
+
+    output.colors[idx] += pixel_color * env_map.intensity_multiplier * vertex.throughput[idx];
+}
+
+__global__ void shadeDebug(
     PathVertexDataView vertex,
     WavefrontDataView wavefront,
     std::span<const TriangleMeshView> objects,

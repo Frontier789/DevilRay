@@ -239,6 +239,7 @@ void Application::initRenderer()
     renderer->setScene(createScene(*meshes));
     renderer->setCamera(cameraController.getCamera());
     renderer->setDebug(renderOptions.debug);
+    renderer->setEnvironmentMapIntensityScale(renderOptions.environment_map_intensity_scale);
 
     renderingThread = std::jthread([this]{
         renderWorker();

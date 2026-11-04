@@ -37,6 +37,7 @@ class Renderer
     DebugOptions m_debug = DebugOptions::Off;
     OutputOptions m_output_options;
     PixelSampling m_pixel_sampling;
+    float m_environment_map_intensity_scale = 1.0f;
     Size2i m_resolution;
     AliasTable m_light_sampler;
 
@@ -63,6 +64,7 @@ public:
     void setCamera(Camera cam);
     void setScene(Scene scn) { m_scene = std::move(scn); calculateLightWeights(); clear(); }
     void setPixelSampling(PixelSampling sampling);
+    void setEnvironmentMapIntensityScale(float scale);
     void setOutputOptions(OutputOptions options);
 
     void render();

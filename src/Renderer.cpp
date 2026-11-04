@@ -209,6 +209,14 @@ void Renderer::setPixelSampling(PixelSampling sampling)
     m_needsToBeCleared = true;
 }
 
+void Renderer::setEnvironmentMapIntensityScale(float scale)
+{
+    std::scoped_lock guard{m_renderMutex};
+
+    m_environment_map_intensity_scale = scale;
+    m_needsToBeCleared = true;
+}
+
 void Renderer::setOutputOptions(OutputOptions options)
 {
     std::scoped_lock guard{m_renderMutex};

@@ -21,7 +21,7 @@
 #include <utility>
 
 // checkerPattern is declared in PathGeneration.hpp and defined in the library's
-// implementation.cu. Provide a local definition so debugShade links here without
+// implementation.cu. Provide a local definition so shadeDebug links here without
 // pulling in that translation unit (which would duplicate the kernel symbols).
 HD Vec4 checkerPattern(const Vec2f &uv, int checker_count, Vec4 dark, Vec4 bright)
 {
@@ -564,7 +564,7 @@ TEST(Kernels, ShadeDiffuseAccumulatesEmission)
     EXPECT_TRUE(std::isfinite(c.x) && std::isfinite(c.y) && std::isfinite(c.z));
 }
 
-TEST(Kernels, DebugShadeColorsFirstHit)
+TEST(Kernels, ShadeDebugColorsFirstHit)
 {
     const Vec4 debugColor{0.2f, 0.4f, 0.6f, 0};
     DeviceScene scene = uploadScene(test::unitTriangleMesh(), 0);
@@ -585,7 +585,7 @@ TEST(Kernels, DebugShadeColorsFirstHit)
         RenderBuffers out{.colors = deviceBufferFrom(std::vector<Vec4>(N, Vec4{0, 0, 0, 0})), .resolution = Size2i{N, 1}};
         DeviceBuffer<int> aliveCount = makeAliveCount(N);
 
-        debugShade<<<1, N>>>(paths.view(), wf.view(), scene.span(), materials.deviceSpan(),
+        shadeDebug<<<1, N>>>(paths.view(), wf.view(), scene.span(), materials.deviceSpan(),
                              mode, aliveCount.devicePtr(), out.view());
         syncDevice();
         return out.colors.toHost()[0];
@@ -811,7 +811,7 @@ TEST(DeviceViews, AliasImageTableViewPointsAtUploadedEntries)
 {
     const Size2i size{4, 2};
     auto luminance = Image1f::create(size, 1.0f);
-    AliasImageTable table = generateAliasTable(luminance.view());
+    AliasImageTable table = generateAliasTable(luminance.hostView());
 
     const AliasImageTableView view = table.view();
 
@@ -821,6 +821,25 @@ TEST(DeviceViews, AliasImageTableViewPointsAtUploadedEntries)
     EXPECT_EQ(view.row_entries, table.row_entries.devicePtr());
     EXPECT_NE(view.pixel_entries, nullptr);
     EXPECT_NE(view.row_entries, nullptr);
+}
+
+TEST(DeviceViews, ImageViewPointsAtUploadedPixelsNotHostPixels)
+{
+    auto image = Image1f::create(Size2i{3, 2}, 2.5f);
+    image.pixels.hostSpan()[4] = 9.0f;
+
+    const ImageView1f view = image.view();
+
+    EXPECT_EQ(view.size.width, 3);
+    EXPECT_EQ(view.size.height, 2);
+    ASSERT_NE(view.pixels, nullptr);
+    EXPECT_EQ(view.pixels, image.pixels.devicePtr());
+    EXPECT_NE(view.pixels, image.hostView().pixels);
+
+    std::ranges::fill(image.pixels.hostSpan(), 0.0f);
+    image.pixels.updateHostData();
+    EXPECT_FLOAT_EQ(image.pixels.hostSpan()[0], 2.5f);
+    EXPECT_FLOAT_EQ(image.pixels.hostSpan()[4], 9.0f);
 }
 
 TEST(DeviceViews, BBHViewPointsAtUploadedNodes)

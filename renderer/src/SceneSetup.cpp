@@ -189,5 +189,17 @@ Scene createScene(Meshes &meshes)
 
     // addQuad(Vec3{0,-0.5,0}, Vec3{0,1,0}, Vec3{0,0,1}, 100, gray);
 
+    const std::string env_map_file = "images/meadow_2_4k.hdr";
+    try {
+        auto env = loadHDR(env_map_file);
+        scene.environment_map = EnvironmentMap{
+            .panorama_image = std::move(env)
+        };
+    } catch (std::runtime_error e)
+    {
+        std::cout << "Failed to load " << env_map_file << ": " << e.what() << std::endl;
+        std::cout << "Using no environment map" << std::endl;
+    }
+
     return scene;
 }

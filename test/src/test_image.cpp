@@ -62,23 +62,48 @@ namespace
 
 // --- Image<T> ---
 
+namespace
+{
+    template<typename T>
+    std::vector<T> pixelsOf(const Image<T> &image)
+    {
+        const auto span = image.pixels.hostSpan();
+        return std::vector<T>(span.begin(), span.end());
+    }
+}
+
 TEST(ImageTest, CreateFillsEveryPixelWithTheGivenValue)
 {
     const auto image = Image1f::create(Size2i{3, 2}, 0.5f);
 
     EXPECT_EQ(image.size.width, 3);
     EXPECT_EQ(image.size.height, 2);
-    EXPECT_EQ(image.pixels, std::vector<float>(6, 0.5f));
+    EXPECT_EQ(pixelsOf(image), std::vector<float>(6, 0.5f));
 }
 
 TEST(ImageTest, CreateWithoutValueZeroInitializesPixels)
 {
     const auto scalar_image = Image1f::create(Size2i{2, 2});
-    EXPECT_EQ(scalar_image.pixels, std::vector<float>(4, 0.0f));
+    EXPECT_EQ(pixelsOf(scalar_image), std::vector<float>(4, 0.0f));
 
     const auto color_image = Image4f::create(Size2i{2, 1});
-    for (const auto &pixel : color_image.pixels)
+    for (const auto &pixel : pixelsOf(color_image))
         test::expectVec4Near(pixel, {0, 0, 0, 0});
+}
+
+TEST(ImageTest, CreateUninitializedHasTheRequestedSizeAndKeepsWrittenPixels)
+{
+    auto image = Image4f::create_uninitialized(Size2i{3, 2});
+
+    EXPECT_EQ(image.size.width, 3);
+    EXPECT_EQ(image.size.height, 2);
+    ASSERT_EQ(image.pixels.size(), 6u);
+
+    for (int i = 0; i < 6; ++i)
+        image.pixels.hostSpan()[i] = Vec4{static_cast<float>(i), 0, 0, 1};
+
+    for (int i = 0; i < 6; ++i)
+        test::expectVec4Near(image.pixels.hostSpan()[i], {static_cast<float>(i), 0, 0, 1});
 }
 
 TEST(ImageTest, IndexingIsRowMajorWithXAsColumn)
@@ -88,7 +113,7 @@ TEST(ImageTest, IndexingIsRowMajorWithXAsColumn)
     image[pixelAt(2, 1)] = 7.0f;
 
     constexpr int index_of_last_column_in_second_row = 2 + 3 * 1;
-    EXPECT_EQ(image.pixels[index_of_last_column_in_second_row], 7.0f);
+    EXPECT_EQ(image.pixels.hostSpan()[index_of_last_column_in_second_row], 7.0f);
 }
 
 TEST(ImageTest, ConstIndexingReadsTheSamePixelAsMutableIndexing)
@@ -101,17 +126,33 @@ TEST(ImageTest, ConstIndexingReadsTheSamePixelAsMutableIndexing)
     EXPECT_EQ(const_image[pixelAt(1, 1)], 4.0f);
 }
 
-TEST(ImageTest, ViewSharesPixelsAndSizeWithTheImage)
+TEST(ImageTest, HostViewSharesPixelsAndSizeWithTheImage)
 {
     auto image = Image1f::create(Size2i{4, 2});
 
-    const ImageView1f view = image.view();
+    const ImageView1f view = image.hostView();
     view.pixels[5] = 3.0f;
 
-    EXPECT_EQ(view.pixels, image.pixels.data());
+    EXPECT_EQ(view.pixels, image.pixels.hostPtr());
     EXPECT_EQ(view.size.width, 4);
     EXPECT_EQ(view.size.height, 2);
-    EXPECT_EQ(image.pixels[5], 3.0f);
+    EXPECT_EQ(image.pixels.hostSpan()[5], 3.0f);
+}
+
+TEST(ImageTest, IsMoveOnlyAndMovingKeepsTheSamePixelBuffer)
+{
+    static_assert(!std::is_copy_constructible_v<Image4f>);
+    static_assert(std::is_move_constructible_v<Image4f>);
+
+    auto source = Image1f::create(Size2i{2, 2}, 1.5f);
+    const float *buffer = source.pixels.hostPtr();
+
+    const Image1f moved = std::move(source);
+
+    EXPECT_EQ(moved.pixels.hostPtr(), buffer);
+    EXPECT_EQ(moved.size.width, 2);
+    EXPECT_EQ(moved.size.height, 2);
+    EXPECT_EQ(pixelsOf(moved), std::vector<float>(4, 1.5f));
 }
 
 // --- intensity ---

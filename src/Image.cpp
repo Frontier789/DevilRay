@@ -36,24 +36,20 @@ Image4f loadHDR(const std::string &file_name)
         throw std::runtime_error("Failed to load " + file_name + ". Reason: " + reason);
     }
 
-    std::vector<Vec4> pixels(size.area());
-    std::memcpy(pixels.data(), data, size.area() * sizeof(Vec4));
+    auto img = Image4f::create_uninitialized(size);
+    std::memcpy(img.pixels.hostPtr(), data, size.area() * sizeof(Vec4));
     stbi_image_free(data);
 
-    return Image4f{
-        .pixels = std::move(pixels),
-        .size = size,
-    };
+    return img;
 }
 
 Image1f intensity(const Image4f &image)
 {
-    std::vector<float> intens;
+    auto intens = Image1f::create_uninitialized(image.size);
+    const auto data = image.pixels.hostPtr();
+    const auto pixel_count = image.size.area();
 
-    std::transform(image.pixels.begin(), image.pixels.end(), std::back_inserter(intens), luminance);
+    std::transform(data, data + pixel_count, intens.pixels.hostPtr(), luminance);
 
-    return Image1f{
-        .pixels = std::move(intens),
-        .size = image.size,
-    };
+    return intens;
 }

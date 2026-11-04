@@ -39,9 +39,14 @@ void Application::handleUiEvents()
     }
 
     constexpr const char* pixel_sampling_names[] = {"Center", "UniformRandom"};
-    if (ImGui::Combo("Pixel Sampling", reinterpret_cast<int*>(&renderOptions.pixel_sampling), pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
+    if (ImGui::Combo("Pixel sampling", reinterpret_cast<int*>(&renderOptions.pixel_sampling), pixel_sampling_names, IM_ARRAYSIZE(pixel_sampling_names)))
     {
         renderer->setPixelSampling(renderOptions.pixel_sampling);
+    }
+
+    if (ImGui::SliderFloat("Environment intensity", &renderOptions.environment_map_intensity_scale, 0.25f, 4.0f, "%.2fx", ImGuiSliderFlags_Logarithmic | ImGuiSliderFlags_AlwaysClamp))
+    {
+        renderer->setEnvironmentMapIntensityScale(renderOptions.environment_map_intensity_scale);
     }
 
     ImGui::Text("Render pass: %.1fms", asyncData.averageRenderTime.load(std::memory_order::relaxed));

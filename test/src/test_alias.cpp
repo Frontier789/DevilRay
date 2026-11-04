@@ -262,7 +262,7 @@ TEST(AliasTableViewTest, HostViewSamplesOnlyNonZeroImportances)
 TEST(AliasImageTableViewTest, HostViewPointsAtHostEntriesAndKeepsImageSize)
 {
     auto luminance = Image1f::create(Size2i{4, 3}, 1.0f);
-    const AliasImageTable table = generateAliasTable(luminance.view());
+    const AliasImageTable table = generateAliasTable(luminance.hostView());
 
     const AliasImageTableView view = table.hostView();
 
@@ -276,7 +276,7 @@ TEST(AliasImageTableViewTest, HostViewSamplesTheOnlyBrightPixel)
 {
     auto luminance = Image1f::create(Size2i{4, 3}, 0.0f);
     luminance[Vec2i{.x = 2, .y = 1}] = 5.0f;
-    const AliasImageTable table = generateAliasTable(luminance.view());
+    const AliasImageTable table = generateAliasTable(luminance.hostView());
     const AliasImageTableView view = table.hostView();
 
     test::DeterministicRng rng;

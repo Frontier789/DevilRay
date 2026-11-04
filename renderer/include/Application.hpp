@@ -30,6 +30,7 @@ struct RenderOptions
     float focal_length_mm = 14.2f;
     DebugOptions debug = DebugOptions::Off;
     PixelSampling pixel_sampling = PixelSampling::UniformRandom;
+    float environment_map_intensity_scale = 1.0f;
 };
 
 struct UiHandler

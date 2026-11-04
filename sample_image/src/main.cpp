@@ -13,7 +13,7 @@ namespace
     std::vector<Vec2i> sample_points_on_image(Image1f &luminance, int point_count, CpuRand &rng)
     {
         Timer t;
-        const auto alias_table = generateAliasTable(luminance.view());
+        const auto alias_table = generateAliasTable(luminance.hostView());
 
         const auto table_time = t.elapsedSeconds();
         std::cout << "Built Alias Table in " << table_time*1000 << "ms" << std::endl;
@@ -92,10 +92,13 @@ namespace
     {
         std::vector<RegionStat> region_stats(region_count, RegionStat{0,0});
 
-        for (size_t i=0;i<closest_id.pixels.size();++i) {
-            const auto id = closest_id.pixels[i];
+        const auto ids = closest_id.pixels.hostSpan();
+        const auto colors = image.pixels.hostSpan();
+
+        for (size_t i=0;i<ids.size();++i) {
+            const auto id = ids[i];
             if (id >= 0) {
-                region_stats[id].sum += image.pixels[i];
+                region_stats[id].sum += colors[i];
                 region_stats[id].pix_count += 1;
             }
         }
@@ -106,7 +109,7 @@ namespace
     Image4f convolve(const Image4f &img, const Image1f &coefs)
     {
         const auto s = img.size;
-        auto result = Image4f::create(s);
+        auto result = Image4f::create_uninitialized(s);
 
         if (coefs.size.width != coefs.size.height) throw std::runtime_error(std::format("Convolve expects square coefs. Got {}x{}.", coefs.size.width, coefs.size.height));
         const auto hs = coefs.size.width / 2;
@@ -147,7 +150,7 @@ namespace
 
         auto result = convolve(img, coefs);
 
-        for (auto &pix : result.pixels) {
+        for (auto &pix : result.pixels.hostSpan()) {
             pix = pix.abs().with_alpha(1);
         }
 
@@ -160,20 +163,19 @@ namespace
         return convolve(img, coefs);
     }
 
-    Image4f set_frame(const Image4f &img, const int frame, const Vec4 &val)
+    Image4f set_frame(Image4f img, const int frame, const Vec4 &val)
     {
         const auto s = img.size;
-        Image4f result = img;
 
         parallel_for(s.height, [&](int y){
         for (int x=0;x<s.width;++x)
         {
             if (Size2i{s.width - frame*2, s.height - frame*2}.valid_index(Vec2i{x-frame, y-frame})) continue;
                 
-            result[Vec2i{x,y}] = val;
+            img[Vec2i{x,y}] = val;
         }});
 
-        return result;
+        return img;
     }
 
     Image4f scale_down(const Image4f &img, const int factor)
@@ -197,7 +199,7 @@ namespace
 
     Image4f scale_up_to(const Image4f &img, const Size2i s)
     {
-        auto result = Image4f::create(s);
+        auto result = Image4f::create_uninitialized(s);
         const auto scale = img.size.toVec().as<Vec2f>() / s.toVec().as<Vec2f>();
 
         parallel_for(s.height, [&](int y){
@@ -216,10 +218,13 @@ namespace
     {
         auto img = Image4f::create(closest_id.size);
 
-        for (size_t i=0;i<closest_id.pixels.size();++i) {
-            const auto id = closest_id.pixels[i];
+        const auto ids = closest_id.pixels.hostSpan();
+        const auto colors = img.pixels.hostSpan();
+
+        for (size_t i=0;i<ids.size();++i) {
+            const auto id = ids[i];
             if (id >= 0) {
-                img.pixels[i] = region_stats[id].mean();
+                colors[i] = region_stats[id].mean();
             }
         }
 
@@ -240,7 +245,7 @@ namespace
         std::vector<uint32_t> pixel_data;
         pixel_data.reserve(image.pixels.size());
 
-        for (const auto &pixel : image.pixels) {
+        for (const auto &pixel : image.pixels.hostSpan()) {
             pixel_data.push_back(linear_to_display(pixel).to8bitColor());
         }
 

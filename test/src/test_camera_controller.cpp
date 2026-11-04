@@ -68,6 +68,22 @@ TEST(CameraControllerTest, PitchTiltsForwardTowardPlusY)
     expectVec3Near(forward, {0, std::sin(pi / 6), std::cos(pi / 6)});
 }
 
+TEST(CameraControllerTest, ForwardAzimuthAndElevationAreYawAndPitch)
+{
+    for (const auto &[pitch, yaw] : orientationsAroundTheSphere)
+    {
+        const auto controller = controllerLookingAt({0, 0, 0}, 1, pitch, yaw);
+
+        if (controller.isUpsideDown()) continue;
+
+        const auto angles = directionToSphericalAngles(controller.forward());
+
+        SCOPED_TRACE(testing::Message() << "pitch=" << pitch << " yaw=" << yaw);
+        EXPECT_NEAR(angles.azimuth, yaw < 0 ? yaw + 2 * pi : yaw, 1e-5f);
+        EXPECT_NEAR(angles.elevation, pitch, 1e-5f);
+    }
+}
+
 TEST(CameraControllerTest, RightUpForwardFormARightHandedOrthonormalBasis)
 {
     for (const auto &[pitch, yaw] : orientationsAroundTheSphere)

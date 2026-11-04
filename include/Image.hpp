@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
+#include "device/Array.hpp"
 
 #include <vector>
 #include <string>
@@ -20,28 +21,48 @@ struct ImageView
 };
 
 using ImageView1f = ImageView<float>;
+using ImageView4f = ImageView<Vec4>;
 
 template<typename T>
 struct Image
 {
-    std::vector<T> pixels;
+    DeviceArray<T> pixels;
 
     Size2i size;
 
-    T &operator[](Vec2i p) { return pixels[p.x + size.width * p.y]; }
-    const T &operator[](Vec2i p) const { return pixels[p.x + size.width * p.y]; }
+    T &operator[](Vec2i p) { return pixels.hostPtr()[p.x + size.width * p.y]; }
+    const T &operator[](Vec2i p) const { return pixels.hostPtr()[p.x + size.width * p.y]; }
 
     static Image<T> create(Size2i s, T def_val = T{})
     {
         return Image<T>{
-            .pixels = std::vector<T>(s.area(), def_val),
+            .pixels = DeviceArray<T>(s.area(), def_val),
             .size = s
         };
     }
 
-    ImageView<T> view() {
+    static Image<T> create_uninitialized(Size2i s)
+    {
+        return Image<T>{
+            .pixels = DeviceArray<T>::uninitialized(s.area()),
+            .size = s,
+        };
+    }
+
+    ImageView<T> hostView()
+    {
         return ImageView<T>{
-            .pixels = pixels.data(),
+            .pixels = pixels.hostPtr(),
+            .size = size,
+        };
+    }
+
+    ImageView<T> view()
+    {
+        pixels.ensureDeviceAllocation();
+
+        return ImageView<T>{
+            .pixels = pixels.devicePtr(),
             .size = size,
         };
     }

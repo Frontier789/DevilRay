@@ -118,7 +118,8 @@ new code.
   uploads. Used by `Scene` for `objects` and `materials`.
 - **`DeviceArray<T>`** (`include/device/Array.hpp`) — fixed-size host+device pair that keeps
   a host mirror, with `updateDeviceData()` / `updateHostData()` and a `reset()` to the
-  initial value. Used for buffers that are read back to the CPU (see `Buffers`).
+  initial value. Used for buffers that are read back to the CPU (see `Buffers`) and for
+  `Image` pixels. `DeviceArray<T>::uninitialized(N)` skips the host-side fill.
 - **`DeviceBuffer<T>`** (`include/device/Buffer.hpp`) — device-only storage with no
   persistent host mirror; built via `allocate()` / `fromHost()` and read back on demand
   with `toHost()`. Used for the per-path wavefront state.
@@ -137,8 +138,15 @@ trivially-copyable struct of non-owning pointers that is safe to pass to any ker
 `Foo::view()` uploads whatever is still missing and returns the device view;
 `Foo::hostView()` (where CPU code needs one) returns the same shape over host pointers
 without touching CUDA. Pairs: `AliasTable`, `AliasImageTable`, `BBH`, `TriangleMesh`,
-`PathVertexData`, `WavefrontData`, `RenderBuffers`. `Image` / `ImageView` have the same
-shape but are host-only (`Image::view()` points at host pixels).
+`PathVertexData`, `WavefrontData`, `RenderBuffers`, `Image` / `ImageView`.
+
+`Image<T>` keeps its pixels in a `DeviceArray`. `Image::view()` uploads them (once; call
+`pixels.updateDeviceData()` after later host edits) and returns the device view, while
+`Image::hostView()` returns host pointers without touching CUDA. `ImageView` is the same type
+either way, so CPU code (the alias-table builder, `sample_image`, CPU tests) must use
+`hostView()`: a device view dereferenced on the host crashes, and `view()` on a CPU path
+triggers a `cudaMalloc`. `Image` is move-only. `Image::create_uninitialized()` skips the zero
+fill when every pixel is going to be overwritten.
 
 ### Render loop
 
@@ -173,7 +181,7 @@ with an `AliasTable` (`include/tracing/DistributionSamplers.hpp`) weighted by ra
 then a triangle within the mesh, then a point on that triangle. Materials are a
 `std::variant` (`include/tracing/Material.hpp`) dispatched with `std::get_if`. Setting
 `DebugOptions` to anything but `Off` takes a separate short path — one `extendPaths` plus
-`debugShade` — to visualize intersection data instead of integrating.
+`shadeDebug` — to visualize intersection data instead of integrating.
 
 ### Geometry & acceleration
 

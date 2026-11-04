@@ -48,17 +48,21 @@ void Renderer::scheduleDeviceRender()
     Camera localCamera;
     PixelSampling localPixelSampling;
     DebugOptions localDebug;
+    float localEnvironmentMapIntensityScale;
 
     {
         std::scoped_lock guard{m_renderMutex};
         localCamera = m_camera;
         localPixelSampling = m_pixel_sampling;
         localDebug = m_debug;
+        localEnvironmentMapIntensityScale = m_environment_map_intensity_scale;
     }
 
     const auto objects = m_scene.objects.deviceSpan();
     const auto materials = m_scene.materials.deviceSpan();
     const auto light_table = m_light_sampler.view();
+    auto environment_map = m_scene.environment_map ? std::optional{m_scene.environment_map->view()} : std::nullopt;
+    if (environment_map) environment_map->intensity_multiplier *= localEnvironmentMapIntensityScale;
 
     const auto wavefront = m_wavefront.view();
     const auto vertex = m_pathVertices.view();
@@ -73,15 +77,14 @@ void Renderer::scheduleDeviceRender()
     curandState *rand = m_cuda_randoms.devicePtr();
     uint32_t *casts = m_buffers.casts.devicePtr();
     int *num_selected = m_binning.num_selected.devicePtr();
+    m_binning.num_selected.copyFromHost(std::vector{path_count});
 
     if (localDebug != DebugOptions::Off)
     {
-        m_binning.num_selected.copyFromHost(std::vector{path_count});
-
         initPaths<<<gridSize, blockSize>>>(vertex, path_count);
         initCameraRays<<<gridSize, blockSize>>>(wavefront, localPixelSampling, localCamera, rand);
         extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, num_selected, casts, 0);
-        debugShade<<<gridSize, blockSize>>>(vertex, wavefront, objects, materials, localDebug, num_selected, output);
+        shadeDebug<<<gridSize, blockSize>>>(vertex, wavefront, objects, materials, localDebug, num_selected, output);
     }
     else
     {
@@ -90,11 +93,16 @@ void Renderer::scheduleDeviceRender()
 
         for (int depth = 0; depth < Buffers::maxPathLength; ++depth)
         {
-            m_binning.execute(vertex.alive, wavefront.sort_index);
-
             extendPaths<<<gridSize, blockSize>>>(wavefront, vertex, objects, num_selected, casts, depth);
             shade<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, light_table, num_selected, m_scene.info, output);
+            
+            if (environment_map.has_value()) {
+                shadeEnvironment<<<gridSize, blockSize>>>(vertex, wavefront, rand, *environment_map, num_selected, output);
+            }
+            
             sampleBsdfDirection<<<gridSize, blockSize>>>(vertex, wavefront, rand, objects, materials, num_selected);
+
+            m_binning.execute(vertex.alive, wavefront.sort_index);
         }
     }
 

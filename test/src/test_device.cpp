@@ -32,6 +32,32 @@ TEST(DeviceArrayTest, MoveTransfersOwnership)
     EXPECT_EQ(source.hostPtr(), nullptr);
 }
 
+TEST(DeviceArrayTest, UninitializedHasTheRequestedSizeAndNoDeviceAllocation)
+{
+    auto array = DeviceArray<int>::uninitialized(5);
+
+    EXPECT_EQ(array.size(), 5u);
+    EXPECT_NE(array.hostPtr(), nullptr);
+    EXPECT_EQ(array.devicePtr(), nullptr);
+
+    for (int i = 0; i < 5; ++i)
+        array.hostSpan()[i] = i * i;
+
+    for (int i = 0; i < 5; ++i)
+        EXPECT_EQ(array.hostSpan()[i], i * i);
+}
+
+TEST(DeviceArrayTest, ConstHostSpanViewsTheHostData)
+{
+    const DeviceArray<int> array(3, 4);
+
+    const std::span<const int> span = array.hostSpan();
+
+    EXPECT_EQ(span.size(), 3u);
+    EXPECT_EQ(span.data(), array.hostPtr());
+    EXPECT_EQ(span[2], 4);
+}
+
 TEST(DeviceVectorTest, TracksHostSize)
 {
     DeviceVector<int> vector(std::vector<int>{1, 2, 3});
