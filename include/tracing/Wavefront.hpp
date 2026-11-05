@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
-#include "device/Array.hpp"
-
-#include <span>
+#include "device/Buffer.hpp"
 
 struct WavefrontDataView
 {

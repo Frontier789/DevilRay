@@ -1,12 +1,15 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
+#include "Utils.hpp"
 #include "models/BBH.hpp"
 #include "models/Mesh.hpp"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstdint>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace

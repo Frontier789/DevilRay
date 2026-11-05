@@ -1,9 +1,11 @@
 #pragma once
 
-#include "device/Vector.hpp"
-
 #include "Utils.hpp"
-#include "Mesh.hpp"
+#include "device/Vector.hpp"
+#include "models/Mesh.hpp"
+
+#include <span>
+#include <vector>
 
 struct BBHNode
 {

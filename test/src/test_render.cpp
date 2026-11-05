@@ -1,12 +1,25 @@
-#include "Utils.hpp"
+#include "DebugOptions.hpp"
 #include "Renderer.hpp"
-
+#include "Utils.hpp"
+#include "models/Matrix.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/Material.hpp"
+#include "tracing/OutputOptions.hpp"
+#include "tracing/Scene.hpp"
 #include "tracing/TriangleMesh.hpp"
+
 #include <gtest/gtest.h>
 #include <stb_image.h>
 
-#include <filesystem>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <iostream>
+#include <ostream>
+#include <utility>
+#include <vector>
 
 //////////////////////////////////////////////////
 ///             DISCLAIMER                     ///

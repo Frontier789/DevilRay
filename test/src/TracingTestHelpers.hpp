@@ -2,18 +2,22 @@
 
 #pragma once
 
+#include "Transform.hpp"
+#include "Utils.hpp"
 #include "VectorAssertions.hpp"
-
-#include "models/Mesh.hpp"
 #include "models/BBH.hpp"
-#include "tracing/TriangleMesh.hpp"
+#include "models/Mesh.hpp"
 #include "tracing/DistributionSamplers.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <random>
 #include <span>
+#include <utility>
 #include <vector>
 
 namespace test

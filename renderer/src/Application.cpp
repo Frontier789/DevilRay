@@ -1,16 +1,27 @@
+#include "Application.hpp"
+
+#include "Renderer.hpp"
+#include "Shaders.hpp"
+#include "Utils.hpp"
+#include "models/Matrix.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/TriangleMesh.hpp"
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <atomic>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
-#include <chrono>
-
-#include "Application.hpp"
-#include "Utils.hpp"
-#include "Shaders.hpp"
+#include <memory>
+#include <string>
+#include <utility>
 
 void glfwErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;

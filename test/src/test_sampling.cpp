@@ -1,7 +1,7 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
 #include "TracingTestHelpers.hpp"
-
+#include "VectorAssertions.hpp"
 #include "tracing/DistributionSamplers.hpp"
 
 #include <gtest/gtest.h>

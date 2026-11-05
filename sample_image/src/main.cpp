@@ -1,12 +1,20 @@
-#include <tracing/DistributionSamplers.hpp>
-#include <Image.hpp>
-
-#include <tools.hpp>
-#include <CommandLine.hpp>
+#include "CommandLine.hpp"
+#include "Image.hpp"
+#include "Utils.hpp"
+#include "tools.hpp"
+#include "tracing/DistributionSamplers.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
+#include <cstdint>
+#include <filesystem>
+#include <format>
 #include <iostream>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
 
 namespace
 {

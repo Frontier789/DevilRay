@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Utils.hpp"
-#include "tracing/TriangleMesh.hpp"
 #include "tracing/Material.hpp"
+
+#include <variant>
 
 inline HD Vec4 radiantExitance(const Material &mat)
 {

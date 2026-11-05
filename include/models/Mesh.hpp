@@ -2,6 +2,8 @@
 
 #include "Utils.hpp"
 
+#include <cstdint>
+#include <string>
 #include <vector>
 
 struct Vertex

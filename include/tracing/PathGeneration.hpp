@@ -1,26 +1,29 @@
 #pragma once
 
-#include "Utils.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/Intersection.hpp"
-#include "tracing/Scene.hpp"
-#include "tracing/PixelSampling.hpp"
-#include "tracing/CameraRay.hpp"
-#include "tracing/LightSampling.hpp"
-#include "tracing/DistributionSamplers.hpp"
-#include "tracing/Wavefront.hpp"
-#include "tracing/Path.hpp"
-#include "tracing/RenderBuffers.hpp"
-#include "tracing/ShadingUtils.hpp"
-#include "models/MeshUtils.hpp"
-#include "device/CudaRng.hpp"
-#include "device/Random.hpp"
-
-#include "Buffers.hpp"
 #include "DebugOptions.hpp"
+#include "Utils.hpp"
+#include "device/CudaRng.hpp"
+#include "device/DevUtils.hpp"
+#include "device/Random.hpp"
+#include "models/MeshUtils.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/CameraRay.hpp"
+#include "tracing/DistributionSamplers.hpp"
+#include "tracing/EnvironmentMap.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/Material.hpp"
+#include "tracing/Path.hpp"
+#include "tracing/PixelSampling.hpp"
+#include "tracing/RenderBuffers.hpp"
+#include "tracing/Scene.hpp"
+#include "tracing/ShadingUtils.hpp"
+#include "tracing/TriangleMesh.hpp"
+#include "tracing/Wavefront.hpp"
 
-#include <optional>
+#include <cmath>
+#include <cstdint>
 #include <span>
+#include <variant>
 
 constexpr int VACUUM_MAT = -1;
 constexpr float VACUUM_IOR = 1.0f;

@@ -1,14 +1,11 @@
 #pragma once
 
-#include "tracing/Intersection.hpp"
-#include "tracing/DistributionSamplers.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/Benchmark.hpp"
+#include "Utils.hpp"
+#include "device/Array.hpp"
 #include "device/Random.hpp"
-#include "models/BBH.hpp"
-
-#include <curand.h>
-#include <curand_kernel.h>
+#include "models/Mesh.hpp"
+#include "tracing/Benchmark.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 void benchmarkRayCast(
     CudaRandom &randStates, benchmark::HitTests *stats, int ray_count,

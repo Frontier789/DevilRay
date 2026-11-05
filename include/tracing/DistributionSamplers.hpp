@@ -1,9 +1,10 @@
 #pragma once
 
-#include "device/Array.hpp"
-#include "Utils.hpp"
 #include "Image.hpp"
+#include "Utils.hpp"
+#include "device/Array.hpp"
 
+#include <cmath>
 #include <span>
 
 #pragma nv_exec_check_disable

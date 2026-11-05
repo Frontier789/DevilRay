@@ -1,30 +1,17 @@
+#include "Application.hpp"
+#include "device/DevUtils.hpp"
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-#include <filesystem>
-#include <iostream>
 #include <chrono>
 #include <cmath>
-#include <random>
-#include <thread>
-#include <mutex>
-#include <deque>
-
-#include "Application.hpp"
-#include "Shaders.hpp"
-#include "Image.hpp"
-#include "Utils.hpp"
-#include "Renderer.hpp"
-#include "CameraController.hpp"
-#include "tracing/Material.hpp"
-#include "tracing/Camera.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/LightSampling.hpp"
-#include "models/Mesh.hpp"
+#include <exception>
+#include <iostream>
+#include <string>
 
 /*
     PLAN

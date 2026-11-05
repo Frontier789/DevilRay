@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
+#include "tracing/Camera.hpp"
 #include "tracing/PixelSampling.hpp"
 
 template<typename Rng>

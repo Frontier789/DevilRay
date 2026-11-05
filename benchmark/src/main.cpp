@@ -1,8 +1,8 @@
-#include "benchmark.hpp"
-
 #include "Utils.hpp"
+#include "benchmark.hpp"
 #include "models/Mesh.hpp"
 
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>

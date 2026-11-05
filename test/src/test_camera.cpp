@@ -1,7 +1,9 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
 #include "TracingTestHelpers.hpp"
-
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
+#include "models/Matrix.hpp"
 #include "tracing/Camera.hpp"
 #include "tracing/CameraRay.hpp"
 #include "tracing/PixelSampling.hpp"

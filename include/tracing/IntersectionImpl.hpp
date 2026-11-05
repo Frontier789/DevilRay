@@ -1,13 +1,16 @@
 #pragma once
 
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/Intersection.hpp"
+#include "Utils.hpp"
+#include "models/BBH.hpp"
 #include "tracing/Benchmark.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/TriangleMesh.hpp"
 
-#include "Scene.hpp"
-
-#include <optional>
 #include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <optional>
+#include <span>
 
 
 struct BoxInterval

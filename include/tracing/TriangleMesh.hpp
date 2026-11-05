@@ -1,11 +1,11 @@
 #pragma once
 
+#include "Transform.hpp"
 #include "Utils.hpp"
+#include "device/Vector.hpp"
+#include "models/BBH.hpp"
 #include "models/Mesh.hpp"
 #include "tracing/DistributionSamplers.hpp"
-#include "models/BBH.hpp"
-#include "device/Vector.hpp"
-#include "Transform.hpp"
 
 struct TriangleMeshView
 {

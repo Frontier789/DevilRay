@@ -1,8 +1,10 @@
 #include "device/Binning.hpp"
 
-#include <numeric>
-
 #include <cub/device/device_select.cuh>
+
+#include <cstddef>
+#include <numeric>
+#include <vector>
 
 DeviceBinning DeviceBinning::create(int key_count)
 {

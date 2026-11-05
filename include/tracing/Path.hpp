@@ -3,8 +3,6 @@
 #include "Utils.hpp"
 #include "device/Buffer.hpp"
 
-#include <span>
-
 struct TriangleIdentifier
 {
     int meshID;

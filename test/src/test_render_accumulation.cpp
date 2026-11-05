@@ -1,12 +1,20 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
+#include "DebugOptions.hpp"
 #include "Renderer.hpp"
-
+#include "Utils.hpp"
+#include "models/Matrix.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/Material.hpp"
+#include "tracing/OutputOptions.hpp"
+#include "tracing/PixelSampling.hpp"
+#include "tracing/Scene.hpp"
 #include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
 #include <utility>
 #include <vector>
 

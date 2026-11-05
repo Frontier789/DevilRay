@@ -1,10 +1,9 @@
 #pragma once
 
-#include "device/DevUtils.hpp"
+#include "Utils.hpp"
+#include "device/Array.hpp"
 
-#include "tracing/Intersection.hpp"
-
-#include <array>
+#include <cstdint>
 
 struct Buffers
 {

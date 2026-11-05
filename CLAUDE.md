@@ -221,6 +221,13 @@ triangle area, which `barycentricCoordinates` relies on.
 - Reuse the existing math types — `Vec3`/`Vec4`/`Vec2f`/`Size2i`, `Matrix`, `Transform`,
   `AABB` (`include/Utils.hpp`, `include/models/Matrix.hpp`, `include/Transform.hpp`) —
   rather than introducing new ones.
+- Includes: repo headers in quotes relative to an include root (`"tracing/Camera.hpp"`),
+  system and third-party headers in angle brackets. A `.cpp` lists its own header first, then
+  project, third-party and standard-library headers as separate groups, each sorted. Every
+  header must compile on its own and include what it uses, and carries `#pragma once`.
+  `clang-tidy`'s `misc-include-cleaner` is a good check, but it wrongly calls
+  `IntersectionImpl.hpp` unused (it holds the inline definitions the call sites need) and does
+  not see CUDA macros or placement `new`.
 - `devil_ray_lib` builds with `-Wmissing-field-initializers`: brace-initialize *every*
   field of the plain structs handed to kernels, or expect a warning.
 - The build passes `-Xptxas -v` and `-lineinfo`, so register and spill counts print while

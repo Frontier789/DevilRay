@@ -1,13 +1,14 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
+#include "Utils.hpp"
 #include "VectorAssertions.hpp"
-
+#include "models/Mesh.hpp"
 #include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
-#include <array>
 #include <cmath>
+#include <cstddef>
 
 namespace
 {

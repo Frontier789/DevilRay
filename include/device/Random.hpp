@@ -1,7 +1,6 @@
 #pragma once
 
 #include "device/Buffer.hpp"
-#include "Utils.hpp"
 
 #include <curand_kernel.h>
 

@@ -1,14 +1,23 @@
-#include "Utils.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "DebugOptions.hpp"
-#include "tracing/PixelSampling.hpp"
-#include "Renderer.hpp"
-#include "RunningAverage.hpp"
+#pragma once
+
 #include "CameraController.hpp"
+#include "DebugOptions.hpp"
+#include "Renderer.hpp"
+#include "Utils.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/PixelSampling.hpp"
+#include "tracing/Scene.hpp"
+#include "tracing/TriangleMesh.hpp"
 
-#include <imgui_impl_glfw.h>
 #include <GL/glew.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
 
+#include <atomic>
+#include <cfloat>
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <thread>
 
 struct Meshes

@@ -1,6 +1,17 @@
 #include "Application.hpp"
+#include "Image.hpp"
+#include "Utils.hpp"
+#include "tracing/EnvironmentMap.hpp"
+#include "tracing/Material.hpp"
+#include "tracing/Medium.hpp"
+#include "tracing/Scene.hpp"
+#include "tracing/TriangleMesh.hpp"
 
+#include <iostream>
 #include <random>
+#include <stdexcept>
+#include <string>
+#include <utility>
 
 Scene createScene(Meshes &meshes)
 {

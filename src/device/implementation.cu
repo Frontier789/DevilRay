@@ -1,15 +1,7 @@
-#include <vector>
-#include <iostream>
-
-#include "device/DevUtils.hpp"
-
-#include "tracing/Camera.hpp"
-#include "tracing/TriangleMesh.hpp"
+#include "RendererImpl.hpp"
+#include "Utils.hpp"
 #include "tracing/IntersectionImpl.hpp"
 #include "tracing/PathGeneration.hpp"
-#include "tracing/LightSampling.hpp"
-
-#include "RendererImpl.hpp"
 
 HD Vec4 checkerPattern(
     const Vec2f &uv,

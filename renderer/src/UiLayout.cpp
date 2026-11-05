@@ -1,4 +1,14 @@
 #include "Application.hpp"
+#include "Utils.hpp"
+
+#include <imgui.h>
+
+#include <atomic>
+#include <cstdint>
+#include <ctime>
+#include <filesystem>
+#include <iostream>
+#include <string>
 
 std::string counterToString(uint64_t cntr)
 {

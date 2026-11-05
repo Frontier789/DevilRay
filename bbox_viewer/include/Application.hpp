@@ -1,16 +1,17 @@
-#include "Utils.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "DebugOptions.hpp"
-#include "tracing/PixelSampling.hpp"
-#include "models/BBH.hpp"
-#include "Renderer.hpp"
-#include "RunningAverage.hpp"
+#pragma once
+
 #include "CameraController.hpp"
+#include "Utils.hpp"
+#include "models/BBH.hpp"
+#include "models/Matrix.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/Camera.hpp"
 
-#include <imgui_impl_glfw.h>
 #include <GL/glew.h>
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
 
-#include <thread>
+#include <cfloat>
 #include <optional>
 
 struct OGLObjects

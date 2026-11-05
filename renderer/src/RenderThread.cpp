@@ -1,5 +1,7 @@
 #include "Application.hpp"
 
+#include <atomic>
+
 void Application::renderWorker()
 {
     while (!asyncData.renderingShouldStop.load(std::memory_order::relaxed))

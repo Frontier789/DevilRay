@@ -1,15 +1,13 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
-#include "VectorAssertions.hpp"
-
 #include "Utils.hpp"
+#include "VectorAssertions.hpp"
 
 #include <gtest/gtest.h>
 
 #include <atomic>
 #include <chrono>
 #include <cmath>
-#include <limits>
 #include <sstream>
 #include <thread>
 #include <vector>

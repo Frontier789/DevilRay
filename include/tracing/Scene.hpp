@@ -1,9 +1,9 @@
 #pragma once
 
+#include "device/Vector.hpp"
+#include "tracing/EnvironmentMap.hpp"
 #include "tracing/Material.hpp"
 #include "tracing/TriangleMesh.hpp"
-#include "tracing/EnvironmentMap.hpp"
-#include "device/Vector.hpp"
 
 #include <list>
 #include <optional>

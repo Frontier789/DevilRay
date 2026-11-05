@@ -1,5 +1,11 @@
 #include "CameraController.hpp"
 
+#include "Utils.hpp"
+#include "models/Matrix.hpp"
+#include "tracing/Camera.hpp"
+
+#include <cmath>
+
 Vec3 CameraController::forward() const {
     return Vec3{
         std::cos(pitch) * std::sin(yaw),

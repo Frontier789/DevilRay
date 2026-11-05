@@ -2,9 +2,13 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
+#include <cstdint>
+#include <iosfwd>
+#include <limits>
+#include <numbers>
 #include <thread>
 #include <vector>
-#include <cmath>
 
 #ifndef __CUDACC__
     #define __global__

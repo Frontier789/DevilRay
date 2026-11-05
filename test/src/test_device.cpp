@@ -5,11 +5,15 @@
 // that do touch the GPU live in test_cuda.cu, sharing one CUDA context.
 
 #include "Buffers.hpp"
+#include "Utils.hpp"
 #include "device/Array.hpp"
 #include "device/Vector.hpp"
 
 #include <gtest/gtest.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <span>
 #include <utility>
 #include <vector>
 

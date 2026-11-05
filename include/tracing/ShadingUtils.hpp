@@ -1,6 +1,15 @@
 #pragma once
 
-#include "device/DevUtils.hpp"
+#include "Utils.hpp"
+#include "tracing/DistributionSamplers.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/LightSampling.hpp"
+#include "tracing/Material.hpp"
+#include "tracing/Scene.hpp"
+#include "tracing/TriangleMesh.hpp"
+
+#include <cmath>
+#include <span>
 
 struct MisPdfs {
     float bsdf_pdf;

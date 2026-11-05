@@ -1,5 +1,8 @@
 #include "Utils.hpp"
 
+#include <chrono>
+#include <ostream>
+
 
 Timer::Timer() : start_time(std::chrono::steady_clock::now()) {}
 

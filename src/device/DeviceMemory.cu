@@ -1,7 +1,9 @@
 #include "device/DeviceMemory.hpp"
+
 #include "device/DevUtils.hpp"
 
 #include <cuda_runtime.h>
+
 #include <stdexcept>
 
 DeviceMemoryManager::DeviceMemoryManager()

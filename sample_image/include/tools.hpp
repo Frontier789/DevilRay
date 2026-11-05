@@ -1,6 +1,10 @@
-#include <tracing/DistributionSamplers.hpp>
-#include <Image.hpp>
+#pragma once
 
+#include "Image.hpp"
+#include "Utils.hpp"
+
+#include <algorithm>
+#include <cmath>
 #include <random>
 
 struct CpuRand

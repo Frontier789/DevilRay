@@ -1,8 +1,9 @@
 // Parts of this file are AI-generated tests (Claude), reviewed by hand before committing.
 
-#include <gtest/gtest.h>
-
+#include "Utils.hpp"
 #include "models/Matrix.hpp"
+
+#include <gtest/gtest.h>
 
 // Helper to compare Vec3 components
 void ExpectVec3Eq(const Vec3& actual, float x, float y, float z, float abs_error = 1e-5f) {

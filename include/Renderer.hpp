@@ -1,27 +1,24 @@
 #pragma once
 
-#include "device/DevUtils.hpp"
-#include "device/Binning.hpp"
-
-#include "tracing/DistributionSamplers.hpp"
-#include "tracing/OutputOptions.hpp"
-#include "tracing/PixelSampling.hpp"
-#include "tracing/Intersection.hpp"
-#include "tracing/Camera.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/Scene.hpp"
-#include "tracing/Wavefront.hpp"
-#include "tracing/Path.hpp"
-
 #include "Buffers.hpp"
 #include "DebugOptions.hpp"
 #include "RunningAverage.hpp"
+#include "Utils.hpp"
+#include "device/Binning.hpp"
+#include "device/Random.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/DistributionSamplers.hpp"
+#include "tracing/OutputOptions.hpp"
+#include "tracing/Path.hpp"
+#include "tracing/PixelSampling.hpp"
+#include "tracing/Scene.hpp"
+#include "tracing/Wavefront.hpp"
 
+#include <cstdint>
 #include <filesystem>
-#include <atomic>
-#include <vector>
 #include <mutex>
-#include <cstring>
+#include <utility>
+#include <vector>
 
 class Renderer
 {

@@ -3,8 +3,9 @@
 #include "Utils.hpp"
 #include "device/Array.hpp"
 
-#include <vector>
+#include <cstdint>
 #include <string>
+#include <vector>
 
 void savePNG(
     const std::string &fileName,

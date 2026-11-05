@@ -6,9 +6,14 @@
 // identical, which cannot tell blending apart from returning the face normal.
 
 #include "TracingTestHelpers.hpp"
-
+#include "Transform.hpp"
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
+#include "models/Mesh.hpp"
 #include "models/MeshUtils.hpp"
+#include "tracing/Intersection.hpp"
 #include "tracing/IntersectionImpl.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 

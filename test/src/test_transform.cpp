@@ -1,8 +1,8 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
-#include "VectorAssertions.hpp"
-
 #include "Transform.hpp"
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
 
 #include <gtest/gtest.h>
 

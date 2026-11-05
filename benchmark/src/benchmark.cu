@@ -1,8 +1,8 @@
 #include "benchmark.hpp"
 
-#include "tracing/IntersectionImpl.hpp"
 #include "device/CudaRng.hpp"
 #include "device/DevUtils.hpp"
+#include "tracing/IntersectionImpl.hpp"
 
 HD Ray generateRay(Vec3 center, float radius, CudaRng &rng)
 {

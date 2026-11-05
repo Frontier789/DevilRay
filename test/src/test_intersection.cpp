@@ -1,10 +1,13 @@
 
-#include "tracing/IntersectionImpl.hpp"
+#include "Utils.hpp"
 #include "models/MeshUtils.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
 
 #include <gtest/gtest.h>
-#include <optional>
+
 #include <cmath>
+#include <vector>
 
 /////////////////////////////////////////
 ///             DISCLAIMER            ///

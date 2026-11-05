@@ -1,6 +1,15 @@
 #include "tracing/TriangleMesh.hpp"
 
+#include "Utils.hpp"
+#include "device/Vector.hpp"
+#include "models/BBH.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/DistributionSamplers.hpp"
+
+#include <cmath>
 #include <iostream>
+#include <utility>
+#include <vector>
 
 void TriangleMeshView::setPosition(const Vec3 &pos)
 {

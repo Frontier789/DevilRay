@@ -1,11 +1,16 @@
 #include "ImageMetadata.hpp"
 
-#include <exiv2/exiv2.hpp>
+#include <exiv2/error.hpp>
+#include <exiv2/exif.hpp>
+#include <exiv2/image.hpp>
+#include <exiv2/properties.hpp>
+#include <exiv2/xmp_exiv2.hpp>
 
 #include <iostream>
+#include <string>
 
-#if __has_include(<GitVersion.hpp>)
-#  include <GitVersion.hpp>
+#if __has_include("GitVersion.hpp")
+#  include "GitVersion.hpp"
 #endif
 
 namespace

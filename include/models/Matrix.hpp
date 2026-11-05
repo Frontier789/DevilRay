@@ -1,9 +1,13 @@
 #pragma once
 
 #include "Utils.hpp"
+
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <iomanip>
-#include <iostream>
+#include <ostream>
+#include <sstream>
 
 template<typename T>
 struct Matrix4x4

@@ -1,14 +1,21 @@
+#include "Image.hpp"
+
+#include "Utils.hpp"
+
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
 
-#include "stb_image.h"
-#include "stb_image_write.h"
+#include <stb_image.h>
+#include <stb_image_write.h>
 
-#include "Image.hpp"
-
-#include <iostream>
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <iostream>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 void savePNG(
     const std::string &file_name,

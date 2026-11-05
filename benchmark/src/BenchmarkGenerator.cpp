@@ -1,4 +1,11 @@
 #include "benchmark.hpp"
+#include "device/Array.hpp"
+#include "device/Random.hpp"
+#include "models/Mesh.hpp"
+#include "tracing/Benchmark.hpp"
+#include "tracing/TriangleMesh.hpp"
+
+#include <utility>
 
 BenchmarkGenerator BenchmarkGenerator::create(int ray_count, Mesh &mesh)
 {

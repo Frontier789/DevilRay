@@ -1,7 +1,16 @@
 #include "tracing/DistributionSamplers.hpp"
 
+#include "Image.hpp"
+#include "Utils.hpp"
+#include "device/Array.hpp"
+
+#include <algorithm>
+#include <cstddef>
 #include <numeric>
 #include <queue>
+#include <span>
+#include <utility>
+#include <vector>
 
 namespace
 {

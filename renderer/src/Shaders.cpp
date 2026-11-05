@@ -1,6 +1,8 @@
 #include <GL/glew.h>
 
 #include <iostream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 GLuint compileShader(const char *source, GLenum type)

@@ -2,7 +2,9 @@
 
 #include "device/DeviceMemory.hpp"
 
+#include <cstddef>
 #include <span>
+#include <utility>
 #include <vector>
 
 template<typename T>

@@ -1,17 +1,11 @@
-#include "Image.hpp"
 #include "Renderer.hpp"
-#include "device/CudaRng.hpp"
-
+#include "device/DevUtils.hpp"
 #include "tracing/PathGeneration.hpp"
 
-#include <algorithm>
-#include <numeric>
-#include <set>
-#include <map>
+#include <cuda_runtime.h>
 
-#include <curand.h>
-#include <curand_kernel.h>
-#include <cub/device/device_select.cuh>
+#include <mutex>
+#include <optional>
 
 
 // Bumps the sample counter (the .w channel of the progressive accumulation

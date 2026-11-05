@@ -1,17 +1,25 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
 #include "TracingTestHelpers.hpp"
-
-#include "tracing/IntersectionImpl.hpp"
-#include "tracing/Benchmark.hpp"
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
+#include "models/Mesh.hpp"
 #include "models/MeshUtils.hpp"
+#include "tracing/Benchmark.hpp"
+#include "tracing/Intersection.hpp"
+#include "tracing/IntersectionImpl.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <span>
+#include <utility>
 
 using test::expectVec3Near;
 using test::HostObject;

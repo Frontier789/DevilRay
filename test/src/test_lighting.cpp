@@ -1,15 +1,19 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
 #include "TracingTestHelpers.hpp"
-
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
+#include "tracing/DistributionSamplers.hpp"
 #include "tracing/IntersectionImpl.hpp"
+#include "tracing/Material.hpp"
 #include "tracing/Scene.hpp"
-#include "tracing/LightSampling.hpp"
 #include "tracing/ShadingUtils.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstdlib>
 #include <span>
 #include <vector>
 

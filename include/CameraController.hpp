@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Utils.hpp"
+#include "models/Matrix.hpp"
 #include "tracing/Camera.hpp"
 
 struct CameraController

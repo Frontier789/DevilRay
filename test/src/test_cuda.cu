@@ -7,17 +7,18 @@
 
 #include "TracingTestHelpers.hpp"
 
-#include "tracing/IntersectionImpl.hpp"
-#include "tracing/TriangleMesh.hpp"
-#include "tracing/Camera.hpp"
-#include "tracing/CameraRay.hpp"
 #include "device/Array.hpp"
 #include "device/Binning.hpp"
-#include "device/Vector.hpp"
-#include "device/Random.hpp"
 #include "device/DevUtils.hpp"
+#include "device/Random.hpp"
+#include "device/Vector.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/CameraRay.hpp"
+#include "tracing/IntersectionImpl.hpp"
+#include "tracing/TriangleMesh.hpp"
 
 #include <cuda_runtime.h>
+
 #include <utility>
 
 // checkerPattern is declared in PathGeneration.hpp and defined in the library's

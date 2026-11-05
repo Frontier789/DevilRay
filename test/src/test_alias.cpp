@@ -1,10 +1,17 @@
+#include "Image.hpp"
 #include "TracingTestHelpers.hpp"
-
+#include "Utils.hpp"
 #include "tracing/DistributionSamplers.hpp"
 
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <cstddef>
+#include <iostream>
+#include <ostream>
 #include <random>
+#include <ratio>
+#include <vector>
 
 /////////////////////////////////////////
 ///             DISCLAIMER            ///

@@ -1,10 +1,31 @@
 #include "Renderer.hpp"
+
+#include "Buffers.hpp"
+#include "DebugOptions.hpp"
 #include "Image.hpp"
 #include "ImageMetadata.hpp"
-
+#include "Utils.hpp"
+#include "device/Binning.hpp"
+#include "device/Buffer.hpp"
+#include "device/DevUtils.hpp"
+#include "tracing/Camera.hpp"
+#include "tracing/DistributionSamplers.hpp"
 #include "tracing/LightSampling.hpp"
+#include "tracing/OutputOptions.hpp"
+#include "tracing/Path.hpp"
+#include "tracing/PixelSampling.hpp"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <numeric>
+#include <stdexcept>
+#include <utility>
+#include <vector>
 
 
 Buffers::Buffers(Size2i resolution)

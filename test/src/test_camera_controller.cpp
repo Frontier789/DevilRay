@@ -1,8 +1,10 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
-#include "VectorAssertions.hpp"
-
 #include "CameraController.hpp"
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
+#include "models/Matrix.hpp"
+#include "tracing/Camera.hpp"
 
 #include <gtest/gtest.h>
 

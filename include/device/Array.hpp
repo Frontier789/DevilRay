@@ -3,6 +3,7 @@
 #include "device/DeviceMemory.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <new>
 #include <span>

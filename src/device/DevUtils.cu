@@ -1,14 +1,13 @@
-#include <curand.h>
-#include <curand_kernel.h>
-
-#include <iostream>
-#include <optional>
-
 #include "device/DevUtils.hpp"
 
-#include "tracing/Camera.hpp"
-#include "tracing/TriangleMesh.hpp"
 #include "device/Random.hpp"
+
+#include <cuda_runtime.h>
+#include <curand_kernel.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
 
 void cudaCheckLastError(const char *file, int line, bool abort)
 {

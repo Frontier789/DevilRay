@@ -1,16 +1,23 @@
 // AI-generated tests (Claude), reviewed by hand before committing.
 
-#include "VectorAssertions.hpp"
-
 #include "Image.hpp"
 #include "ImageMetadata.hpp"
+#include "Utils.hpp"
+#include "VectorAssertions.hpp"
 
-#include <exiv2/exiv2.hpp>
+#include <exiv2/image.hpp>
+#include <exiv2/properties.hpp>
+#include <exiv2/tags.hpp>
 #include <gtest/gtest.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace
