@@ -69,4 +69,4 @@ target_include_directories(test_command_line PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 
 # GPU tests: one process each, so the CUDA context is initialized only once.
 add_shared_gpu_test_dr(test_cuda    src/test_cuda.cu)
-add_shared_gpu_test_dr(test_render  src/test_render.cpp src/test_render_accumulation.cpp)
+add_shared_gpu_test_dr(test_render  src/test_render.cpp src/test_render_accumulation.cpp src/test_render_environment.cpp src/test_render_edge_cases.cpp)

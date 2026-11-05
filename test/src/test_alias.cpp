@@ -5,6 +5,7 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
 #include <chrono>
 #include <cstddef>
 #include <iostream>
@@ -294,4 +295,138 @@ TEST(AliasImageTableViewTest, HostViewSamplesTheOnlyBrightPixel)
         EXPECT_EQ(drawn.pixel_coordinate.x, 2);
         EXPECT_EQ(drawn.pixel_coordinate.y, 1);
     }
+}
+
+namespace
+{
+    template<typename WeightAt>
+    Image1f imageOfWeights(Size2i size, WeightAt weight_at)
+    {
+        auto weights = Image1f::create_uninitialized(size);
+
+        for (int y = 0; y < size.height; ++y)
+            for (int x = 0; x < size.width; ++x)
+                weights[Vec2i{x, y}] = weight_at(x, y);
+
+        return weights;
+    }
+
+    void VerifyImageTableMatchesWeights(const Image1f &weights, double tolerance = 1e-5)
+    {
+        const Size2i size = weights.size;
+        const AliasImageTable table = generateAliasTable(weights.hostView());
+
+        double total = 0.0;
+        for (int y = 0; y < size.height; ++y)
+            for (int x = 0; x < size.width; ++x)
+                total += weights[Vec2i{x, y}];
+
+        std::vector<double> expected(size.area());
+        for (int y = 0; y < size.height; ++y)
+            for (int x = 0; x < size.width; ++x)
+                expected[x + y * size.width] = total > 0.0 ? weights[Vec2i{x, y}] / total : 1.0 / size.area();
+
+        struct Outcome
+        {
+            int index;
+            double probability;
+            float pdf;
+        };
+
+        auto outcomesOf = [](const AliasEntry &entry)
+        {
+            return std::array{
+                Outcome{entry.A, entry.p_A, entry.pdf_A},
+                Outcome{entry.B, 1.0 - entry.p_A, entry.pdf_B},
+            };
+        };
+
+        const AliasEntry *rows = table.row_entries.hostPtr();
+        const AliasEntry *pixels = table.pixel_entries.hostPtr();
+
+        std::vector<double> decoded(size.area(), 0.0);
+
+        for (int row_bucket = 0; row_bucket < size.height; ++row_bucket)
+        {
+            for (const Outcome &row : outcomesOf(rows[row_bucket]))
+            {
+                if (row.index < 0 || row.probability <= 0.0) continue;
+
+                for (int column_bucket = 0; column_bucket < size.width; ++column_bucket)
+                {
+                    for (const Outcome &column : outcomesOf(pixels[row.index * size.width + column_bucket]))
+                    {
+                        if (column.index < 0 || column.probability <= 0.0) continue;
+
+                        const int pixel = row.index * size.width + column.index;
+
+                        decoded[pixel] += row.probability * column.probability / size.height / size.width;
+
+                        EXPECT_NEAR(static_cast<double>(row.pdf) * column.pdf, expected[pixel], tolerance)
+                            << "the pdf reported when drawing pixel " << pixel << " must be its probability";
+                    }
+                }
+            }
+        }
+
+        for (int pixel = 0; pixel < size.area(); ++pixel)
+            EXPECT_NEAR(decoded[pixel], expected[pixel], tolerance) << "probability of drawing pixel " << pixel;
+    }
+}
+
+TEST(AliasImageTableDistributionTest, DrawsEveryPixelWithItsShareOfTheTotalWeight)
+{
+    constexpr int row_of_zeros = 2;
+
+    const auto weights = imageOfWeights(Size2i{7, 5}, [](int x, int y)
+    {
+        return y == row_of_zeros ? 0.0f : static_cast<float>((x * 3 + y * 5) % 7);
+    });
+
+    VerifyImageTableMatchesWeights(weights);
+}
+
+TEST(AliasImageTableDistributionTest, WorksForDegenerateImageShapes)
+{
+    for (const Size2i size : {Size2i{1, 1}, Size2i{1, 6}, Size2i{6, 1}, Size2i{2, 2}})
+    {
+        SCOPED_TRACE(::testing::Message() << size.width << "x" << size.height);
+
+        const auto weights = imageOfWeights(size, [](int x, int y) { return 1.0f + x + 2.0f * y; });
+        VerifyImageTableMatchesWeights(weights);
+    }
+}
+
+TEST(AliasImageTableDistributionTest, SinglePixelImageIsDrawnWithProbabilityOne)
+{
+    const auto weights = Image1f::create(Size2i{1, 1}, 3.0f);
+    const AliasImageTable table = generateAliasTable(weights.hostView());
+
+    test::DeterministicRng rng;
+    for (int i = 0; i < 20; ++i)
+    {
+        const auto drawn = sample(table.hostView(), rng);
+
+        EXPECT_EQ(drawn.pixel_coordinate.x, 0);
+        EXPECT_EQ(drawn.pixel_coordinate.y, 0);
+        EXPECT_FLOAT_EQ(drawn.pdf, 1.0f);
+    }
+}
+
+TEST(AliasImageTableDistributionTest, AllZeroImageFallsBackToUniform)
+{
+    const auto weights = Image1f::create(Size2i{3, 2}, 0.0f);
+
+    VerifyImageTableMatchesWeights(weights);
+}
+
+TEST(AliasImageTableDistributionTest, HandlesOneBrightPixelAmongVeryDimOnes)
+{
+    constexpr float dim = 1e-3f;
+    constexpr float sun = 1e5f;
+
+    auto weights = Image1f::create(Size2i{16, 8}, dim);
+    weights[Vec2i{.x = 5, .y = 3}] = sun;
+
+    VerifyImageTableMatchesWeights(weights);
 }

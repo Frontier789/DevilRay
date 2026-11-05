@@ -92,7 +92,7 @@ TEST(RendererTest, AnalyticalDiffuseReflection) {
     const int light_mat_idx = scene.materials.size();
     {
         auto material = DiffuseMaterial{
-            .emission = Vec4{emittance, emittance, emittance, 0.0},
+            .emission = Vec4{static_cast<float>(emittance), static_cast<float>(emittance), static_cast<float>(emittance), 0.0},
             .diffuse_reflectance = Vec4{0.0, 0.0, 0.0, 0.0},
         };
         scene.materials.push_back(material);
