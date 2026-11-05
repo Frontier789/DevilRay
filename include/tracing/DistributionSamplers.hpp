@@ -182,7 +182,7 @@ HD AliasImageSample sample(const AliasImageTableView &table, Rng &rng)
     };
 }
 
-AliasImageTable generateAliasTable(const ImageView1f &image);
+AliasImageTable generateAliasTable(const ImageView<const float> &image);
 
 template<typename Rng>
 HD Vec3 uniformTriangleSample(const Vec3 &A, const Vec3 &B, const Vec3 &C, Rng &rng)

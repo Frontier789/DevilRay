@@ -146,6 +146,35 @@ TEST(ImageTest, HostViewSharesPixelsAndSizeWithTheImage)
     EXPECT_EQ(image.pixels.hostSpan()[5], 3.0f);
 }
 
+TEST(ImageTest, ConstImageGivesAReadOnlyHostViewOverTheSamePixels)
+{
+    const auto image = Image1f::create(Size2i{4, 2}, 1.5f);
+
+    const auto view = image.hostView();
+
+    static_assert(std::is_same_v<std::remove_cv_t<decltype(view)>, ImageView<const float>>);
+    static_assert(std::is_same_v<decltype(view.pixels), const float *>);
+    EXPECT_EQ(view.pixels, image.pixels.hostPtr());
+    EXPECT_EQ(view.size.width, 4);
+    EXPECT_EQ(view.size.height, 2);
+    EXPECT_EQ(view.pixels[5], 1.5f);
+}
+
+TEST(ImageTest, MutableViewsConvertToReadOnlyViewsButNotTheOtherWayAround)
+{
+    static_assert(std::is_convertible_v<ImageView<float>, ImageView<const float>>);
+    static_assert(!std::is_convertible_v<ImageView<const float>, ImageView<float>>);
+    static_assert(!std::is_convertible_v<ImageView<float>, ImageView<const Vec4>>);
+
+    auto image = Image1f::create(Size2i{2, 3}, 3.0f);
+
+    const ImageView<const float> read_only = image.hostView();
+
+    EXPECT_EQ(read_only.pixels, image.pixels.hostPtr());
+    EXPECT_EQ(read_only.size.width, 2);
+    EXPECT_EQ(read_only.size.height, 3);
+}
+
 TEST(ImageTest, IsMoveOnlyAndMovingKeepsTheSamePixelBuffer)
 {
     static_assert(!std::is_copy_constructible_v<Image4f>);

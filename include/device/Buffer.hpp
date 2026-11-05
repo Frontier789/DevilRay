@@ -14,7 +14,9 @@ struct DeviceBuffer
     int elementCount;
 
     T *devicePtr() { return deviceData.getPtr<T>(); }
+    const T *devicePtr() const { return deviceData.getPtr<T>(); }
     std::span<T> deviceSpan() { return std::span{devicePtr(), static_cast<size_t>(elementCount)}; }
+    std::span<const T> deviceSpan() const { return std::span<const T>{devicePtr(), static_cast<size_t>(elementCount)}; }
 
     std::vector<T> toHost() const
     {

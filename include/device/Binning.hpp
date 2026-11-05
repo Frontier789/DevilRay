@@ -12,5 +12,5 @@ struct DeviceBinning
 
     static DeviceBinning create(int key_count);
 
-    void execute(int *flag, int *output_indices);
+    void execute(const int *flag, int *output_indices);
 };

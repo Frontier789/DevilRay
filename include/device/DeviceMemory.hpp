@@ -18,6 +18,9 @@ struct DeviceMemoryManager
     template<typename T>
     T *getPtr() { return static_cast<T*>(m_devicePtr); }
 
+    template<typename T>
+    const T *getPtr() const { return static_cast<const T*>(m_devicePtr); }
+
     void allocate(size_t bytes);
     void free();
     void copyFromHost(const void *src, size_t bytes);

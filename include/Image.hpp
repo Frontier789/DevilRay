@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 void savePNG(
@@ -19,6 +20,16 @@ struct ImageView
     T *pixels;
 
     Size2i size;
+
+    template<typename U>
+        requires(std::is_same_v<U, const T> && !std::is_const_v<T>)
+    operator ImageView<U>() const
+    {
+        return ImageView<U>{
+            .pixels = pixels,
+            .size = size,
+        };
+    }
 };
 
 using ImageView1f = ImageView<float>;
@@ -53,6 +64,14 @@ struct Image
     ImageView<T> hostView()
     {
         return ImageView<T>{
+            .pixels = pixels.hostPtr(),
+            .size = size,
+        };
+    }
+
+    ImageView<const T> hostView() const
+    {
+        return ImageView<const T>{
             .pixels = pixels.hostPtr(),
             .size = size,
         };

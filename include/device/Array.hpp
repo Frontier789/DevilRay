@@ -75,11 +75,13 @@ struct DeviceArray
     }
 
     T *devicePtr() { return m_device.getPtr<T>(); }
+    const T *devicePtr() const { return m_device.getPtr<T>(); }
     T *hostPtr() { return m_host.data(); }
     const T *hostPtr() const { return m_host.data(); }
     std::span<T> hostSpan() { return std::span{m_host.data(), size()}; }
     std::span<const T> hostSpan() const { return std::span<const T>{m_host.data(), size()}; }
     std::span<T> deviceSpan() { return std::span{devicePtr(), size()}; }
+    std::span<const T> deviceSpan() const { return std::span<const T>{devicePtr(), size()}; }
     size_t size() const { return m_host.size(); }
 
 private:

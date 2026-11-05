@@ -160,7 +160,7 @@ AliasTable generateAliasTable(std::span<const float> importances)
     return table;
 }
 
-AliasImageTable generateAliasTable(const ImageView1f &image)
+AliasImageTable generateAliasTable(const ImageView<const float> &image)
 {
     const auto s = image.size;
 

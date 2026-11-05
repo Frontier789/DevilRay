@@ -11,7 +11,7 @@ struct Intrinsics
 
 struct Camera
 {
-    mutable Matrix4x4f transform;
+    Matrix4x4f transform;
 
     Intrinsics intrinsics;
     Size2i resolution;

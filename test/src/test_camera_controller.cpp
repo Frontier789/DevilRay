@@ -199,6 +199,21 @@ TEST(CameraControllerTest, GetCameraCarriesTheCurrentTransform)
     EXPECT_EQ(camera.intrinsics.focal_length, focal_length);
 }
 
+TEST(CameraControllerTest, GetCameraLeavesTheStoredCameraUntouched)
+{
+    const auto controller = controllerLookingAt({1, -2, 3}, 4.0f, 0.3f, 1.0f);
+    const Matrix4x4f stored_before = controller.camera.transform;
+
+    const Camera posed = controller.getCamera();
+
+    for (int row = 0; row < 4; ++row)
+        for (int column = 0; column < 4; ++column)
+            EXPECT_EQ(controller.camera.transform.values[row][column], stored_before.values[row][column])
+                << "row " << row << ", column " << column;
+
+    expectVec3Near(posed.transform.getOffset(), controller.position());
+}
+
 // --- Input handling ---
 
 TEST(CameraControllerTest, ScrollingForwardZoomsInAndBackwardZoomsOut)

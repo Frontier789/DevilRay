@@ -29,7 +29,7 @@ DeviceBinning DeviceBinning::create(int key_count)
     };
 }
 
-void DeviceBinning::execute(int *flag, int *output_indices)
+void DeviceBinning::execute(const int *flag, int *output_indices)
 {
     auto temp_byte_count = static_cast<size_t>(temp_storage.elementCount);
 

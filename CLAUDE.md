@@ -130,6 +130,9 @@ handle for one device allocation. That is the single translation unit holding ra
 `cudaMalloc`/`cudaMemcpy` calls — keep it that way when adding device storage: template in
 the header, raw CUDA in the shim.
 
+The pointer and span accessors (`hostPtr`, `devicePtr`, `deviceSpan`, and `hostSpan` on
+`DeviceArray`) come in const / non-const pairs, so read-only code can take a `const` container.
+
 Wrap CUDA calls with `CUDA_ERROR_CHECK()` (`include/device/DevUtils.hpp`).
 
 Anything that owns device memory follows the **owner / `View`** pattern: `Foo` is the CPU
@@ -142,8 +145,9 @@ without touching CUDA. Pairs: `AliasTable`, `AliasImageTable`, `BBH`, `TriangleM
 
 `Image<T>` keeps its pixels in a `DeviceArray`. `Image::view()` uploads them (once; call
 `pixels.updateDeviceData()` after later host edits) and returns the device view, while
-`Image::hostView()` returns host pointers without touching CUDA. `ImageView` is the same type
-either way, so CPU code (the alias-table builder, `sample_image`, CPU tests) must use
+`Image::hostView()` returns host pointers without touching CUDA (on a `const Image` it returns
+a read-only `ImageView<const T>`, which a mutable view also converts to). `ImageView` is the
+same type either way, so CPU code (the alias-table builder, `sample_image`, CPU tests) must use
 `hostView()`: a device view dereferenced on the host crashes, and `view()` on a CPU path
 triggers a `cudaMalloc`. `Image` is move-only. `Image::create_uninitialized()` skips the zero
 fill when every pixel is going to be overwritten.

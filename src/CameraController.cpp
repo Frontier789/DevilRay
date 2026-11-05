@@ -74,9 +74,10 @@ Matrix4x4f CameraController::getViewMatrix() const {
 }
 
 Camera CameraController::getCamera() const {
-    camera.transform = calculateTransform();
+    Camera posed = camera;
+    posed.transform = calculateTransform();
 
-    return camera;
+    return posed;
 }
 
 void CameraController::handleRotate(Vec2f offset_in_pixels, Vec2f sensitivity)

@@ -7,6 +7,9 @@
 #include "Buffers.hpp"
 #include "Utils.hpp"
 #include "device/Array.hpp"
+#include "device/Binning.hpp"
+#include "device/Buffer.hpp"
+#include "device/DeviceMemory.hpp"
 #include "device/Vector.hpp"
 
 #include <gtest/gtest.h>
@@ -14,6 +17,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -96,4 +100,46 @@ TEST(BuffersTest, TotalCastsDoesNotOverflowThirtyTwoBits)
     buffers.casts.hostPtr()[1] = nearly_full;
 
     EXPECT_EQ(buffers.totalCasts(), 2 * static_cast<uint64_t>(nearly_full));
+}
+
+TEST(DeviceConstAccessTest, ConstContainersExposeReadOnlyDevicePointersAndSpans)
+{
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceMemoryManager &>().getPtr<int>()), const int *>);
+    static_assert(std::is_same_v<decltype(std::declval<DeviceMemoryManager &>().getPtr<int>()), int *>);
+
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceArray<int> &>().devicePtr()), const int *>);
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceArray<int> &>().deviceSpan()), std::span<const int>>);
+    static_assert(std::is_same_v<decltype(std::declval<DeviceArray<int> &>().devicePtr()), int *>);
+    static_assert(std::is_same_v<decltype(std::declval<DeviceArray<int> &>().deviceSpan()), std::span<int>>);
+
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceBuffer<int> &>().devicePtr()), const int *>);
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceBuffer<int> &>().deviceSpan()), std::span<const int>>);
+    static_assert(std::is_same_v<decltype(std::declval<DeviceBuffer<int> &>().devicePtr()), int *>);
+
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceVector<int> &>().devicePtr()), const int *>);
+    static_assert(std::is_same_v<decltype(std::declval<const DeviceVector<int> &>().deviceSpan()), std::span<const int>>);
+    static_assert(std::is_same_v<decltype(std::declval<DeviceVector<int> &>().devicePtr()), int *>);
+}
+
+TEST(DeviceConstAccessTest, ConstAccessToUnallocatedDeviceMemoryIsNullAndNeedsNoCuda)
+{
+    const DeviceArray<int> array(4, 0);
+    const DeviceBuffer<int> buffer{};
+    const DeviceVector<int> vector{std::vector<int>{1, 2, 3}};
+
+    EXPECT_EQ(array.devicePtr(), nullptr);
+    EXPECT_EQ(array.deviceSpan().data(), nullptr);
+    EXPECT_EQ(array.deviceSpan().size(), 4u);
+
+    EXPECT_EQ(buffer.devicePtr(), nullptr);
+    EXPECT_TRUE(buffer.deviceSpan().empty());
+
+    EXPECT_EQ(vector.devicePtr(), nullptr);
+    EXPECT_EQ(vector.deviceSpan().size(), 3u);
+}
+
+TEST(DeviceConstAccessTest, BinningTakesItsFlagsThroughAConstPointer)
+{
+    static_assert(std::is_invocable_v<decltype(&DeviceBinning::execute), DeviceBinning &, const int *, int *>);
+    static_assert(std::is_invocable_v<decltype(&DeviceBinning::execute), DeviceBinning &, int *, int *>);
 }

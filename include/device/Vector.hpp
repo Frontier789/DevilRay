@@ -37,7 +37,9 @@ struct DeviceVector
     }
 
     T *devicePtr() { return m_device.getPtr<T>(); }
+    const T *devicePtr() const { return m_device.getPtr<T>(); }
     std::span<T> deviceSpan() { return std::span{devicePtr(), size()}; }
+    std::span<const T> deviceSpan() const { return std::span<const T>{devicePtr(), size()}; }
 
     T *hostPtr() { return m_host.data(); }
     const T *hostPtr() const { return m_host.data(); }
