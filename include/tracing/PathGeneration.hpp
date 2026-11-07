@@ -235,12 +235,19 @@ inline HD void shadeDiffuseMaterial(
     RenderBuffersView output
 )
 {
+    const auto diffuse_material = std::get_if<DiffuseMaterial>(&material);
+
+    if (light_table.empty())
+    {
+        // no NEE
+        output.colors[idx] += diffuse_material->emission * vertex.throughput[idx];
+        return;
+    }
+
     const auto &ray = wavefront.rays[idx];
     const auto prevPos = ray.p;
     const auto pos = ray.p + ray.v * vertex.t[idx];
     const auto n = surfaceNormal(object, ids.triangleID, ray.v, pos);
-
-    const auto diffuse_material = std::get_if<DiffuseMaterial>(&material);
 
     const auto nee_pdf = computeNeePdf(prevPos, pos, n, material, info);
     Vec4 color = misWeightedEmission(

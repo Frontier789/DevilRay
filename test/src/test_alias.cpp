@@ -7,8 +7,10 @@
 
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <limits>
 #include <ostream>
 #include <random>
 #include <ratio>
@@ -125,20 +127,52 @@ TEST(AliasTableGen, LargeVariance) {
     VerifyTableFidelity(input, table, 1e-3f);
 }
 
-TEST(AliasTableGen, ZeroImportanceSum_ReturnsUniform) {
-    // Input is all zeros
-    std::vector<float> input = {0.0f, 0.0f, 0.0f, 0.0f};
-    AliasTable table = generateAliasTable(input);
+TEST(AliasTableGen, ZeroImportanceSum_ReturnsEmptyTable) {
+    const AliasTable table = generateAliasTable(std::vector<float>{0.0f, 0.0f, 0.0f, 0.0f});
 
-    ASSERT_EQ(table.entries.size(), 4);
+    EXPECT_EQ(table.entries.size(), 0);
+    EXPECT_TRUE(table.hostView().empty());
+}
 
-    const auto* ptr = table.entries.hostPtr();
-    for(int i = 0; i < 4; ++i) {
-        // Uniform means every index maps to itself with probability 1.0
-        EXPECT_FLOAT_EQ(ptr[i].p_A, 1.0f) << "Index " << i << " should be pure A";
-        EXPECT_EQ(ptr[i].A, i) << "Index " << i << " should point to itself";
-        // B is irrelevant when p_A is 1.0, but usually -1
+TEST(AliasTableGen, AllNegativeImportances_ReturnsEmptyTable) {
+    const AliasTable table = generateAliasTable(std::vector<float>{-1.0f, -5.0f});
+
+    EXPECT_TRUE(table.hostView().empty());
+}
+
+TEST(AliasTableGen, OnlyNonFiniteImportances_ReturnsEmptyTable) {
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+
+    const AliasTable table = generateAliasTable(std::vector<float>{nan, inf, -inf});
+
+    EXPECT_TRUE(table.hostView().empty());
+}
+
+TEST(AliasTableGen, NonFiniteImportancesAreTreatedAsZero) {
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+
+    const AliasTable table = generateAliasTable(std::vector<float>{nan, inf, 4.0f, -inf});
+
+    VerifyTableFidelity({0.0f, 0.0f, 4.0f, 0.0f}, table);
+
+    const AliasTableView view = table.hostView();
+    test::DeterministicRng rng;
+    for (int i = 0; i < 200; ++i) {
+        const auto drawn = sample(view, rng);
+
+        EXPECT_EQ(drawn.index, 2);
+        EXPECT_FLOAT_EQ(drawn.pdf, 1.0f);
     }
+}
+
+TEST(AliasTableGen, TinyButPositiveTotalStillBuildsATable) {
+    const std::vector<float> input = {1e-30f, 3e-30f};
+
+    const AliasTable table = generateAliasTable(input);
+
+    VerifyTableFidelity(input, table);
 }
 
 TEST(AliasTableGen, NegativeImportanceIsTreatedAsZero) {
@@ -267,6 +301,76 @@ TEST(AliasTableViewTest, HostViewSamplesOnlyNonZeroImportances)
     }
 }
 
+TEST(AliasTableFactoryTest, EmptyTableHasNoEntries)
+{
+    const AliasTable table = AliasTable::make_empty();
+
+    EXPECT_EQ(table.entries.size(), 0);
+    EXPECT_TRUE(table.hostView().empty());
+}
+
+TEST(AliasTableFactoryTest, UniformTableGivesEveryIndexTheSameProbability)
+{
+    constexpr int count = 5;
+    const AliasTable table = AliasTable::make_uniform(count);
+
+    VerifyTableFidelity(std::vector<float>(count, 1.0f), table);
+
+    const AliasEntry *entries = table.entries.hostPtr();
+    for (int i = 0; i < count; ++i)
+    {
+        EXPECT_FLOAT_EQ(entries[i].p_A, 1.0f) << "entry " << i;
+        EXPECT_EQ(entries[i].A, i) << "entry " << i;
+        EXPECT_FLOAT_EQ(entries[i].pdf_A, 1.0f / count) << "entry " << i;
+    }
+}
+
+TEST(AliasTableFactoryTest, UniformTableSamplesEveryIndexWithTheUniformPdf)
+{
+    constexpr int count = 4;
+    const AliasTable table = AliasTable::make_uniform(count);
+    const AliasTableView view = table.hostView();
+
+    std::array<int, count> times_drawn{};
+
+    test::DeterministicRng rng;
+    for (int i = 0; i < 400; ++i)
+    {
+        const auto drawn = sample(view, rng);
+
+        ASSERT_GE(drawn.index, 0);
+        ASSERT_LT(drawn.index, count);
+        EXPECT_FLOAT_EQ(drawn.pdf, 1.0f / count);
+        ++times_drawn[drawn.index];
+    }
+
+    for (int index = 0; index < count; ++index)
+        EXPECT_GT(times_drawn[index], 0) << "index " << index << " was never drawn";
+}
+
+TEST(AliasTableFactoryTest, UniformTableOfOneEntryAlwaysDrawsIt)
+{
+    const AliasTable table = AliasTable::make_uniform(1);
+    const AliasTableView view = table.hostView();
+
+    ASSERT_EQ(view.entry_count, 1);
+
+    test::DeterministicRng rng;
+    for (int i = 0; i < 20; ++i)
+    {
+        const auto drawn = sample(view, rng);
+
+        EXPECT_EQ(drawn.index, 0);
+        EXPECT_FLOAT_EQ(drawn.pdf, 1.0f);
+    }
+}
+
+TEST(AliasTableFactoryTest, UniformTableWithoutEntriesIsEmpty)
+{
+    EXPECT_TRUE(AliasTable::make_uniform(0).hostView().empty());
+    EXPECT_TRUE(AliasTable::make_uniform(-3).hostView().empty());
+}
+
 TEST(AliasImageTableViewTest, HostViewPointsAtHostEntriesAndKeepsImageSize)
 {
     auto luminance = Image1f::create(Size2i{4, 3}, 1.0f);
@@ -321,10 +425,12 @@ namespace
             for (int x = 0; x < size.width; ++x)
                 total += weights[Vec2i{x, y}];
 
+        ASSERT_GT(total, 0.0) << "an image without any weight has no distribution to compare against";
+
         std::vector<double> expected(size.area());
         for (int y = 0; y < size.height; ++y)
             for (int x = 0; x < size.width; ++x)
-                expected[x + y * size.width] = total > 0.0 ? weights[Vec2i{x, y}] / total : 1.0 / size.area();
+                expected[x + y * size.width] = weights[Vec2i{x, y}] / total;
 
         struct Outcome
         {
@@ -413,11 +519,50 @@ TEST(AliasImageTableDistributionTest, SinglePixelImageIsDrawnWithProbabilityOne)
     }
 }
 
-TEST(AliasImageTableDistributionTest, AllZeroImageFallsBackToUniform)
+TEST(AliasImageTableDistributionTest, AllZeroImageGivesAnEmptyTable)
 {
     const auto weights = Image1f::create(Size2i{3, 2}, 0.0f);
 
-    VerifyImageTableMatchesWeights(weights);
+    EXPECT_TRUE(generateAliasTable(weights.hostView()).empty());
+}
+
+TEST(AliasImageTableDistributionTest, ImageWithoutAnyUsableWeightGivesAnEmptyTable)
+{
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+
+    auto weights = Image1f::create(Size2i{3, 2}, 0.0f);
+    weights[Vec2i{.x = 0, .y = 0}] = nan;
+    weights[Vec2i{.x = 1, .y = 0}] = inf;
+    weights[Vec2i{.x = 2, .y = 1}] = -4.0f;
+
+    EXPECT_TRUE(generateAliasTable(weights.hostView()).empty());
+}
+
+TEST(AliasImageTableDistributionTest, NegativeAndNonFinitePixelsAreNeverDrawn)
+{
+    constexpr float nan = std::numeric_limits<float>::quiet_NaN();
+    constexpr float inf = std::numeric_limits<float>::infinity();
+
+    auto weights = Image1f::create(Size2i{4, 3}, 1.0f);
+    weights[Vec2i{.x = 1, .y = 1}] = inf;
+    weights[Vec2i{.x = 2, .y = 0}] = nan;
+    weights[Vec2i{.x = 0, .y = 2}] = -3.0f;
+
+    const AliasImageTable table = generateAliasTable(weights.hostView());
+    ASSERT_FALSE(table.empty());
+
+    const AliasImageTableView view = table.hostView();
+    test::DeterministicRng rng;
+    for (int i = 0; i < 500; ++i)
+    {
+        const auto drawn = sample(view, rng);
+        const Vec2i pixel = drawn.pixel_coordinate;
+
+        EXPECT_GT(weights[pixel], 0.0f);
+        EXPECT_TRUE(std::isfinite(weights[pixel]));
+        EXPECT_NEAR(drawn.pdf, 1.0f / 9.0f, 1e-6f);
+    }
 }
 
 TEST(AliasImageTableDistributionTest, HandlesOneBrightPixelAmongVeryDimOnes)

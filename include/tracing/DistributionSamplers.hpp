@@ -57,6 +57,8 @@ struct AliasTableView
     const AliasEntry *entries;
 
     int entry_count;
+
+    HD bool empty() const { return entry_count <= 0; }
 };
 
 struct AliasTable
@@ -80,6 +82,15 @@ struct AliasTable
             .entry_count = static_cast<int>(entries.size()),
         };
     }
+
+    static AliasTable make_empty()
+    {
+        return AliasTable{
+            .entries = {}
+        };
+    }
+
+    static AliasTable make_uniform(int entry_count);
 };
 
 struct AliasSample
@@ -149,6 +160,17 @@ struct AliasImageTable
             .pixel_entries = pixel_entries.hostPtr(),
             .row_entries = row_entries.hostPtr(),
             .image_size = image_size,
+        };
+    }
+
+    HD bool empty() const { return pixel_entries.size() == 0; }
+
+    static AliasImageTable make_empty()
+    {
+        return AliasImageTable{
+            .pixel_entries = {},
+            .row_entries = {},
+            .image_size = Size2i{0,0},
         };
     }
 };

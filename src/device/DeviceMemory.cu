@@ -49,6 +49,8 @@ void DeviceMemoryManager::free()
 
 void DeviceMemoryManager::copyFromHost(const void *src, size_t bytes)
 {
+    if (bytes == 0) return;
+
     if (empty()) {
         throw std::runtime_error("Copying into an unallocated device buffer.");
     }

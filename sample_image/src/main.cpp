@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -25,6 +26,12 @@ namespace
 
         const auto table_time = t.elapsedSeconds();
         std::cout << "Built Alias Table in " << table_time*1000 << "ms" << std::endl;
+
+        if (alias_table.empty())
+        {
+            std::cerr << "Error: nothing to sample, every pixel of the image has zero luminance." << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
 
         const auto alias_table_view = alias_table.hostView();
 

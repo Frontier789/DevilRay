@@ -16,22 +16,6 @@ namespace
 {
     constexpr int UNINITIALIZED = -1;
 
-    void buildUniformAliasTable(AliasEntry *entries, int n)
-    {
-        const float uniformPdf = (n > 0) ? 1.0f / n : 0.0f;
-
-        for (int i=0; i<n; ++i)
-        {
-            entries[i] = AliasEntry{
-                .p_A = 1,
-                .pdf_A = uniformPdf,
-                .pdf_B = 0,
-                .A = i,
-                .B = UNINITIALIZED
-            };
-        }
-    }
-
     void ensurePALarger(AliasEntry &entry)
     {
         if (entry.p_A < 0.5f) {
@@ -41,21 +25,13 @@ namespace
         }
     }
 
-    void buildAliasTable(const float *importances, AliasEntry *entries, int n)
+    void buildAliasTable(const std::vector<float> &normalized_importances, AliasEntry *entries)
     {
-        std::vector<float> filteredImportances;
-        filteredImportances.reserve(n);
-        for (const auto &f : std::span{importances, static_cast<size_t>(n)}) {
-            filteredImportances.push_back(std::max(0.f, f));
-        }
-
-        const float totalImportance = std::accumulate(filteredImportances.begin(), filteredImportances.end(), 0.f);
-
-        if (n == 0) return;
-        if (totalImportance < 1e-5f) return buildUniformAliasTable(entries, n);
+        const auto n = static_cast<int>(normalized_importances.size());
+        const auto &importances = normalized_importances;
+        if (importances.empty()) return;
 
         auto entriesPtr = entries;
-        int tableIndex = 0;
 
         const auto overfullPrio  = [](const AliasEntry &a, const AliasEntry &b) {return a.p_A < b.p_A;};
         const auto underfullPrio = [](const AliasEntry &a, const AliasEntry &b) {return a.p_A < b.p_A;};
@@ -65,9 +41,9 @@ namespace
 
 
 
-        for (int i=0;i<n;++i)
+        for (int i=0;i<importances.size();++i)
         {
-            const float p = filteredImportances[i] / totalImportance;
+            const float p = importances[i];
 
             const auto e = AliasEntry{
                 .p_A = n*p,
@@ -135,7 +111,7 @@ namespace
 
         std::vector<float> pdfs(n);
         for (size_t i = 0; i < n; ++i)
-            pdfs[i] = filteredImportances[i] / totalImportance;
+            pdfs[i] = importances[i];
 
         for (size_t i = 0; i < n; ++i) {
             entries[i].pdf_A = pdfs[entries[i].A];
@@ -145,17 +121,79 @@ namespace
                 entries[i].pdf_B = 0.0f;
         }
     }
+
+    struct Importances
+    {
+        std::vector<float> values;
+        float total;
+    };
+
+    Importances normalizeImportances(std::span<const float> importances)
+    {
+        std::vector<float> filtered_importances;
+        filtered_importances.reserve(importances.size());
+        for (float f : importances) {
+            if (f < 0.f) f = 0.f;
+            if (std::isnan(f)) f = 0.f;
+            if (std::isinf(f)) f = 0.f;
+
+            filtered_importances.push_back(f);
+        }
+
+        const float total_importance = std::accumulate(filtered_importances.begin(), filtered_importances.end(), 0.f);
+
+        if (total_importance > 0.0f) {
+            for (float &f : filtered_importances) {
+                f /= total_importance;
+            }
+        }
+
+        return Importances{
+            .values = std::move(filtered_importances),
+            .total = total_importance
+        };
+    }
+}
+
+AliasTable AliasTable::make_uniform(int entry_count)
+{
+    if (entry_count <= 0) return make_empty();
+
+    auto table = AliasTable{
+        .entries = DeviceArray<AliasEntry>(entry_count, AliasEntry{}),
+    };
+
+    const float uniform_pdf = 1.0f / entry_count;
+    AliasEntry *entries = table.entries.hostPtr();
+
+    for (int i = 0; i < entry_count; ++i)
+    {
+        entries[i] = AliasEntry{
+            .p_A = 1,
+            .pdf_A = uniform_pdf,
+            .pdf_B = 0,
+            .A = i,
+            .B = UNINITIALIZED,
+        };
+    }
+
+    return table;
 }
 
 AliasTable generateAliasTable(std::span<const float> importances)
 {
     const auto n = importances.size();
 
+    const auto normalized_importances = normalizeImportances(importances);
+    if (normalized_importances.total <= 0.0f) {
+        return AliasTable::make_empty();
+    }
+
     auto table = AliasTable{
         .entries = DeviceArray<AliasEntry>(n, AliasEntry{}),
     };
 
-    buildAliasTable(importances.data(), table.entries.hostPtr(), n);
+    buildAliasTable(normalized_importances.values, table.entries.hostPtr());
 
     return table;
 }
@@ -174,14 +212,28 @@ AliasImageTable generateAliasTable(const ImageView<const float> &image)
 
     parallel_for(s.height, [&](int i)
     {
-        const auto w = s.width;
-        buildAliasTable(image.pixels + w*i, table.pixel_entries.hostPtr() + w*i, w);
+        const auto w = static_cast<size_t>(s.width);
+        const auto importances = std::span{image.pixels + w*i, w};
 
-        row_sums[i] = std::accumulate(image.pixels + w*i, image.pixels + w*(i+1), 0.0f);
+        const auto normalized_importances = normalizeImportances(importances);
+        if (normalized_importances.total <= 0.0f) {
+            row_sums[i] = 0.0f;
+            return;
+        }
+
+        buildAliasTable(normalized_importances.values, table.pixel_entries.hostPtr() + w*i);
+        row_sums[i] = normalized_importances.total;
     });
 
     const auto h = s.height;
-    buildAliasTable(row_sums.data(), table.row_entries.hostPtr(), h);
+    const auto importances = std::span{row_sums};
+
+    const auto normalized_importances = normalizeImportances(importances);
+    if (normalized_importances.total <= 0.0f) {
+        return AliasImageTable::make_empty();
+    }
+
+    buildAliasTable(normalized_importances.values, table.row_entries.hostPtr());
 
     return table;
 }
